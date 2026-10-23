@@ -127,6 +127,10 @@ def summary_macros(prefix, summ):
                       ("FullConst", "full_vs_const_by_budget")):
         for b in BUDGETS:
             paired_macros(prefix + "Pair" + code + "B" + BUDGET_WORDS[b], get(summ, "paired", key, b), 3)
+    # first positive budget at which the empirical mean beats the constant 0.5
+    emp = get(summ, "methods", "empirical_mean", "brier_by_budget") or {}
+    first = next((b for b in BUDGETS[1:] if emp.get(b) is not None and float(emp[b]) < 0.25), None)
+    mac(prefix + "EmpOvertake", MISSING if first is None else first)
     # headroom decomposition: rate estimation (shrink - rate oracle) and item-level (rate oracle - true-p oracle)
     def diff(a, b, nd=4):
         return MISSING if a is None or b is None else f"{float(a) - float(b):.{nd}f}"
@@ -396,14 +400,231 @@ def model_constant_macros():
               "CHarness": model.PRIOR_HARNESS, "CTierHard": model.PRIOR_TIER_HARD, "CTierEasy": model.PRIOR_TIER_EASY,
               "CTierNum": model.PRIOR_TIER_NUM, "CPoints": model.PRIOR_POINTS, "CLength": model.PRIOR_LENGTH,
               "CBigramWeight": model.TFIDF_BIGRAM_WEIGHT, "CDedupSim": labeling.DEDUP_SIM, "CUncSkip": labeling.UNC_SKIP,
-              "CUncMinN": labeling.UNC_MIN_N}
+              "CUncMinN": labeling.UNC_MIN_N, "CIntercept": model.PRIOR_INTERCEPT}
     for name, v in consts.items():
         mac(name, num(v))
+    mac("CNProvider", fmt_int(len(model.PRIOR_PROVIDER)))
+    mac("CNSubjectTerms", fmt_int(len(model.SUBJECT_TERM_NAMES)))
+    mac("CNItemTerms", fmt_int(len(model.ITEM_TERM_NAMES)))
     mac("CKappas", ", ".join(num(k) for k in model.KNN_KAPPAS))
     mac("CRestrictOov", "yes" if model.TFIDF_RESTRICT_OOV else "no")
     mac("CPolicy", labeling.POLICY.replace("_", "\\_"))
     mac("CPriorPLo", f"{1 / (1 + 2.718281828 ** model.PRIOR_LOGIT_CAP):.2f}")
     mac("CPriorPHi", f"{1 / (1 + 2.718281828 ** -model.PRIOR_LOGIT_CAP):.2f}")
+
+
+def listing_macros(lst):
+    """Public file listing of the gated training release (measurement_db_listing.json)."""
+    mac("MdbNDirs", fmt_int(get(lst, "n_benchmark_dirs")))
+    mac("MdbRevisionShort", (get(lst, "revision") or "??????????")[:10] if lst else MISSING)
+    mac("MdbGated", str(get(lst, "gated")) if lst else MISSING)
+    for t, code in (("items", "Items"), ("responses", "Resp"), ("traces", "Traces"), ("assets", "Assets")):
+        mac("Mdb" + code + "Gb", fmt(get(lst, "table_gb", t), 1))
+    mac("MdbCoreGb", fmt(get(lst, "core_tables_gb"), 1))
+    mac("MdbCoreNoItemsGb", fmt(get(lst, "core_tables_without_items_gb"), 1))
+    mac("MdbNTraces", fmt_int(get(lst, "table_file_counts", "traces")))
+
+
+def dry_run_macros(dry):
+    """Synthetic dry run of the fitting pipeline (prior_fit_dry_run.json)."""
+    mac("DryNBench", fmt_int(get(dry, "n_benchmarks")))
+    mac("DryNPairs", fmt_int(get(dry, "n_pairs")))
+    mac("DryNRows", fmt_int(get(dry, "n_rows")))
+    rec = get(dry, "dry_run_recovery")
+    mac("DryMaxAbsErr", fmt(get(rec, "max_abs_error_slopes"), 2))
+    mac("DryMeanAbsErr", fmt(get(rec, "mean_abs_error_slopes"), 2))
+    mac("DrySignAgree", fmt_int(get(rec, "sign_agreement_slopes")))
+    mac("DryNSlopes", fmt_int(get(rec, "n_slopes")))
+    mac("DryBenchSd", fmt(get(dry, "benchmark_effect_sd"), 2))
+    sel = get(dry, "cv", "selected")
+    mac("DrySelC", MISSING if get(sel, "C") is None else f"{float(sel['C']):g}")
+    mac("DrySelAlpha", MISSING if get(sel, "alpha0") is None else f"{float(sel['alpha0']):g}")
+    key = None if sel is None else f"fit_C{float(sel['C']):g}_cap{float(sel['cap']):g}_alpha{float(sel['alpha0']):g}"
+    paired_macros("DryPairBZero", get(dry, "cv", key, "paired_b0_fit_minus_hand") if key else None)
+    paired_macros("DryPairAlc", get(dry, "cv", key, "paired_alc_fit_minus_hand") if key else None)
+
+
+def fit_macros(fit, tb):
+    """Fit on the real release, if it was run (prior_fit.json / prior_fit_testbeds.json)."""
+    mac("FitRan", "yes" if fit and get(fit, "fitted") else "no")
+    mac("FitNBench", fmt_int(get(fit, "n_benchmarks")))
+    mac("FitNPairs", fmt_int(get(fit, "n_pairs")))
+    mac("FitNRows", fmt_int(get(fit, "n_rows")))
+    sel = get(fit, "cv", "selected")
+    key = None if sel is None else f"fit_C{float(sel['C']):g}_cap{float(sel['cap']):g}_alpha{float(sel['alpha0']):g}"
+    paired_macros("FitPairBZero", get(fit, "cv", key, "paired_b0_fit_minus_hand") if key else None)
+    paired_macros("FitPairAlc", get(fit, "cv", key, "paired_alc_fit_minus_hand") if key else None)
+    for m, code in (("full", "Full"), ("shrink", "Shrink"), ("prior", "Prior")):
+        paired_macros("FitRealPair" + code, get(tb, "testbeds", "real", m, "paired_fit_minus_hand"))
+        paired_macros("FitSynPair" + code, get(tb, "testbeds", "synthetic", m, "paired_fit_minus_hand"))
+        mac("FitReal" + code + "Alc", fmt(get(tb, "testbeds", "real", m, "fitted", "mean")))
+        mac("FitSyn" + code + "Alc", fmt(get(tb, "testbeds", "synthetic", m, "fitted", "mean")))
+    ship = get(tb, "ship_rule", "ship")
+    mac("FitShip", MISSING if ship is None else ("shipped" if ship else "not shipped"))
+    # the training release evaluated with the closed-form protocol (hand-set prior, references)
+    hand4 = get(fit, "cv", "hand_alpha4")
+    mac("FitRelNPairsAlc", fmt_int(get(hand4, "n_pairs_alc")))
+    mac("FitRelNPairsBZero", fmt_int(get(hand4, "n_pairs_b0")))
+    mac("FitRelHandBZero", fmt(get(hand4, "b0", "mean")))
+    mac("FitRelHandAlc", fmt(get(hand4, "alc", "mean")))
+    mac("FitRelHandAlcLo", fmt(get(hand4, "alc", "ci_lo")))
+    mac("FitRelHandAlcHi", fmt(get(hand4, "alc", "ci_hi")))
+    mac("FitRelConstAlc", fmt(get(hand4, "alc_const", "mean")))
+    mac("FitRelEmpAlc", fmt(get(hand4, "alc_emp", "mean")))
+    mac("FitRelEmpAlcLo", fmt(get(hand4, "alc_emp", "ci_lo")))
+    mac("FitRelEmpAlcHi", fmt(get(hand4, "alc_emp", "ci_hi")))
+    mac("FitRelPriorOnlyAlc", fmt(get(hand4, "alc_prior_only", "mean")))
+    for a, word in (("2", "Two"), ("4", "Four"), ("8", "Eight")):
+        mac("FitRelHandAlpha" + word + "Alc", fmt(get(fit, "cv", f"hand_alpha{a}", "alc", "mean")))
+    mac("FitRelIntOnlyBZero", fmt(get(fit, "cv", "intercept_only_alpha4", "b0", "mean")))
+    mac("FitRelIntOnlyAlc", fmt(get(fit, "cv", "intercept_only_alpha4", "alc", "mean")))
+    sel = get(fit, "cv", "selected")
+    mac("FitSelC", MISSING if get(sel, "C") is None else f"{float(sel['C']):g}")
+    mac("FitSelCap", MISSING if get(sel, "cap") is None else f"{float(sel['cap']):g}")
+    mac("FitSelAlpha", MISSING if get(sel, "alpha0") is None else f"{float(sel['alpha0']):g}")
+    mac("FitSelBZero", fmt(get(sel, "cv_b0")))
+    mac("FitSelAlc", fmt(get(sel, "cv_alc")))
+    # the least-regularised fitted prior in the grid, for the trend statement
+    cs = sorted({float(k.split("_")[1][1:]) for k in (get(fit, "cv") or {}) if k.startswith("fit_C")})
+    if cs:
+        kmin, kmax = f"fit_C{cs[0]:g}_cap1.5_alpha4", f"fit_C{cs[-1]:g}_cap1.5_alpha4"
+        mac("FitCMin", f"{cs[0]:g}")
+        mac("FitCMax", f"{cs[-1]:g}")
+        mac("FitCMinBZero", fmt(get(fit, "cv", kmin, "b0", "mean")))
+        mac("FitCMaxBZero", fmt(get(fit, "cv", kmax, "b0", "mean")))
+        mac("FitCMinAlc", fmt(get(fit, "cv", kmin, "alc", "mean")))
+        mac("FitCMaxAlc", fmt(get(fit, "cv", kmax, "alc", "mean")))
+    else:
+        for n in ("FitCMin", "FitCMax", "FitCMinBZero", "FitCMaxBZero", "FitCMinAlc", "FitCMaxAlc"):
+            mac(n, MISSING)
+    diag = get(fit, "diagnostics")
+    mac("FitRateMean", fmt(get(diag, "pair_rate_mean"), 3))
+    mac("FitRateSd", fmt(get(diag, "pair_rate_sd"), 3))
+    mac("FitHandPMean", fmt(get(diag, "hand_p0_mean"), 3))
+    mac("FitHandPSd", fmt(get(diag, "hand_p0_sd"), 3))
+    mac("FitBenchRateSd", fmt(get(diag, "benchmark_rate_sd"), 3))
+    mac("FitBenchEffectSd", fmt(get(fit, "benchmark_effect_sd"), 2))
+    mac("FitNProviders", fmt_int(len(get(fit, "providers") or [])) if fit else MISSING)
+    mac("FitRevisionShort", (get(fit, "revision") or "??????????")[:10] if fit else MISSING)
+    mac("FitNEligible", fmt_int(get(fit, "n_eligible_dirs")))
+    mac("FitMaxItemsPerPair", fmt_int(get(fit, "max_items_per_pair")))
+    codes = {"PRIOR_YEAR_SLOPE": "Year", "PRIOR_EFFORT_LOW": "EffortLow", "PRIOR_EFFORT_MID": "EffortMid", "PRIOR_EFFORT_HIGH": "EffortHigh",
+             "PRIOR_SIZE_SLOPE": "Size", "PRIOR_SMALL_NAME": "SmallName", "PRIOR_LARGE_NAME": "LargeName", "PRIOR_HARNESS": "Harness",
+             "PRIOR_TIER_HARD": "TierHard", "PRIOR_TIER_EASY": "TierEasy", "PRIOR_TIER_NUM": "TierNum", "PRIOR_POINTS": "Points",
+             "PRIOR_LENGTH": "Length", "PRIOR_INTERCEPT": "Intercept"}
+    for name, code in codes.items():
+        mac("FitCoef" + code, fmt(get(fit, "fitted", name), 2, sign=True))
+        # effective hand-set value (subject terms carry the SUBJECT_SHRINK multiplier)
+        hv = get(fit, "hand_set", name)
+        if hv is not None and name in ("PRIOR_YEAR_SLOPE", "PRIOR_EFFORT_LOW", "PRIOR_EFFORT_MID", "PRIOR_EFFORT_HIGH", "PRIOR_SIZE_SLOPE",
+                                       "PRIOR_SMALL_NAME", "PRIOR_LARGE_NAME", "PRIOR_HARNESS"):
+            hv = float(hv) * float(get(fit, "hand_set", "SUBJECT_SHRINK") or 1.0)
+        mac("HandEffCoef" + code, fmt(hv, 2, sign=True))
+    prov = get(fit, "fitted", "PRIOR_PROVIDER") or {}
+    if prov:
+        hi = max(prov, key=prov.get)
+        lo = min(prov, key=prov.get)
+        mac("FitProvMaxName", hi.replace("_", "\\_"))
+        mac("FitProvMax", fmt(prov[hi], 2, sign=True))
+        mac("FitProvMinName", lo.replace("_", "\\_"))
+        mac("FitProvMin", fmt(prov[lo], 2, sign=True))
+    else:
+        for n in ("FitProvMaxName", "FitProvMax", "FitProvMinName", "FitProvMin"):
+            mac(n, MISSING)
+    counts = get(fit, "provider_pair_counts") or {}
+    mac("FitFracPairsNoProvider", MISSING if not counts or not get(fit, "n_pairs") else f"{100 * counts.get('', 0) / fit['n_pairs']:.0f}\\%")
+
+
+def sensitivity_macros(sens):
+    """Frontier-like subjects, analytic miscalibration cost and the offset sweep (prior_sensitivity.json)."""
+    grid = get(sens, "frontier_grid") or []
+    years = ("2023-06-15", "2024-06-15", "2025-06-15", "2026-06-15")
+    efforts = ("", "low", "medium", "high")
+    rows = []
+    for y in years:
+        cells = []
+        for e in efforts:
+            r = [g for g in grid if g["release_date"] == y and g["reasoning_effort"] == e and g["name_cue"] == "none" and g["harness"] == "default"]
+            cells.append(fmt(r[0]["p0"], 2) if r else MISSING)
+        for cue in ("mini", "70b", "400b"):
+            r = [g for g in grid if g["release_date"] == y and g["reasoning_effort"] == "high" and g["name_cue"] == cue and g["harness"] == "agent-scaffold"]
+            cells.append(fmt(r[0]["p0"], 2) if r else MISSING)
+        rows.append(f"{y[:4]} & " + " & ".join(cells) + " \\\\")
+    if not rows:
+        rows = [" & ".join([MISSING] * 8) + " \\\\"]
+    (PAPER / "results_table_frontier.tex").write_text("\n".join(rows) + "\n", encoding="utf-8")
+    p0s = [g["p0"] for g in grid]
+    mac("SensPMin", fmt(min(p0s), 2) if p0s else MISSING)
+    mac("SensPMax", fmt(max(p0s), 2) if p0s else MISSING)
+    mac("SensNGrid", fmt_int(len(grid)) if grid else MISSING)
+    hard = [g for g in grid if g["release_date"] == "2026-06-15" and g["reasoning_effort"] == "high" and g["name_cue"] == "400b" and g["harness"] == "agent-scaffold"]
+    mac("SensPMaxTierHard", fmt(hard[0]["p0_tier_hard"], 2) if hard else MISSING)
+    for key, code in (("sample_gpt4o", "SampleGptFourO"), ("smoke_2026_medium", "SmokeSubject"), ("testbed_qwen_1_5b", "TestbedQwenSmall"),
+                      ("testbed_llama_3b", "TestbedLlama")):
+        mac("SensP" + code, fmt(get(sens, "named_subjects", key, "p0"), 2))
+    # miscalibration table: rows r, columns p0 (ALC excess over the oracle; dagger when the constant 0.5 is better)
+    mis = get(sens, "miscalibration")
+    cells = {(c["r"], c["p0"]): c for c in (get(mis, "cells") or [])}
+    rates = get(mis, "rates") or []
+    priors = get(mis, "priors") or []
+    rows = []
+    for r in rates:
+        if r in (0.1, 0.9):
+            continue
+        vals = []
+        for p in priors:
+            c = cells.get((r, p))
+            if c is None:
+                vals.append(MISSING)
+            else:
+                vals.append(fmt(c["alc_excess"], 3) + ("" if c["beats_const"] else "$^{\\dagger}$"))
+        rows.append(f"{r:.1f} & " + " & ".join(vals) + f" & {fmt((0.5 - r) ** 2, 3)} \\\\")
+    if not rows:
+        rows = [" & ".join([MISSING] * 8) + " \\\\"]
+    (PAPER / "results_table_miscal.tex").write_text("\n".join(rows) + "\n", encoding="utf-8")
+    mac("MiscalAlpha", fmt(get(mis, "alpha0"), 0))
+    words = {0.2: "Two", 0.3: "Three", 0.4: "Four", 0.5: "Five", 0.6: "Six", 0.7: "Seven", 0.8: "Eight"}
+    for (r, p), code in (((0.3, 0.7), "RThreePSeven"), ((0.5, 0.7), "RFivePSeven"), ((0.7, 0.7), "RSevenPSeven"), ((0.3, 0.5), "RThreePFive"),
+                         ((0.5, 0.5), "RFivePFive"), ((0.3, 0.3), "RThreePThree"), ((0.5, 0.6), "RFivePSix"), ((0.3, 0.6), "RThreePSix")):
+        c = cells.get((r, p))
+        mac("Miscal" + code, fmt(get(c, "alc_excess"), 3))
+        mac("Miscal" + code + "BZero", fmt(get(c, "excess_by_budget", "0"), 3))
+        mac("Miscal" + code + "BSeven", fmt(get(c, "excess_by_budget", "7"), 3))
+    mac("MiscalConstRThree", fmt(get(cells.get((0.3, 0.5)), "alc_const"), 3) if cells else MISSING)
+    mac("MiscalConstRThreeExcess", fmt((0.5 - 0.3) ** 2, 3))
+    # offset sweep
+    offs = (("-1.0", "MinusOne"), ("-0.5", "MinusHalf"), ("+0.0", "Zero"), ("+0.5", "PlusHalf"), ("+1.0", "PlusOne"))
+    rows = []
+    for off, word in offs:
+        cells_ = []
+        for name, prefix in (("real", "R"), ("synthetic", "S")):
+            rec = get(sens, "offset_sweep", name, "offsets", off)
+            for m, mcode in (("prior", "Prior"), ("shrink", "Shrink"), ("full", "Full")):
+                mac(prefix + "Off" + word + mcode + "Alc", fmt(get(rec, m, "alc", "mean")))
+                paired_macros(prefix + "Off" + word + mcode + "VsZero", get(rec, "paired_vs_zero", m))
+                cells_.append(fmt(get(rec, m, "alc", "mean")))
+            mac(prefix + "Off" + word + "FullBZero", fmt(get(rec, "full", "brier_by_budget", "0"), 3))
+            mac(prefix + "Off" + word + "FullBOne", fmt(get(rec, "full", "brier_by_budget", "1"), 3))
+        rows.append(f"${off.replace('+', '+')}$ & " + " & ".join(cells_) + " \\\\")
+    (PAPER / "results_table_offset.tex").write_text("\n".join(rows) + "\n", encoding="utf-8")
+    for name, prefix in (("real", "R"), ("synthetic", "S")):
+        mac(prefix + "OffFullRange", fmt(get(sens, "offset_sweep", name, "full_alc_range")))
+        best = get(sens, "offset_sweep", name, "best_offset_full")
+        mac(prefix + "OffBest", MISSING if best is None else f"${best}$")
+
+
+def novelty_macros(nov):
+    """Where the shipped novelty filter fires (novelty_filter_stats.json)."""
+    for name, prefix in (("real", "R"), ("synthetic", "S")):
+        rec = get(nov, name)
+        mac(prefix + "NovPairsFired", fmt_int(get(rec, "n_pairs_fired")))
+        mac(prefix + "NovNPairs", fmt_int(get(rec, "n_pairs")))
+        mac(prefix + "NovSkipped", fmt_int(get(rec, "total_skipped")))
+        mac(prefix + "NovMaxSkipped", fmt_int(get(rec, "max_skipped_per_pair")))
+        mac(prefix + "NovMaxSim", fmt(get(rec, "max_sim_skipped"), 2))
+        benches = get(rec, "benches_fired")
+        names = {"gsm8k": "GSM8K", "svamp": "SVAMP", "bbh_mix": "BBH"}
+        mac(prefix + "NovBenches", MISSING if benches is None else (", ".join(names.get(b, b.replace("_", "\\_")) for b in benches) or "none"))
 
 
 def loo_usage_macros(prefix, summ):
@@ -434,6 +655,11 @@ def main() -> None:
     grid_macros(load("knn_hparam_grid_synthetic.json"))
     testbed_macros(load("real_testbed_pairs.json"))
     smoke_macros(load("smoke_test.json"))
+    listing_macros(load("measurement_db_listing.json"))
+    dry_run_macros(load("prior_fit_dry_run.json"))
+    fit_macros(load("prior_fit.json"), load("prior_fit_testbeds.json"))
+    sensitivity_macros(load("prior_sensitivity.json"))
+    novelty_macros(load("novelty_filter_stats.json"))
     model_constant_macros()
     vpath = RESULTS / "validator_output.txt"
     zip_macros(load("submission_zip_info.json"), vpath.read_text(encoding="utf-8") if vpath.exists() else None)

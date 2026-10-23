@@ -116,3 +116,33 @@ ollama host 127.0.0.1:11434
 [qwen2.5:7b-instruct | svamp] 121 done, 79 to do
 generator exit 127 Wed Oct 21 19:35:42 PDT 2026
 --- stopped by builder at 2026-10-21 19:35 : Ollama contended by other local jobs (~2 min/item); 7B svamp kept partial (first 125 items), 7B gsm8k/bbh skipped
+--- resumed by iteration 2026-10-22 (PAIEC_NUM_THREAD=2; qwen2.5:7b-instruct on svamp,gsm8k,bbh_mix) Thu Oct 22 22:39:58 PDT 2026
+ollama host 127.0.0.1:11434
+[qwen2.5:7b-instruct | svamp] 126 done, 74 to do
+  25/74 acc_so_far=0.720 3.8s/item
+  50/74 acc_so_far=0.680 3.8s/item
+  74/74 acc_so_far=0.649 4.2s/item
+[qwen2.5:7b-instruct | gsm8k] 0 done, 200 to do
+  25/200 acc_so_far=0.160 5.8s/item
+  50/200 acc_so_far=0.240 5.8s/item
+  75/200 acc_so_far=0.213 5.9s/item
+  100/200 acc_so_far=0.230 5.9s/item
+  125/200 acc_so_far=0.232 6.0s/item
+  150/200 acc_so_far=0.247 6.0s/item
+  175/200 acc_so_far=0.229 5.9s/item
+  200/200 acc_so_far=0.235 5.9s/item
+[qwen2.5:7b-instruct | bbh_mix] 0 done, 300 to do
+  25/300 acc_so_far=0.680 1.6s/item
+  50/300 acc_so_far=0.560 6.0s/item
+  75/300 acc_so_far=0.560 7.7s/item
+  100/300 acc_so_far=0.520 7.2s/item
+  125/300 acc_so_far=0.528 6.7s/item
+  150/300 acc_so_far=0.520 7.4s/item
+  175/300 acc_so_far=0.497 6.7s/item
+  200/300 acc_so_far=0.530 6.4s/item
+  225/300 acc_so_far=0.511 6.0s/item
+  250/300 acc_so_far=0.516 6.2s/item
+  275/300 acc_so_far=0.527 6.9s/item
+  300/300 acc_so_far=0.510 6.7s/item
+done
+generator exit 0 Thu Oct 22 23:38:07 PDT 2026

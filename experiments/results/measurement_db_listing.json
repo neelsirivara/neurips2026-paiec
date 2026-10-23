@@ -1,0 +1,2059 @@
+{
+ "repo": "aims-foundations/measurement-db",
+ "revision": "54074453da7b9911be0f48e4c560be547bc84d21",
+ "gated": "auto",
+ "listed_on": "2026-10-22",
+ "listing_method": "huggingface_hub.HfApi.list_repo_tree without credentials (file names and sizes are public; downloads are gated)",
+ "n_benchmark_dirs": 281,
+ "table_file_counts": {
+  "benchmarks": 281,
+  "subjects": 281,
+  "items": 281,
+  "responses": 281,
+  "traces": 278,
+  "assets": 66
+ },
+ "table_gb": {
+  "benchmarks": 0.005,
+  "subjects": 0.003,
+  "items": 12.071,
+  "responses": 2.709,
+  "traces": 107.776,
+  "assets": 154.748
+ },
+ "core_tables_gb": 14.788,
+ "core_tables_without_items_gb": 2.717,
+ "note": "Eligibility (response_type == binary and granularity == item) is stored inside each benchmarks.parquet and needs a login to read; the fit script resolves it before downloading anything else.",
+ "per_dir_bytes": {
+  "abstract_reason": {
+   "benchmarks": 17092,
+   "items": 10549040,
+   "responses": 346118,
+   "subjects": 6495,
+   "traces": 860491
+  },
+  "adaptivestep": {
+   "benchmarks": 17623,
+   "items": 1576068,
+   "responses": 18906610,
+   "subjects": 6565,
+   "traces": 473916054
+  },
+  "advprompter": {
+   "benchmarks": 17275,
+   "items": 29301,
+   "responses": 8478,
+   "subjects": 6622,
+   "traces": 82794
+  },
+  "aegis": {
+   "benchmarks": 18113,
+   "items": 1381796,
+   "responses": 439109,
+   "subjects": 7636,
+   "traces": 5828335
+  },
+  "afrieval": {
+   "benchmarks": 17608,
+   "items": 7142460,
+   "responses": 32763498,
+   "subjects": 43949,
+   "traces": 266517278
+  },
+  "afrimedqa": {
+   "benchmarks": 16603,
+   "items": 19710846,
+   "responses": 10809179,
+   "subjects": 8931,
+   "traces": 257905227
+  },
+  "agc_bench": {
+   "assets": 83964232,
+   "benchmarks": 16046,
+   "items": 10609647,
+   "responses": 11201916,
+   "subjects": 12630,
+   "traces": 538760273
+  },
+  "agentdojo": {
+   "benchmarks": 16071,
+   "items": 116286,
+   "responses": 1437613,
+   "subjects": 8724,
+   "traces": 111475469
+  },
+  "agentic_review_perturbation": {
+   "benchmarks": 17334,
+   "items": 407068,
+   "responses": 13673,
+   "subjects": 6849
+  },
+  "agi_elo": {
+   "benchmarks": 16625,
+   "items": 4329974,
+   "responses": 10391446,
+   "subjects": 7996,
+   "traces": 25421657
+  },
+  "ai2d_test": {
+   "assets": 45514552,
+   "benchmarks": 17367,
+   "items": 572124,
+   "responses": 19856672,
+   "subjects": 21544,
+   "traces": 129884768
+  },
+  "aider": {
+   "benchmarks": 18138,
+   "items": 143161,
+   "responses": 106716,
+   "subjects": 9756,
+   "traces": 141009127
+  },
+  "algotune": {
+   "benchmarks": 17522,
+   "items": 508732,
+   "responses": 60286,
+   "subjects": 7988,
+   "traces": 143044080
+  },
+  "alignment_faking": {
+   "benchmarks": 17775,
+   "items": 2821008,
+   "responses": 42954219,
+   "subjects": 148183,
+   "traces": 18505107601
+  },
+  "alpacaeval": {
+   "benchmarks": 16969,
+   "items": 1169287,
+   "responses": 4825110,
+   "subjects": 18199,
+   "traces": 407149857
+  },
+  "alpha_sql": {
+   "assets": 539070781,
+   "benchmarks": 17205,
+   "items": 927621,
+   "responses": 62474,
+   "subjects": 7458,
+   "traces": 469425
+  },
+  "annotating_errors_wcf": {
+   "benchmarks": 16358,
+   "items": 17366931,
+   "responses": 583433,
+   "subjects": 7435,
+   "traces": 28704794
+  },
+  "appworld": {
+   "benchmarks": 17262,
+   "items": 253157,
+   "responses": 229064,
+   "subjects": 7506,
+   "traces": 246232578
+  },
+  "arcagi": {
+   "benchmarks": 16809,
+   "items": 691761,
+   "responses": 716709,
+   "subjects": 12973,
+   "traces": 249110543
+  },
+  "atmossci_bench": {
+   "benchmarks": 16842,
+   "items": 513912,
+   "responses": 842263,
+   "subjects": 12388,
+   "traces": 161294531
+  },
+  "auditing_sabotage_bench": {
+   "assets": 1011493523,
+   "benchmarks": 17268,
+   "items": 1128733,
+   "responses": 42946,
+   "subjects": 8905,
+   "traces": 3232489
+  },
+  "autoresearchbench": {
+   "benchmarks": 16493,
+   "items": 104102,
+   "responses": 8811,
+   "subjects": 7520,
+   "traces": 4546946
+  },
+  "averimatec": {
+   "assets": 13085147,
+   "benchmarks": 17410,
+   "items": 57957,
+   "responses": 11136,
+   "subjects": 7456,
+   "traces": 10878875
+  },
+  "babilong": {
+   "assets": 2910142091,
+   "benchmarks": 17101,
+   "items": 45079999,
+   "responses": 75589828,
+   "subjects": 14429,
+   "traces": 360359591
+  },
+  "bbq": {
+   "benchmarks": 16461,
+   "items": 28377321,
+   "responses": 14243974,
+   "subjects": 7161,
+   "traces": 121446662
+  },
+  "beavertails": {
+   "benchmarks": 16896,
+   "items": 37975,
+   "responses": 45008,
+   "subjects": 6977,
+   "traces": 654706
+  },
+  "bedd_basalt": {
+   "benchmarks": 16020,
+   "items": 3572522,
+   "responses": 2753773,
+   "subjects": 7169,
+   "traces": 18055829
+  },
+  "benger": {
+   "benchmarks": 17338,
+   "items": 4376647,
+   "responses": 208497,
+   "subjects": 9088,
+   "traces": 663305633
+  },
+  "bertaqa": {
+   "benchmarks": 16888,
+   "items": 25596401,
+   "responses": 2143408,
+   "subjects": 7282,
+   "traces": 37666204
+  },
+  "bigfinancebench": {
+   "benchmarks": 16673,
+   "items": 147060,
+   "responses": 205191,
+   "subjects": 7976,
+   "traces": 477272490
+  },
+  "biggen": {
+   "benchmarks": 18338,
+   "items": 5043597,
+   "responses": 20617172,
+   "subjects": 11882,
+   "traces": 793415061
+  },
+  "bird_sql": {
+   "benchmarks": 17107,
+   "items": 318389,
+   "responses": 857770,
+   "subjects": 13394,
+   "traces": 38125856
+  },
+  "brace": {
+   "assets": 3765783271,
+   "benchmarks": 17693,
+   "items": 1771588,
+   "responses": 5785374,
+   "subjects": 7527,
+   "traces": 69033763
+  },
+  "braveguard": {
+   "benchmarks": 16968,
+   "items": 2454942,
+   "responses": 25755,
+   "subjects": 11066,
+   "traces": 4349544
+  },
+  "bridging_gap": {
+   "benchmarks": 18023,
+   "items": 39912899,
+   "responses": 165534304,
+   "subjects": 30341,
+   "traces": 527460082
+  },
+  "care_enzymes": {
+   "benchmarks": 15999,
+   "items": 980085,
+   "responses": 424026,
+   "subjects": 8404,
+   "traces": 277754181
+  },
+  "causal_axioms": {
+   "benchmarks": 17319,
+   "items": 391141,
+   "responses": 265395,
+   "subjects": 6747,
+   "traces": 266697
+  },
+  "cellverse": {
+   "benchmarks": 16547,
+   "items": 924840,
+   "responses": 33360,
+   "subjects": 6536,
+   "traces": 250169
+  },
+  "ceobench": {
+   "benchmarks": 16056,
+   "items": 29653,
+   "responses": 9377,
+   "subjects": 8179,
+   "traces": 98990222
+  },
+  "ceval": {
+   "benchmarks": 17331,
+   "items": 2844461,
+   "responses": 351210,
+   "subjects": 7290,
+   "traces": 4452699
+  },
+  "chartmuseum": {
+   "assets": 54454405,
+   "benchmarks": 17023,
+   "items": 78772,
+   "responses": 11489,
+   "subjects": 6706,
+   "traces": 166848
+  },
+  "chatgpt_drift": {
+   "benchmarks": 15858,
+   "items": 2111923,
+   "responses": 1446721,
+   "subjects": 7372,
+   "traces": 15138452
+  },
+  "chi_bench": {
+   "benchmarks": 16656,
+   "items": 138236,
+   "responses": 176015,
+   "subjects": 15053,
+   "traces": 565200251
+  },
+  "chipbench": {
+   "assets": 288726679,
+   "benchmarks": 16837,
+   "items": 70057,
+   "responses": 46299,
+   "subjects": 7717,
+   "traces": 322186
+  },
+  "clasheval": {
+   "benchmarks": 16919,
+   "items": 16245691,
+   "responses": 2701083,
+   "subjects": 6867,
+   "traces": 4789803
+  },
+  "classroom_ai": {
+   "benchmarks": 18053,
+   "items": 61183,
+   "responses": 225696,
+   "subjects": 7723,
+   "traces": 10321887
+  },
+  "cmmlu": {
+   "benchmarks": 17735,
+   "items": 4483659,
+   "responses": 5633594,
+   "subjects": 8344,
+   "traces": 143291825
+  },
+  "coffeebench": {
+   "benchmarks": 16536,
+   "items": 19184,
+   "responses": 6976,
+   "subjects": 7183,
+   "traces": 57823207
+  },
+  "complexbench": {
+   "benchmarks": 16072,
+   "items": 1411009,
+   "responses": 385183,
+   "subjects": 7503,
+   "traces": 51491816
+  },
+  "confagents": {
+   "benchmarks": 17090,
+   "items": 20722,
+   "responses": 7018,
+   "subjects": 6568,
+   "traces": 36507
+  },
+  "corebench": {
+   "benchmarks": 16238,
+   "items": 78552,
+   "responses": 49434,
+   "subjects": 7099,
+   "traces": 501555
+  },
+  "critic_discernment_game": {
+   "benchmarks": 16849,
+   "items": 782128,
+   "responses": 182548,
+   "subjects": 7628,
+   "traces": 71830380
+  },
+  "crow": {
+   "benchmarks": 16333,
+   "items": 404832,
+   "responses": 163547,
+   "subjects": 11068,
+   "traces": 2037327
+  },
+  "cruxeval": {
+   "benchmarks": 16528,
+   "items": 964730,
+   "responses": 20809388,
+   "subjects": 8658,
+   "traces": 53776861
+  },
+  "csedb": {
+   "benchmarks": 15951,
+   "items": 1191178,
+   "responses": 1049171,
+   "subjects": 7431,
+   "traces": 688557951
+  },
+  "cseo_bench": {
+   "benchmarks": 17557,
+   "items": 5686347327,
+   "responses": 9523183,
+   "subjects": 6857,
+   "traces": 286085418
+  },
+  "das_med_hallucination": {
+   "benchmarks": 17442,
+   "items": 124465,
+   "responses": 46050,
+   "subjects": 7703,
+   "traces": 8068760
+  },
+  "data_juicer2": {
+   "benchmarks": 16852,
+   "items": 11689,
+   "responses": 7443,
+   "subjects": 7279,
+   "traces": 10314
+  },
+  "dataclawbench": {
+   "assets": 70158872,
+   "benchmarks": 16218,
+   "items": 166342,
+   "responses": 90143,
+   "subjects": 7488,
+   "traces": 1215989
+  },
+  "dave": {
+   "assets": 5025159889,
+   "benchmarks": 17672,
+   "items": 785003,
+   "responses": 458974,
+   "subjects": 7126,
+   "traces": 566205
+  },
+  "dbpa": {
+   "benchmarks": 17337,
+   "items": 19340,
+   "responses": 15192,
+   "subjects": 8024,
+   "traces": 16203855
+  },
+  "decodingtrust": {
+   "benchmarks": 15993,
+   "items": 117462998,
+   "responses": 64002666,
+   "subjects": 7972,
+   "traces": 968025237
+  },
+  "decompile_bench": {
+   "benchmarks": 17760,
+   "items": 168807007,
+   "responses": 6353733,
+   "subjects": 7075,
+   "traces": 83851791
+  },
+  "devbench": {
+   "assets": 469656375,
+   "benchmarks": 18212,
+   "items": 113778,
+   "responses": 108551,
+   "subjects": 7608,
+   "traces": 531107
+  },
+  "disco": {
+   "assets": 9638010661,
+   "benchmarks": 17480,
+   "items": 6228981,
+   "responses": 3009568,
+   "subjects": 7947,
+   "traces": 7124357
+  },
+  "donotanswer": {
+   "benchmarks": 16589,
+   "items": 100821,
+   "responses": 261206,
+   "subjects": 6807,
+   "traces": 3319433
+  },
+  "doris_mae": {
+   "benchmarks": 17261,
+   "items": 92365250,
+   "responses": 6216497,
+   "subjects": 7541,
+   "traces": 34978601
+  },
+  "dpai": {
+   "benchmarks": 16138,
+   "items": 2243998,
+   "responses": 105509,
+   "subjects": 8396,
+   "traces": 363568958
+  },
+  "dqvis": {
+   "benchmarks": 17672,
+   "items": 16441758,
+   "responses": 24946,
+   "subjects": 7622,
+   "traces": 614883
+  },
+  "dtap_bench": {
+   "benchmarks": 15982,
+   "items": 8900363,
+   "responses": 4117570,
+   "subjects": 7764,
+   "traces": 2278101888
+  },
+  "editbench": {
+   "benchmarks": 17666,
+   "items": 6347667,
+   "responses": 477995,
+   "subjects": 9394,
+   "traces": 1368638
+  },
+  "edu_circuit_hw": {
+   "assets": 292507671,
+   "benchmarks": 17833,
+   "items": 298119,
+   "responses": 74414,
+   "subjects": 8051,
+   "traces": 2942573
+  },
+  "eduguardbench": {
+   "benchmarks": 16379,
+   "items": 5590812,
+   "responses": 4372098,
+   "subjects": 8104,
+   "traces": 409758163
+  },
+  "edumath": {
+   "benchmarks": 16282,
+   "items": 23942,
+   "responses": 355462,
+   "subjects": 7464,
+   "traces": 14262026
+  },
+  "egoschema": {
+   "benchmarks": 17745,
+   "items": 16308632,
+   "responses": 193441,
+   "subjects": 9035,
+   "traces": 12264520
+  },
+  "ehrflowbench": {
+   "assets": 287012,
+   "benchmarks": 17984,
+   "items": 179411,
+   "responses": 9078,
+   "subjects": 7796,
+   "traces": 484151
+  },
+  "elicitation_game": {
+   "benchmarks": 17399,
+   "items": 192607,
+   "responses": 359332,
+   "subjects": 7819,
+   "traces": 1070484
+  },
+  "embodied_agent_interface": {
+   "benchmarks": 17585,
+   "items": 118541,
+   "responses": 54518,
+   "subjects": 8333,
+   "traces": 1500658
+  },
+  "emoji_attack": {
+   "benchmarks": 17887,
+   "items": 11779653,
+   "responses": 1561567,
+   "subjects": 7412,
+   "traces": 40398575
+  },
+  "engdesign": {
+   "assets": 3176104,
+   "benchmarks": 16783,
+   "items": 407975,
+   "responses": 110006,
+   "subjects": 7482,
+   "traces": 5986318
+  },
+  "engibench": {
+   "benchmarks": 16458,
+   "items": 11678,
+   "responses": 6094,
+   "subjects": 6696,
+   "traces": 2880993
+  },
+  "enginemt_qa": {
+   "assets": 64042906,
+   "benchmarks": 16931,
+   "items": 95476,
+   "responses": 30930,
+   "subjects": 7238,
+   "traces": 40853
+  },
+  "erbench": {
+   "benchmarks": 17167,
+   "items": 2099744,
+   "responses": 7991324,
+   "subjects": 6753,
+   "traces": 52751460
+  },
+  "evouna": {
+   "benchmarks": 17185,
+   "items": 801505,
+   "responses": 850921,
+   "subjects": 6788,
+   "traces": 3147700
+  },
+  "exploitgym": {
+   "assets": 57651802,
+   "benchmarks": 18359,
+   "items": 2996559,
+   "responses": 161460,
+   "subjects": 7397,
+   "traces": 994318
+  },
+  "faithcot": {
+   "benchmarks": 17619,
+   "items": 146385,
+   "responses": 69907,
+   "subjects": 7155,
+   "traces": 5115417
+  },
+  "felm": {
+   "benchmarks": 17280,
+   "items": 201456,
+   "responses": 169982,
+   "subjects": 6969,
+   "traces": 2229739
+  },
+  "fetv": {
+   "benchmarks": 16343,
+   "items": 1322847,
+   "responses": 1297679,
+   "subjects": 7348,
+   "traces": 12078288
+  },
+  "fewshot_ttt_bbh": {
+   "benchmarks": 17170,
+   "items": 238642,
+   "responses": 176995,
+   "subjects": 7659,
+   "traces": 190570
+  },
+  "fgbench": {
+   "benchmarks": 16192,
+   "items": 1011045,
+   "responses": 1992083,
+   "subjects": 7176,
+   "traces": 15563314
+  },
+  "financebench": {
+   "assets": 129864136,
+   "benchmarks": 18178,
+   "items": 43586,
+   "responses": 53892,
+   "subjects": 8210,
+   "traces": 876557
+  },
+  "find_interp": {
+   "benchmarks": 16628,
+   "items": 3472077,
+   "responses": 397131,
+   "subjects": 7646,
+   "traces": 13230572
+  },
+  "finegrain_t2i": {
+   "benchmarks": 17461,
+   "items": 98175,
+   "responses": 283869,
+   "subjects": 8735,
+   "traces": 3293551
+  },
+  "frontieror": {
+   "benchmarks": 18279,
+   "items": 1749998,
+   "responses": 52686,
+   "subjects": 8444,
+   "traces": 129174
+  },
+  "genai_learning": {
+   "assets": 1511874,
+   "benchmarks": 16623,
+   "items": 38898,
+   "responses": 631192,
+   "subjects": 52167,
+   "traces": 21457276
+  },
+  "ghosts_math": {
+   "benchmarks": 18097,
+   "items": 84072,
+   "responses": 35278,
+   "subjects": 7513,
+   "traces": 561783
+  },
+  "goodai_ltm_benchmark": {
+   "assets": 114944,
+   "benchmarks": 17388,
+   "items": 728332,
+   "responses": 125725,
+   "subjects": 9259,
+   "traces": 787281078
+  },
+  "haiid": {
+   "assets": 26603557,
+   "benchmarks": 17356,
+   "items": 37956,
+   "responses": 2347899,
+   "subjects": 131671,
+   "traces": 9337503
+  },
+  "hallusionbench": {
+   "assets": 142851270,
+   "benchmarks": 17508,
+   "items": 126047,
+   "responses": 5272228,
+   "subjects": 24893,
+   "traces": 38564720
+  },
+  "harmbench": {
+   "assets": 226146510,
+   "benchmarks": 17474,
+   "items": 22025185,
+   "responses": 3210981,
+   "subjects": 9413,
+   "traces": 100831913
+  },
+  "healthadminbench": {
+   "benchmarks": 16931,
+   "items": 308412,
+   "responses": 155946,
+   "subjects": 8407,
+   "traces": 28536654
+  },
+  "helm_afr": {
+   "benchmarks": 16560,
+   "items": 18227291,
+   "responses": 18477493,
+   "subjects": 10751,
+   "traces": 208244396
+  },
+  "helm_airbench": {
+   "benchmarks": 16643,
+   "items": 6000982,
+   "responses": 11444379,
+   "subjects": 14427,
+   "traces": 772815456
+  },
+  "helm_anthropic_redteam": {
+   "benchmarks": 17111,
+   "items": 278366,
+   "responses": 1711158,
+   "subjects": 16024,
+   "traces": 94234932
+  },
+  "helm_bbq": {
+   "benchmarks": 16778,
+   "items": 412602,
+   "responses": 1726527,
+   "subjects": 16169,
+   "traces": 26722399
+  },
+  "helm_bold": {
+   "benchmarks": 16407,
+   "items": 150017,
+   "responses": 909211,
+   "subjects": 11586,
+   "traces": 31642760
+  },
+  "helm_cleva": {
+   "benchmarks": 16391,
+   "items": 2191845,
+   "responses": 725771,
+   "subjects": 9793,
+   "traces": 8684982
+  },
+  "helm_harmbench": {
+   "benchmarks": 17102,
+   "items": 295954,
+   "responses": 655994,
+   "subjects": 16024,
+   "traces": 51226842
+  },
+  "helm_real_toxicity_prompts": {
+   "benchmarks": 16570,
+   "items": 202232,
+   "responses": 917405,
+   "subjects": 11586,
+   "traces": 166079199
+  },
+  "helm_simple_safety_tests": {
+   "benchmarks": 17163,
+   "items": 39685,
+   "responses": 160704,
+   "subjects": 16024,
+   "traces": 6854409
+  },
+  "helm_thaiexam": {
+   "benchmarks": 16577,
+   "items": 537835,
+   "responses": 489008,
+   "subjects": 12814,
+   "traces": 23743666
+  },
+  "helm_xstest": {
+   "benchmarks": 16990,
+   "items": 115554,
+   "responses": 738322,
+   "subjects": 16024,
+   "traces": 46811706
+  },
+  "hivmedqa": {
+   "benchmarks": 16202,
+   "items": 349327,
+   "responses": 1085218,
+   "subjects": 9007,
+   "traces": 109060155
+  },
+  "hle": {
+   "assets": 40439492,
+   "benchmarks": 17528,
+   "items": 1098973,
+   "responses": 330211,
+   "subjects": 10457,
+   "traces": 1129944735
+  },
+  "icpc2_code_selector": {
+   "benchmarks": 17947,
+   "items": 3246435,
+   "responses": 1656217,
+   "subjects": 8458,
+   "traces": 12467830
+  },
+  "igakuqa": {
+   "benchmarks": 17467,
+   "items": 1307550,
+   "responses": 249283,
+   "subjects": 18541,
+   "traces": 388658
+  },
+  "igakuqa119": {
+   "assets": 123596159,
+   "benchmarks": 17478,
+   "items": 288022,
+   "responses": 20616,
+   "subjects": 7846,
+   "traces": 310137
+  },
+  "ikp": {
+   "benchmarks": 17603,
+   "items": 121423,
+   "responses": 5974722,
+   "subjects": 14486,
+   "traces": 19125393
+  },
+  "image2struct": {
+   "assets": 99742420,
+   "benchmarks": 17742,
+   "items": 20271302,
+   "responses": 5657049,
+   "subjects": 10145,
+   "traces": 649465421
+  },
+  "imagenet_hard": {
+   "assets": 686620576,
+   "benchmarks": 17571,
+   "items": 1635016,
+   "responses": 3802961,
+   "subjects": 8210,
+   "traces": 8096203
+  },
+  "imgedit": {
+   "assets": 33288966,
+   "benchmarks": 17220,
+   "items": 391645,
+   "responses": 33305,
+   "subjects": 7700,
+   "traces": 253381
+  },
+  "indeterminacy": {
+   "benchmarks": 17377,
+   "items": 4199113,
+   "responses": 8058164,
+   "subjects": 9029,
+   "traces": 14658612
+  },
+  "ineqmath": {
+   "benchmarks": 17325,
+   "items": 404961,
+   "responses": 42611,
+   "subjects": 7659,
+   "traces": 1438372
+  },
+  "infibench": {
+   "benchmarks": 17631,
+   "items": 219810,
+   "responses": 14061951,
+   "subjects": 18806,
+   "traces": 199949024
+  },
+  "interchangeable_token_embeddings": {
+   "benchmarks": 17798,
+   "items": 18303028,
+   "responses": 14998112,
+   "subjects": 12279,
+   "traces": 41908526
+  },
+  "intercode": {
+   "assets": 86339328,
+   "benchmarks": 16872,
+   "items": 410808,
+   "responses": 604855,
+   "subjects": 7743,
+   "traces": 10984282
+  },
+  "jailbreakbench": {
+   "benchmarks": 17071,
+   "items": 297945,
+   "responses": 101736,
+   "subjects": 8386,
+   "traces": 2129501
+  },
+  "jetts": {
+   "benchmarks": 16310,
+   "items": 1953712,
+   "responses": 7135895,
+   "subjects": 8286,
+   "traces": 295914729
+  },
+  "judgetuning": {
+   "benchmarks": 17043,
+   "items": 7081877,
+   "responses": 535541,
+   "subjects": 9318,
+   "traces": 97637321
+  },
+  "katakomba": {
+   "benchmarks": 16753,
+   "items": 16590,
+   "responses": 744061,
+   "subjects": 84253,
+   "traces": 1428010
+  },
+  "kernelbench": {
+   "benchmarks": 17515,
+   "items": 119307,
+   "responses": 1448378,
+   "subjects": 8222,
+   "traces": 150444782
+  },
+  "kmmlu": {
+   "benchmarks": 17173,
+   "items": 7298644,
+   "responses": 37931803,
+   "subjects": 8778,
+   "traces": 68319801
+  },
+  "kormedmcqa": {
+   "benchmarks": 17022,
+   "items": 834597,
+   "responses": 570951,
+   "subjects": 7542,
+   "traces": 1485391
+  },
+  "kris_bench": {
+   "assets": 1019571996,
+   "benchmarks": 16922,
+   "items": 647758,
+   "responses": 3284767,
+   "subjects": 7824,
+   "traces": 122831627
+  },
+  "lambda_fp_course": {
+   "benchmarks": 16048,
+   "items": 121595,
+   "responses": 145012,
+   "subjects": 7906,
+   "traces": 2843509
+  },
+  "lawbench": {
+   "benchmarks": 15646,
+   "items": 166491509,
+   "responses": 36020153,
+   "subjects": 9721,
+   "traces": 769311429
+  },
+  "legal_rag_bench": {
+   "assets": 2520328,
+   "benchmarks": 17043,
+   "items": 78071,
+   "responses": 44969,
+   "subjects": 7373,
+   "traces": 5549797
+  },
+  "legalbench": {
+   "benchmarks": 16729,
+   "items": 33112788,
+   "responses": 1522897,
+   "subjects": 11115,
+   "traces": 118516093
+  },
+  "lexeval": {
+   "benchmarks": 15690,
+   "items": 46047039,
+   "responses": 42143769,
+   "subjects": 8851,
+   "traces": 1391116352
+  },
+  "lingoly": {
+   "benchmarks": 17286,
+   "items": 6819987,
+   "responses": 777661,
+   "subjects": 7807,
+   "traces": 39847135
+  },
+  "live_agent_risk": {
+   "assets": 75961,
+   "benchmarks": 17592,
+   "items": 36543,
+   "responses": 16265,
+   "subjects": 10430,
+   "traces": 22793150
+  },
+  "liveaopsbench": {
+   "benchmarks": 17226,
+   "items": 1069445,
+   "responses": 2042344,
+   "subjects": 7824,
+   "traces": 123551253
+  },
+  "livebench": {
+   "benchmarks": 16956,
+   "items": 1197403,
+   "responses": 5907202,
+   "subjects": 17218,
+   "traces": 28314234
+  },
+  "llm4ir": {
+   "benchmarks": 16584,
+   "items": 9748008,
+   "responses": 159107,
+   "subjects": 8240,
+   "traces": 54162765
+  },
+  "llm_bp_tag": {
+   "benchmarks": 16949,
+   "items": 51373685,
+   "responses": 5896346,
+   "subjects": 7564,
+   "traces": 31968985
+  },
+  "llm_survey_simulation": {
+   "benchmarks": 17346,
+   "items": 152129,
+   "responses": 12983046,
+   "subjects": 7948,
+   "traces": 57975292
+  },
+  "llm_uncertainty_bench": {
+   "benchmarks": 17366,
+   "items": 185532357,
+   "responses": 191334518,
+   "subjects": 13866,
+   "traces": 424846341
+  },
+  "llmail_inject": {
+   "assets": 30611,
+   "benchmarks": 17861,
+   "items": 136504346,
+   "responses": 14287879,
+   "subjects": 8244,
+   "traces": 393327879
+  },
+  "llms_lean_formalization": {
+   "benchmarks": 17851,
+   "items": 522309,
+   "responses": 1312750,
+   "subjects": 12197,
+   "traces": 50330387
+  },
+  "lohi_drug_discovery": {
+   "benchmarks": 16290,
+   "items": 3098866,
+   "responses": 39973731,
+   "subjects": 15890,
+   "traces": 107726985
+  },
+  "matharena": {
+   "assets": 16021838,
+   "benchmarks": 16915,
+   "items": 317953,
+   "responses": 1829303,
+   "subjects": 13605,
+   "traces": 278787419
+  },
+  "matharena_platform": {
+   "benchmarks": 16545,
+   "items": 4410622,
+   "responses": 664800,
+   "subjects": 11713,
+   "traces": 1648378387
+  },
+  "mathconstraint": {
+   "benchmarks": 16736,
+   "items": 216194,
+   "responses": 260653,
+   "subjects": 7467,
+   "traces": 57642967
+  },
+  "mathvista_mini": {
+   "assets": 135937318,
+   "benchmarks": 17798,
+   "items": 274317,
+   "responses": 5950545,
+   "subjects": 19248,
+   "traces": 98261013
+  },
+  "medagentboard": {
+   "assets": 43054681,
+   "benchmarks": 17271,
+   "items": 2021340,
+   "responses": 383467,
+   "subjects": 11703,
+   "traces": 37580431
+  },
+  "medhelm_ehr_sql": {
+   "benchmarks": 16809,
+   "items": 451094,
+   "responses": 287916,
+   "subjects": 9929,
+   "traces": 7265966
+  },
+  "medhelm_head_qa": {
+   "benchmarks": 16771,
+   "items": 339640,
+   "responses": 287961,
+   "subjects": 10033,
+   "traces": 4558642
+  },
+  "medhelm_med_mcqa": {
+   "benchmarks": 16688,
+   "items": 221975,
+   "responses": 288382,
+   "subjects": 9999,
+   "traces": 3295895
+  },
+  "medhelm_med_qa": {
+   "benchmarks": 16673,
+   "items": 596901,
+   "responses": 288248,
+   "subjects": 9999,
+   "traces": 8506404
+  },
+  "medhelm_medbullets": {
+   "benchmarks": 16713,
+   "items": 209403,
+   "responses": 86514,
+   "subjects": 9999,
+   "traces": 2981607
+  },
+  "medhelm_medcalc_bench": {
+   "benchmarks": 16904,
+   "items": 1341826,
+   "responses": 288090,
+   "subjects": 9928,
+   "traces": 18334368
+  },
+  "medhelm_medec": {
+   "benchmarks": 16770,
+   "items": 274812,
+   "responses": 169825,
+   "subjects": 9939,
+   "traces": 4456178
+  },
+  "medhelm_medhallu": {
+   "benchmarks": 16735,
+   "items": 1927430,
+   "responses": 325086,
+   "subjects": 9898,
+   "traces": 13758533
+  },
+  "medhelm_pubmed_qa": {
+   "benchmarks": 16736,
+   "items": 1302832,
+   "responses": 261973,
+   "subjects": 10006,
+   "traces": 10545852
+  },
+  "medhelm_race_based_med": {
+   "benchmarks": 16803,
+   "items": 134459,
+   "responses": 49585,
+   "subjects": 9999,
+   "traces": 1792462
+  },
+  "medwatermark_fws": {
+   "benchmarks": 18148,
+   "items": 652935,
+   "responses": 558633,
+   "subjects": 12044,
+   "traces": 25091827
+  },
+  "mergebench": {
+   "benchmarks": 18500,
+   "items": 662224,
+   "responses": 109085,
+   "subjects": 9874,
+   "traces": 5693163
+  },
+  "mind2web": {
+   "benchmarks": 17136,
+   "items": 522164413,
+   "responses": 646382,
+   "subjects": 8222,
+   "traces": 650205141
+  },
+  "mj_bench": {
+   "assets": 4133259893,
+   "benchmarks": 18181,
+   "items": 5853312,
+   "responses": 5508387,
+   "subjects": 11485,
+   "traces": 142406951
+  },
+  "mlip_arena": {
+   "benchmarks": 16703,
+   "items": 19970831,
+   "responses": 3040764,
+   "subjects": 10511,
+   "traces": 636932034
+  },
+  "mlrbench": {
+   "benchmarks": 16486,
+   "items": 6147853,
+   "responses": 732934,
+   "subjects": 7056,
+   "traces": 66049020
+  },
+  "mmbench_v11": {
+   "assets": 89937839,
+   "benchmarks": 17835,
+   "items": 2176586,
+   "responses": 122366043,
+   "subjects": 19441,
+   "traces": 602231003
+  },
+  "mmdocrag": {
+   "benchmarks": 16962,
+   "items": 388955,
+   "responses": 8156072,
+   "subjects": 9839,
+   "traces": 286304717
+  },
+  "mmedbench": {
+   "benchmarks": 17089,
+   "items": 833265,
+   "responses": 16543,
+   "subjects": 7238,
+   "traces": 1028010
+  },
+  "mmlu": {
+   "benchmarks": 18197,
+   "items": 8397018,
+   "responses": 78907187,
+   "subjects": 28499,
+   "traces": 8767867117
+  },
+  "mmlupro": {
+   "benchmarks": 16644,
+   "items": 5263166,
+   "responses": 21145564,
+   "subjects": 9943,
+   "traces": 378572611
+  },
+  "mmmu_dev_val": {
+   "assets": 56390918,
+   "benchmarks": 16829,
+   "items": 351718,
+   "responses": 5689676,
+   "subjects": 21507,
+   "traces": 118795518
+  },
+  "mmoral_bench": {
+   "assets": 54103637,
+   "benchmarks": 16162,
+   "items": 254466,
+   "responses": 605852,
+   "subjects": 15954,
+   "traces": 1151426
+  },
+  "mochi": {
+   "assets": 376153615,
+   "benchmarks": 16529,
+   "items": 822509,
+   "responses": 1232051,
+   "subjects": 7708,
+   "traces": 27780681
+  },
+  "moe_cap": {
+   "benchmarks": 16350,
+   "items": 6152495,
+   "responses": 2036795,
+   "subjects": 12403,
+   "traces": 111674352
+  },
+  "monkey_power_laws": {
+   "benchmarks": 17901,
+   "items": 1068636,
+   "responses": 708257822,
+   "subjects": 7637,
+   "traces": 5052449324
+  },
+  "morphkv": {
+   "benchmarks": 16981,
+   "items": 74626,
+   "responses": 95569,
+   "subjects": 7070,
+   "traces": 24258262
+  },
+  "morqa": {
+   "benchmarks": 16835,
+   "items": 4132148,
+   "responses": 511527,
+   "subjects": 7027,
+   "traces": 13229826
+  },
+  "mtbbench": {
+   "assets": 615003344,
+   "benchmarks": 18244,
+   "items": 606021,
+   "responses": 194301,
+   "subjects": 12703,
+   "traces": 115520518
+  },
+  "mtbench": {
+   "benchmarks": 17938,
+   "items": 2083794,
+   "responses": 163992,
+   "subjects": 8933,
+   "traces": 9496621
+  },
+  "multi_moe": {
+   "benchmarks": 16225,
+   "items": 1975067,
+   "responses": 283391,
+   "subjects": 10304,
+   "traces": 5401024
+  },
+  "multi_swebench": {
+   "benchmarks": 17027,
+   "items": 59055510,
+   "responses": 1222393,
+   "subjects": 9456,
+   "traces": 170578205
+  },
+  "multimodal_stem_ai": {
+   "assets": 46556084,
+   "benchmarks": 16319,
+   "items": 290184,
+   "responses": 93388,
+   "subjects": 8225,
+   "traces": 2063545
+  },
+  "mypcbench": {
+   "benchmarks": 17040,
+   "items": 35464,
+   "responses": 10085,
+   "subjects": 8272,
+   "traces": 2133148
+  },
+  "naep_llm_students": {
+   "assets": 3528966,
+   "benchmarks": 17470,
+   "items": 475569,
+   "responses": 1044375,
+   "subjects": 8896,
+   "traces": 4504895
+  },
+  "nanobaselib": {
+   "benchmarks": 17496,
+   "items": 3050575,
+   "responses": 11922821,
+   "subjects": 7951,
+   "traces": 47735314
+  },
+  "naturalreasoning": {
+   "benchmarks": 17122,
+   "items": 379249825,
+   "responses": 42828850,
+   "subjects": 7384,
+   "traces": 1876242678
+  },
+  "naturebench": {
+   "benchmarks": 18162,
+   "items": 329489,
+   "responses": 48340,
+   "subjects": 10729,
+   "traces": 676795754
+  },
+  "nester": {
+   "benchmarks": 18154,
+   "items": 44019,
+   "responses": 34020,
+   "subjects": 6562,
+   "traces": 98486
+  },
+  "nis3d": {
+   "assets": 1001676639,
+   "benchmarks": 16722,
+   "items": 19764,
+   "responses": 10811,
+   "subjects": 8363,
+   "traces": 65873
+  },
+  "nyu_ctf_bench": {
+   "assets": 1113296117,
+   "benchmarks": 18947,
+   "items": 116852,
+   "responses": 70828,
+   "subjects": 9117,
+   "traces": 261893585
+  },
+  "oasst": {
+   "benchmarks": 18283,
+   "items": 245586,
+   "responses": 610270,
+   "subjects": 9456,
+   "traces": 5995564
+  },
+  "ocrbench_v2": {
+   "assets": 853703481,
+   "benchmarks": 17212,
+   "items": 4141284,
+   "responses": 375327,
+   "subjects": 6636,
+   "traces": 4689904
+  },
+  "ood_prediction": {
+   "benchmarks": 18519,
+   "items": 25782472,
+   "responses": 5345154,
+   "subjects": 6980,
+   "traces": 20551774
+  },
+  "openbiorq": {
+   "benchmarks": 17067,
+   "items": 2117263,
+   "responses": 156179,
+   "subjects": 7231,
+   "traces": 46337556
+  },
+  "os_harm": {
+   "benchmarks": 16969,
+   "items": 76284,
+   "responses": 48620,
+   "subjects": 8724,
+   "traces": 46699056
+  },
+  "perfcodebench": {
+   "benchmarks": 18393,
+   "items": 1181957,
+   "responses": 503788,
+   "subjects": 8094,
+   "traces": 12834793
+  },
+  "perumedqa": {
+   "benchmarks": 16975,
+   "items": 1852747,
+   "responses": 3221439,
+   "subjects": 8297,
+   "traces": 75928459
+  },
+  "phyblock": {
+   "assets": 362579482,
+   "benchmarks": 16584,
+   "items": 519943,
+   "responses": 223616,
+   "subjects": 8616,
+   "traces": 7305269
+  },
+  "pku_saferlhf": {
+   "benchmarks": 16914,
+   "items": 4661620,
+   "responses": 7169572,
+   "subjects": 6999,
+   "traces": 175412232
+  },
+  "planbench": {
+   "benchmarks": 17458,
+   "items": 4501756,
+   "responses": 991707,
+   "subjects": 9985,
+   "traces": 48088647
+  },
+  "preference_dissection": {
+   "benchmarks": 17679,
+   "items": 5432506,
+   "responses": 5680350,
+   "subjects": 8509,
+   "traces": 7835856
+  },
+  "prism": {
+   "benchmarks": 16747,
+   "items": 22346560,
+   "responses": 4846944,
+   "subjects": 10766,
+   "traces": 68506979
+  },
+  "prm800k": {
+   "benchmarks": 18146,
+   "items": 199349477,
+   "responses": 54435047,
+   "subjects": 6558,
+   "traces": 468800663
+  },
+  "programbench": {
+   "benchmarks": 18102,
+   "items": 19290566,
+   "responses": 170427,
+   "subjects": 11772,
+   "traces": 2885487416
+  },
+  "proofaug": {
+   "benchmarks": 16922,
+   "items": 67262,
+   "responses": 15019,
+   "subjects": 7005
+  },
+  "proteininvbench": {
+   "benchmarks": 17119,
+   "items": 87391502,
+   "responses": 774141,
+   "subjects": 15392,
+   "traces": 2090273310
+  },
+  "prox": {
+   "benchmarks": 18245,
+   "items": 1909958,
+   "responses": 912445,
+   "subjects": 7261,
+   "traces": 3468189
+  },
+  "psychosis_bench": {
+   "benchmarks": 16820,
+   "items": 13132369,
+   "responses": 105631,
+   "subjects": 7567,
+   "traces": 2327833
+  },
+  "putnam_axiom": {
+   "benchmarks": 16338,
+   "items": 1728408,
+   "responses": 145981,
+   "subjects": 6664,
+   "traces": 4171091
+  },
+  "pxplore": {
+   "benchmarks": 17987,
+   "items": 1523346,
+   "responses": 99248,
+   "subjects": 7343,
+   "traces": 136146056
+  },
+  "qatch": {
+   "assets": 94764292,
+   "benchmarks": 17592,
+   "items": 705322294,
+   "responses": 2616155,
+   "subjects": 7010,
+   "traces": 1626971925
+  },
+  "radar": {
+   "benchmarks": 16419,
+   "items": 17581,
+   "responses": 5551,
+   "subjects": 8232,
+   "traces": 19104
+  },
+  "rakuda": {
+   "benchmarks": 16731,
+   "items": 24797,
+   "responses": 1978205,
+   "subjects": 41917,
+   "traces": 112164904
+  },
+  "rclicks": {
+   "assets": 2024062579,
+   "benchmarks": 16727,
+   "items": 28501738,
+   "responses": 8209659,
+   "subjects": 7377,
+   "traces": 33337914
+  },
+  "real_pocqi": {
+   "benchmarks": 17550,
+   "items": 227856,
+   "responses": 438500,
+   "subjects": 6899,
+   "traces": 18813978
+  },
+  "real_webagents": {
+   "benchmarks": 16703,
+   "items": 48588,
+   "responses": 94908,
+   "subjects": 8365,
+   "traces": 175857
+  },
+  "realtimeqa": {
+   "benchmarks": 17194,
+   "items": 1350861,
+   "responses": 1411647,
+   "subjects": 12362,
+   "traces": 13140659
+  },
+  "reasoning_gym": {
+   "benchmarks": 16690,
+   "items": 17237983,
+   "responses": 5249693,
+   "subjects": 8116,
+   "traces": 65598334
+  },
+  "refgrader": {
+   "benchmarks": 19782,
+   "items": 44357765,
+   "responses": 190612,
+   "subjects": 9147,
+   "traces": 60970798
+  },
+  "reliancescope": {
+   "benchmarks": 16872,
+   "items": 5607400,
+   "responses": 165377,
+   "subjects": 7902,
+   "traces": 956622
+  },
+  "researchclawbench": {
+   "assets": 1048740983,
+   "benchmarks": 16777,
+   "items": 788613,
+   "responses": 39525,
+   "subjects": 10054,
+   "traces": 116751605
+  },
+  "researchcodebench": {
+   "benchmarks": 16499,
+   "items": 8928605,
+   "responses": 137904,
+   "subjects": 8321
+  },
+  "revolve": {
+   "benchmarks": 17672,
+   "items": 121763,
+   "responses": 71162,
+   "subjects": 6675,
+   "traces": 1665646
+  },
+  "rewardbench": {
+   "benchmarks": 18121,
+   "items": 3490718,
+   "responses": 12744825,
+   "subjects": 19508,
+   "traces": 535484314
+  },
+  "risebench": {
+   "assets": 280198820,
+   "benchmarks": 17323,
+   "items": 171703,
+   "responses": 181955,
+   "subjects": 7989,
+   "traces": 9882593831
+  },
+  "robust_reasoning_benchmark": {
+   "benchmarks": 17561,
+   "items": 282596765,
+   "responses": 2910990,
+   "subjects": 9206,
+   "traces": 2903868035
+  },
+  "safeagentbench": {
+   "benchmarks": 17791,
+   "items": 58212,
+   "responses": 103463,
+   "subjects": 8113,
+   "traces": 903490
+  },
+  "scale_mrt": {
+   "benchmarks": 16751,
+   "items": 833490338,
+   "responses": 1739448,
+   "subjects": 30443,
+   "traces": 3444941923
+  },
+  "scbench_long": {
+   "assets": 51325,
+   "benchmarks": 17244,
+   "items": 37625,
+   "responses": 12720,
+   "subjects": 8567,
+   "traces": 9618957
+  },
+  "sciarena": {
+   "benchmarks": 17019,
+   "items": 306929664,
+   "responses": 904262,
+   "subjects": 8800,
+   "traces": 397398506
+  },
+  "scigym": {
+   "benchmarks": 16878,
+   "items": 1084941,
+   "responses": 138004,
+   "subjects": 7218,
+   "traces": 222654934
+  },
+  "sgrades": {
+   "benchmarks": 17119,
+   "items": 19500725,
+   "responses": 51267924,
+   "subjects": 13019,
+   "traces": 757457004
+  },
+  "sib200": {
+   "benchmarks": 17260,
+   "items": 13238260,
+   "responses": 17139097,
+   "subjects": 119932,
+   "traces": 147310568
+  },
+  "sketchjudge": {
+   "assets": 316405784,
+   "benchmarks": 18697,
+   "items": 1094006,
+   "responses": 934241,
+   "subjects": 10267,
+   "traces": 28805977
+  },
+  "software_world_models": {
+   "benchmarks": 17100,
+   "items": 29751858,
+   "responses": 167512,
+   "subjects": 7761,
+   "traces": 5594612
+  },
+  "stanford_orb": {
+   "assets": 93768574753,
+   "benchmarks": 15981,
+   "items": 5936198,
+   "responses": 175193,
+   "subjects": 9217,
+   "traces": 3334872
+  },
+  "statqa": {
+   "benchmarks": 18768,
+   "items": 696538,
+   "responses": 1208767,
+   "subjects": 9893,
+   "traces": 17993456
+  },
+  "subjective_qa": {
+   "benchmarks": 16857,
+   "items": 7750739,
+   "responses": 531545,
+   "subjects": 8269,
+   "traces": 23848251
+  },
+  "sugarcrepe": {
+   "assets": 250755537,
+   "benchmarks": 19911,
+   "items": 2590871,
+   "responses": 567485,
+   "subjects": 6624,
+   "traces": 3304438
+  },
+  "summeval": {
+   "benchmarks": 16651,
+   "items": 752445,
+   "responses": 1004646,
+   "subjects": 9889,
+   "traces": 19698819
+  },
+  "sustainable_food": {
+   "benchmarks": 17203,
+   "items": 297038,
+   "responses": 71483,
+   "subjects": 7656,
+   "traces": 2004525
+  },
+  "svrpbench": {
+   "benchmarks": 16117,
+   "items": 13209,
+   "responses": 10480,
+   "subjects": 6536,
+   "traces": 21065
+  },
+  "swe_rebench": {
+   "benchmarks": 18096,
+   "items": 39763649,
+   "responses": 1994128,
+   "subjects": 6747,
+   "traces": 235133384
+  },
+  "swe_smith": {
+   "benchmarks": 16366,
+   "items": 244658364,
+   "responses": 1703296,
+   "subjects": 6794,
+   "traces": 2449759891
+  },
+  "swe_together": {
+   "benchmarks": 17081,
+   "items": 1431405,
+   "responses": 91130,
+   "subjects": 8193,
+   "traces": 307100
+  },
+  "swebench_live": {
+   "benchmarks": 17970,
+   "items": 158410512,
+   "responses": 356917,
+   "subjects": 12059,
+   "traces": 1792516906
+  },
+  "swepolybench": {
+   "benchmarks": 17369,
+   "items": 5777467,
+   "responses": 52216,
+   "subjects": 8273,
+   "traces": 289501248
+  },
+  "synthpai": {
+   "benchmarks": 17886,
+   "items": 13587400,
+   "responses": 433977,
+   "subjects": 9402,
+   "traces": 39469051
+  },
+  "tabarena": {
+   "benchmarks": 17435,
+   "items": 127446766,
+   "responses": 96756302,
+   "subjects": 35539,
+   "traces": 181403440
+  },
+  "tau2_bench": {
+   "benchmarks": 16891,
+   "items": 8084868,
+   "responses": 544938,
+   "subjects": 12735,
+   "traces": 523814653
+  },
+  "taubench": {
+   "benchmarks": 17406,
+   "items": 85082,
+   "responses": 193234,
+   "subjects": 12955,
+   "traces": 782430392
+  },
+  "tengu": {
+   "benchmarks": 17738,
+   "items": 143357,
+   "responses": 5820090,
+   "subjects": 45663,
+   "traces": 355178260
+  },
+  "tensortrust": {
+   "benchmarks": 16748,
+   "items": 237325576,
+   "responses": 24624915,
+   "subjects": 7026,
+   "traces": 416655328
+  },
+  "theagentcompany": {
+   "benchmarks": 17862,
+   "items": 232369,
+   "responses": 67522,
+   "subjects": 7615,
+   "traces": 3419785991
+  },
+  "threeeed": {
+   "assets": 2462367842,
+   "benchmarks": 17844,
+   "items": 3499630,
+   "responses": 727861,
+   "subjects": 15341,
+   "traces": 6378616
+  },
+  "truthfulqa_mc": {
+   "benchmarks": 17765,
+   "items": 258185,
+   "responses": 2586569,
+   "subjects": 28499,
+   "traces": 348008466
+  },
+  "tulu_human_eval": {
+   "benchmarks": 18266,
+   "items": 89911,
+   "responses": 84217,
+   "subjects": 7900,
+   "traces": 1547212
+  },
+  "tumlu": {
+   "benchmarks": 17652,
+   "items": 58958276,
+   "responses": 6650075,
+   "subjects": 10006,
+   "traces": 149411956
+  },
+  "txbench_pp": {
+   "benchmarks": 18531,
+   "items": 28333,
+   "responses": 16851,
+   "subjects": 8319,
+   "traces": 2189841
+  },
+  "ultrafeedback": {
+   "benchmarks": 18591,
+   "items": 107145413,
+   "responses": 29383654,
+   "subjects": 60945,
+   "traces": 1607120542
+  },
+  "vhelm": {
+   "assets": 8798372026,
+   "benchmarks": 16771,
+   "items": 18309466,
+   "responses": 34898525,
+   "subjects": 14107,
+   "traces": 380470884
+  },
+  "visit_bench": {
+   "assets": 383454480,
+   "benchmarks": 18134,
+   "items": 471172,
+   "responses": 2381856,
+   "subjects": 9356,
+   "traces": 150852416
+  },
+  "visual_memory": {
+   "assets": 4103727681,
+   "benchmarks": 17740,
+   "items": 7029297,
+   "responses": 8799837,
+   "subjects": 7108,
+   "traces": 614850718
+  },
+  "visual_riddles": {
+   "assets": 352242152,
+   "benchmarks": 18236,
+   "items": 264977,
+   "responses": 82018,
+   "subjects": 7874,
+   "traces": 802747
+  },
+  "visualwebarena": {
+   "assets": 23726282,
+   "benchmarks": 18171,
+   "items": 63193,
+   "responses": 20607,
+   "subjects": 13626,
+   "traces": 1589571034
+  },
+  "vl_rewardbench": {
+   "assets": 69306370,
+   "benchmarks": 16445,
+   "items": 1222169,
+   "responses": 2605842,
+   "subjects": 7365,
+   "traces": 42680032
+  },
+  "weavebench": {
+   "benchmarks": 17525,
+   "items": 1478425,
+   "responses": 10122,
+   "subjects": 7188,
+   "traces": 7035372
+  },
+  "wikihow_agent": {
+   "benchmarks": 16419,
+   "items": 18085920,
+   "responses": 6418919,
+   "subjects": 10501,
+   "traces": 706049108
+  },
+  "wildvision": {
+   "assets": 1193913860,
+   "benchmarks": 17155,
+   "items": 319167,
+   "responses": 227604,
+   "subjects": 8577,
+   "traces": 12162738
+  },
+  "wmt_mqm": {
+   "benchmarks": 17022,
+   "items": 10484526,
+   "responses": 135527858,
+   "subjects": 13525,
+   "traces": 237098195
+  },
+  "wonderbread": {
+   "assets": 3724357501,
+   "benchmarks": 16814,
+   "items": 10799057,
+   "responses": 605779,
+   "subjects": 8869,
+   "traces": 7080195
+  },
+  "workarena": {
+   "benchmarks": 18161,
+   "items": 86657,
+   "responses": 21894,
+   "subjects": 19265,
+   "traces": 1894279609
+  },
+  "workbench_revisited": {
+   "benchmarks": 18115,
+   "items": 100968,
+   "responses": 336781,
+   "subjects": 7748,
+   "traces": 37112104
+  },
+  "worldcentralbanks": {
+   "benchmarks": 17021,
+   "items": 37275231,
+   "responses": 10418569,
+   "subjects": 8370,
+   "traces": 129949613
+  },
+  "xstest": {
+   "benchmarks": 17804,
+   "items": 79458,
+   "responses": 269666,
+   "subjects": 9229,
+   "traces": 8058576
+  }
+ }
+}

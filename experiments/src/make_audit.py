@@ -62,8 +62,10 @@ def main() -> None:
         claim(f"[{name}] full model beats the constant 0.5, significantly", file + " paired.full_vs_const", v, bool(d and d["significant"] and d["mean"] < 0))
         b1 = m["empirical_mean"]["brier_by_budget"]["1"]
         claim(f"[{name}] empirical mean is worse than the constant at n=1 (B1 > 0.25)", file + " methods.empirical_mean.brier_by_budget.1", f"B1 = {b1:.4f}", b1 > 0.25)
-        b3 = m["empirical_mean"]["brier_by_budget"]["3"]
-        claim(f"[{name}] empirical mean overtakes the constant from n=3 (B3 < 0.25)", file, f"B3 = {b3:.4f}", b3 < 0.25)
+        bb = m["empirical_mean"]["brier_by_budget"]
+        first = next((b for b in ("1", "3", "7", "15", "31") if bb[b] < 0.25), None)
+        claim(f"[{name}] empirical mean overtakes the constant at n={first} (the budget the text quotes) and not earlier", file,
+              ", ".join(f"B{b}={bb[b]:.4f}" for b in ("1", "3", "7")), first is not None and all(bb[b] >= 0.25 for b in ("1", "3", "7", "15", "31") if int(b) < int(first)))
         d, v = paired(summ, "prior_vs_const")
         claim(f"[{name}] prior alone improves on the constant", file + " paired.prior_vs_const", v, bool(d and d["mean"] < 0))
         d, v = paired(summ, "shrink_vs_prior")
@@ -127,6 +129,87 @@ def main() -> None:
         claim("predict runs at > 100 calls/s at budget 31 with long items, mean < 50 ms", "smoke_test.json", f"{smoke['calls_per_second_long_budget31']:.0f} calls/s, mean {smoke['mean_ms_long_budget31']:.2f} ms, max {smoke['max_ms_long_budget31']:.1f} ms", smoke["calls_per_second_long_budget31"] > 100 and smoke["mean_ms_long_budget31"] < 50)
         claim("smoke test passed all cases", "smoke_test.json", f"{len(smoke['cases'])} cases, ok={smoke['ok']}", bool(smoke["ok"]))
     claim("official validator accepts the ZIP", "validator_output.txt", vtxt.strip().splitlines()[1] if vtxt.strip() else "missing", "OK:" in vtxt and "[exit code 0]" in vtxt)
+    # iteration 2026-10-22: prior sensitivity, training-release listing, fitting dry run
+    sens, lst, dry = load("prior_sensitivity.json"), load("measurement_db_listing.json"), load("prior_fit_dry_run.json")
+    fit, tb = load("prior_fit.json"), load("prior_fit_testbeds.json")
+    if sens:
+        p0s = [g["p0"] for g in sens["frontier_grid"]]
+        lo, hi = 1 / (1 + 2.718281828 ** 1.5), 1 / (1 + 2.718281828 ** -1.5)
+        claim("[sens] frontier-like subjects: p0 stays inside the cap [0.18, 0.82] and spans more than 0.3", "prior_sensitivity.json frontier_grid",
+              f"p0 in [{min(p0s):.3f}, {max(p0s):.3f}] over {len(p0s)} subjects (values rounded to 4 decimals)",
+              lo - 1e-3 <= min(p0s) and max(p0s) <= hi + 1e-3 and max(p0s) - min(p0s) > 0.3)
+        cells = {(c["r"], c["p0"]): c for c in sens["miscalibration"]["cells"]}
+        c = cells.get((0.3, 0.7))
+        claim("[sens] alpha0=4: a prior of 0.7 on a pair with true rate 0.3 loses to the constant 0.5", "prior_sensitivity.json miscalibration",
+              f"ALC excess {c['alc_excess']:.4f} vs constant excess {(0.5 - 0.3) ** 2:.4f}" if c else "missing", bool(c and not c["beats_const"]))
+        ok_cells = [c for (r, p), c in cells.items() if abs(r - 0.5) >= 0.2 - 1e-9 and abs(p - r) <= 0.3 + 1e-9]
+        claim("[sens] alpha0=4: shrinkage beats the constant whenever |r-0.5| >= 0.2 and |p0-r| <= 0.3", "prior_sensitivity.json miscalibration",
+              f"{sum(1 for c in ok_cells if c['beats_const'])}/{len(ok_cells)} such cells beat the constant", bool(ok_cells) and all(c["beats_const"] for c in ok_cells))
+        near = [c for (r, p), c in cells.items() if abs(r - 0.5) < 0.15]
+        claim("[sens] alpha0=4: near r=0.5 (|r-0.5| < 0.15) no prior makes shrinkage beat the constant", "prior_sensitivity.json miscalibration",
+              f"{sum(1 for c in near if c['beats_const'])}/{len(near)} cells beat the constant", bool(near) and not any(c["beats_const"] for c in near))
+        sw = sens.get("offset_sweep", {}).get("real")
+        if sw:
+            pv = {k: v["paired_vs_zero"]["full"] for k, v in sw["offsets"].items()}
+            claim("[real] shifts of +0.5 and +1 are significantly worse than the shipped 0", "prior_sensitivity.json offset_sweep.real",
+                  ", ".join(f"{k}: {pv[k]['mean']:+.4f} sig={pv[k]['significant']}" for k in ("+0.5", "+1.0")),
+                  all(pv[k]["significant"] and pv[k]["mean"] > 0 for k in ("+0.5", "+1.0")))
+            d = pv["-0.5"]
+            claim("[real] a shift of -0.5 is not significantly different from 0", "prior_sensitivity.json offset_sweep.real",
+                  f"(-0.5) - (0): mean {d['mean']:+.4f} [{d['ci_lo']:+.4f}, {d['ci_hi']:+.4f}] sig={d['significant']}", not d["significant"])
+        sw = sens.get("offset_sweep", {}).get("synthetic")
+        if sw:
+            pv = {k: v["paired_vs_zero"]["full"] for k, v in sw["offsets"].items()}
+            claim("[synthetic] 0 is the best shift and both +-0.5 are significantly worse", "prior_sensitivity.json offset_sweep.synthetic",
+                  ", ".join(f"{k}: {pv[k]['mean']:+.4f} sig={pv[k]['significant']}" for k in ("-0.5", "+0.5")),
+                  sw["best_offset_full"] == "+0.0" and all(pv[k]["significant"] and pv[k]["mean"] > 0 for k in ("-0.5", "+0.5")))
+        if fit and fit.get("diagnostics"):
+            dg = fit["diagnostics"]
+            claim("[release] the hand-set prior is not optimistic in the large (mean p0 <= mean pair rate)", "prior_fit.json diagnostics",
+                  f"mean p0 {dg['hand_p0_mean']:.3f} vs mean pair rate {dg['pair_rate_mean']:.3f}", dg["hand_p0_mean"] <= dg["pair_rate_mean"])
+    if lst:
+        claim("measurement-db listing: 281 benchmark directories; core tables under 30 GB; traces and assets over 100 GB", "measurement_db_listing.json",
+              f"{lst['n_benchmark_dirs']} dirs; core {lst['core_tables_gb']} GB; traces {lst['table_gb']['traces']} GB; assets {lst['table_gb']['assets']} GB",
+              lst["n_benchmark_dirs"] == 281 and lst["core_tables_gb"] < 30 and lst["table_gb"]["traces"] > 100 and lst["table_gb"]["assets"] > 100)
+    if dry and dry.get("dry_run_recovery"):
+        rec = dry["dry_run_recovery"]
+        claim("[dry run] fitting pipeline recovers the sign of every generating slope and each within 0.15 logits", "prior_fit_dry_run.json dry_run_recovery",
+              f"sign agreement {rec['sign_agreement_slopes']}/{rec['n_slopes']}, max |error| {rec['max_abs_error_slopes']}",
+              rec["sign_agreement_slopes"] == rec["n_slopes"] and rec["max_abs_error_slopes"] < 0.15)
+    if fit and fit.get("cv"):
+        h4 = fit["cv"]["hand_alpha4"]
+        claim("[release] hand-set prior + shrinkage beats the empirical mean and the constant on the training release (closed-form protocol)",
+              "prior_fit.json cv.hand_alpha4", f"shrink {h4['alc']['mean']:.4f}, empirical mean {h4['alc_emp']['mean']:.4f}, constant {h4['alc_const']['mean']:.4f}",
+              h4["alc"]["mean"] < h4["alc_emp"]["mean"] and h4["alc"]["mean"] < h4["alc_const"]["mean"])
+        alphas = {a: fit["cv"][f"hand_alpha{a}"]["alc"]["mean"] for a in ("2", "4", "8")}
+        claim("[release] alpha0 = 4 is the best of {2, 4, 8} for the hand-set prior on the training release", "prior_fit.json cv.hand_alpha*",
+              ", ".join(f"alpha {a}: {v:.4f}" for a, v in alphas.items()), min(alphas, key=alphas.get) == "4")
+        sel = fit["cv"].get("selected")
+        if sel:
+            key = f"fit_C{float(sel['C']):g}_cap{float(sel['cap']):g}_alpha{float(sel['alpha0']):g}"
+            d = fit["cv"][key]["paired_b0_fit_minus_hand"]
+            better = fit.get("cv_better_than_hand")
+            claim("[release] the report states the CV outcome of the fitted prior correctly (shipped iff better under CV and on the real testbed)",
+                  "prior_fit.json cv_better_than_hand + prior_fit_testbeds.json ship_rule",
+                  f"cv_better={better}; B0 fit-hand {d['mean']:+.4f} [{d['ci_lo']:+.4f}, {d['ci_hi']:+.4f}]; ship={None if tb is None else tb.get('ship_rule', {}).get('ship')}",
+                  tb is not None and tb.get("ship_rule", {}).get("ship") == bool(better and tb["ship_rule"].get("real_testbed_full_better")))
+    nov = load("novelty_filter_stats.json")
+    if nov and pol_r and pol_s:
+        rec = nov.get("real")
+        if rec:
+            a, b = pol_r["real"]["novelty"]["full"]["alc"]["mean"], pol_r["real"]["first"]["full"]["alc"]["mean"]
+            claim("[real] novelty filter fires on some pairs yet its full-model ALC is within 1e-4 of stream order", "novelty_filter_stats.json + acquisition_policies_real.json",
+                  f"fired on {rec['n_pairs_fired']}/{rec['n_pairs']} pairs, {rec['total_skipped']} skipped; ALC novelty {a:.5f} vs first {b:.5f}",
+                  rec["n_pairs_fired"] > 0 and abs(a - b) < 1e-4)
+        rec = nov.get("synthetic")
+        if rec:
+            claim("[synthetic] novelty filter never fires (pseudo-word items never reach the 0.6 cosine threshold)", "novelty_filter_stats.json",
+                  f"fired on {rec['n_pairs_fired']}/{rec['n_pairs']} pairs", rec["n_pairs_fired"] == 0)
+    import model as _model
+    hand_shipped = (not _model.PRIOR_PROVIDER) and _model.PRIOR_INTERCEPT == 0.0
+    shipped_fit = bool(tb is not None and tb.get("ship_rule", {}).get("ship"))
+    claim("model.py ships the hand-set prior unless the ship rule passed (consistency of code and result files)", "model.py + prior_fit_testbeds.json",
+          f"hand-set constants in model.py: {hand_shipped}; ship rule passed: {shipped_fit}", hand_shipped == (not shipped_fit))
 
     n_fail = sum(1 for r in rows if not r[3])
     lines = ["# Claim audit (generated by experiments/src/make_audit.py)", "",

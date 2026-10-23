@@ -4,19 +4,20 @@
 subject (input[0]) answers the item (input[1]) correctly.  It uses only the Python standard
 library, loads no data or model files, makes no network calls, and never raises.
 
-Components (all constants are hand-set priors documented in the technical report; nothing is
-fitted on competition data):
+Components (all constants are hand-set priors documented in the technical report; nothing is fitted on competition data):
 1. budget-0 prior from visible subject attributes (release date, reasoning effort, parameter
-   count in the name, harness) and item cues (tier/points in item_features, item length);
+   count in the name, harness, an intercept and a per-provider table) and item cues
+   (tier/points in item_features, item length), capped at +-1.5 logits;
 2. beta-binomial shrinkage of the subject-benchmark success rate towards that prior
-   (prior strength 2 pseudo-counts), using the acquired labels of the same pair;
+   (prior strength 4 pseudo-counts), using the acquired labels of the same pair;
 3. a within-pair ridge-logistic adjustment on three cheap item features (log length, digit
    density, sentence count), from 7 labels on;
 4. an item-similarity correction: TF-IDF (unigram+bigram) cosine similarity between the target
    item and the acquired items, kernel-weighted residual of the acquired labels;
 5. leave-one-out gating: from 5 labels on, the kernel scale (including "off") and the use of
    the ridge component are selected by leave-one-out Brier score on the acquired labels, so
-   adaptation is applied only when the pair's own labels show that it helps;
+   adaptation is applied only when the pair's own labels show that it helps (switch-on requires
+   an improvement of 2 standard errors);
 6. clipping to [0.01, 0.99].
 
 `labeling.py` implements the streaming `acquisition_function(input, prediction=None,

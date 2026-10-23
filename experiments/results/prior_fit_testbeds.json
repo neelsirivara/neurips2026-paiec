@@ -1,0 +1,206 @@
+{
+ "fit_file": "C:\\Users\\neels\\Downloads\\gen_papers_2\\neurips_challenges\\paiec\\experiments\\results\\prior_fit.json",
+ "params": {
+  "PRIOR_YEAR_SLOPE": 0.1433,
+  "PRIOR_EFFORT_LOW": 0.0,
+  "PRIOR_EFFORT_MID": -0.0168,
+  "PRIOR_EFFORT_HIGH": -0.0796,
+  "PRIOR_SIZE_SLOPE": 0.0848,
+  "PRIOR_SMALL_NAME": -0.0255,
+  "PRIOR_LARGE_NAME": -0.0021,
+  "PRIOR_HARNESS": -0.0166,
+  "PRIOR_TIER_HARD": -0.6531,
+  "PRIOR_TIER_EASY": 0.0752,
+  "PRIOR_TIER_NUM": 0.0714,
+  "PRIOR_POINTS": 0.0,
+  "PRIOR_LENGTH": 0.0827,
+  "PRIOR_INTERCEPT": 0.0022,
+  "PRIOR_PROVIDER": {
+   "(agent scaffold)": 0.3933,
+   "aidc-ai": 0.3396,
+   "alibaba": 0.0966,
+   "anthropic": -0.0386,
+   "bytedance": -0.209,
+   "cohere": -0.0006,
+   "community": 0.1751,
+   "deepseek": 0.0796,
+   "google": 0.2271,
+   "hugging face": -0.2299,
+   "llava": 0.035,
+   "meta": -0.1514,
+   "microsoft": -0.1582,
+   "minimax": -0.0732,
+   "mistral": -0.1102,
+   "moonshot": -0.0392,
+   "nvidia": 0.0198,
+   "openai": 0.2567,
+   "opengvlab": 0.4393,
+   "unknown": 0.5486,
+   "xai": 0.0892,
+   "zhipu": 0.0643
+  },
+  "SUBJECT_SHRINK": 1.0,
+  "PRIOR_LOGIT_CAP": 1.5
+ },
+ "testbeds": {
+  "real": {
+   "prior": {
+    "hand": {
+     "mean": 0.23404498471303126,
+     "ci_lo": 0.21976162597258742,
+     "ci_hi": 0.24680329171094306,
+     "n": 17,
+     "n_boot": 1000
+    },
+    "fitted": {
+     "mean": 0.23830564094345583,
+     "ci_lo": 0.22940694911774817,
+     "ci_hi": 0.2455700321933121,
+     "n": 17,
+     "n_boot": 1000
+    },
+    "paired_fit_minus_hand": {
+     "mean": 0.004260656230424553,
+     "ci_lo": -0.0023776224737553494,
+     "ci_hi": 0.010410410357923273,
+     "n": 17,
+     "n_boot": 1000,
+     "frac_a_better": 0.35294117647058826,
+     "significant": false
+    }
+   },
+   "shrink": {
+    "hand": {
+     "mean": 0.2227624132678354,
+     "ci_lo": 0.19511124616085587,
+     "ci_hi": 0.2459908183149357,
+     "n": 17,
+     "n_boot": 1000
+    },
+    "fitted": {
+     "mean": 0.22493153265302607,
+     "ci_lo": 0.19861214944640168,
+     "ci_hi": 0.2472947176597866,
+     "n": 17,
+     "n_boot": 1000
+    },
+    "paired_fit_minus_hand": {
+     "mean": 0.002169119385190646,
+     "ci_lo": -0.0005550626771269313,
+     "ci_hi": 0.004570738303581658,
+     "n": 17,
+     "n_boot": 1000,
+     "frac_a_better": 0.29411764705882354,
+     "significant": false
+    }
+   },
+   "full": {
+    "hand": {
+     "mean": 0.2223915962996517,
+     "ci_lo": 0.19486790321336556,
+     "ci_hi": 0.24537491555486196,
+     "n": 17,
+     "n_boot": 1000
+    },
+    "fitted": {
+     "mean": 0.2245321313316099,
+     "ci_lo": 0.19844821040864224,
+     "ci_hi": 0.24688689650358722,
+     "n": 17,
+     "n_boot": 1000
+    },
+    "paired_fit_minus_hand": {
+     "mean": 0.0021405350319582054,
+     "ci_lo": -0.0005819745530911316,
+     "ci_hi": 0.004548323314742652,
+     "n": 17,
+     "n_boot": 1000,
+     "frac_a_better": 0.35294117647058826,
+     "significant": false
+    }
+   }
+  },
+  "synthetic": {
+   "prior": {
+    "hand": {
+     "mean": 0.21475177737799434,
+     "ci_lo": 0.20403731157332827,
+     "ci_hi": 0.22505013913528807,
+     "n": 160,
+     "n_boot": 1000
+    },
+    "fitted": {
+     "mean": 0.23076293240169127,
+     "ci_lo": 0.22468944410615244,
+     "ci_hi": 0.2366834159763572,
+     "n": 160,
+     "n_boot": 1000
+    },
+    "paired_fit_minus_hand": {
+     "mean": 0.01601115502369696,
+     "ci_lo": 0.008759745386069032,
+     "ci_hi": 0.022888222792446414,
+     "n": 160,
+     "n_boot": 1000,
+     "frac_a_better": 0.3875,
+     "significant": true
+    }
+   },
+   "shrink": {
+    "hand": {
+     "mean": 0.17969167409035866,
+     "ci_lo": 0.16910009496246853,
+     "ci_hi": 0.18996793995905667,
+     "n": 160,
+     "n_boot": 1000
+    },
+    "fitted": {
+     "mean": 0.1856414206840088,
+     "ci_lo": 0.17642375580220768,
+     "ci_hi": 0.19442231858193687,
+     "n": 160,
+     "n_boot": 1000
+    },
+    "paired_fit_minus_hand": {
+     "mean": 0.005949746593650119,
+     "ci_lo": 0.0033692273687842855,
+     "ci_hi": 0.008350495062713318,
+     "n": 160,
+     "n_boot": 1000,
+     "frac_a_better": 0.3125,
+     "significant": true
+    }
+   },
+   "full": {
+    "hand": {
+     "mean": 0.1797314112222063,
+     "ci_lo": 0.16907604661462644,
+     "ci_hi": 0.1899531879609872,
+     "n": 160,
+     "n_boot": 1000
+    },
+    "fitted": {
+     "mean": 0.18550127669493335,
+     "ci_lo": 0.17616670493551917,
+     "ci_hi": 0.1944497150793725,
+     "n": 160,
+     "n_boot": 1000
+    },
+    "paired_fit_minus_hand": {
+     "mean": 0.005769865472727067,
+     "ci_lo": 0.0032131005653242076,
+     "ci_hi": 0.008124270688774731,
+     "n": 160,
+     "n_boot": 1000,
+     "frac_a_better": 0.3125,
+     "significant": true
+    }
+   }
+  }
+ },
+ "ship_rule": {
+  "cv_better_than_hand": false,
+  "real_testbed_full_better": false,
+  "ship": false
+ }
+}

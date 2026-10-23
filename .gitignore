@@ -29,6 +29,9 @@ paper/*.fdb_latexmk
 paper/*.fls
 paper/build*.log
 paper/bibtex.log
+# stray build logs at the repo root
+/*.log
+texput.log
 # secrets never belong here
 *.token
 *_token*

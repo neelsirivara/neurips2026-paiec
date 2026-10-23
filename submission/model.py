@@ -8,7 +8,11 @@ only speed up identical computations):
 
   1. Budget-0 prior.  A small logistic form over visible subject attributes (release
      date, reasoning effort, parameter count parsed from the name, harness) and item cues
-     (tier/level/points in ``item_features``, item length), capped at +-1.5 logits.
+     (tier/level/points in ``item_features``, item length), capped at +-1.5 logits.  The
+     prior is a sum of coefficient * feature terms (``subject_terms``/``item_terms``) with
+     an intercept and an optional per-provider table, so that coefficients fitted on the
+     official training release can replace the hand-set constants one-to-one; the shipped
+     values are the hand-set ones (intercept 0, empty provider table).
   2. Pair-level shrinkage.  Beta-binomial posterior mean of the subject-benchmark success
      rate given the acquired labels, with prior strength ALPHA0 centred on the prior.
   3. Within-pair difficulty regression (from RIDGE_MIN_N labels).  A ridge-penalised
@@ -61,6 +65,10 @@ PRIOR_TIER_EASY = 0.50       # ... easy/basic/...
 PRIOR_TIER_NUM = 0.25        # per numeric level above 3 on a 1-5 scale
 PRIOR_POINTS = 0.10          # per point above 1 (capped at 5)
 PRIOR_LENGTH = 0.12          # per doubling of item length relative to 600 characters (clipped to +-3)
+PRIOR_INTERCEPT = 0.0        # global shift of the prior logit (0 shipped: the knob to turn if the official
+                             # formative feedback shows systematic over-/under-prediction, or the fitted
+                             # intercept if a measurement-db fit is shipped; see fit_prior_from_measurement_db.py)
+PRIOR_PROVIDER: dict = {}    # provider (lower-case) -> logit; empty unless fitted on measurement-db
 TFIDF_BIGRAM_WEIGHT = 1.0  # weight of bigram terms relative to unigrams (0 = unigrams only)
 TFIDF_RESTRICT_OOV = False  # drop target terms absent from the acquired set (query-side vocabulary)
 CLIP_LO, CLIP_HI = 0.01, 0.99
@@ -137,36 +145,61 @@ def _item_text(item: dict) -> str:
 
 
 # ----------------------------------------------------------------------------- prior
-def _subject_logit(subject: dict) -> float:
-    z = 0.0
+# The prior logit is a sum of terms coefficient * value.  ``subject_terms`` and ``item_terms``
+# return the ordered (coefficient name, value) pairs so that a coefficient table fitted on the
+# official training release (fit_prior_from_measurement_db.py) can replace the hand-set
+# constants one-to-one; the sums below are evaluated in the same order as the constants are
+# listed, term by term.
+SUBJECT_TERM_NAMES = ("PRIOR_YEAR_SLOPE", "PRIOR_EFFORT_LOW", "PRIOR_EFFORT_MID", "PRIOR_EFFORT_HIGH",
+                      "PRIOR_SIZE_SLOPE", "PRIOR_SMALL_NAME", "PRIOR_LARGE_NAME", "PRIOR_HARNESS")
+ITEM_TERM_NAMES = ("PRIOR_TIER_HARD", "PRIOR_TIER_EASY", "PRIOR_TIER_NUM", "PRIOR_POINTS", "PRIOR_LENGTH")
+_EFFORT_OFF = ("none", "off", "0", "false", "no", "disabled", "n/a", "na", "-")
+_EFFORT_LOW = ("low", "minimal", "min", "lowest")
+_EFFORT_HIGH = ("high", "xhigh", "max", "maximum", "extended", "ultra", "highest")
+_HARNESS_DEFAULT = ("default", "none", "null", "n/a", "na", "-")
+
+
+def subject_terms(subject: dict) -> list:
+    """Ordered (coefficient name, value) terms of the subject part of the prior logit."""
+    terms = []
     yf = _year_fraction(subject.get("release_date"))
     if yf is not None:
-        z += PRIOR_YEAR_SLOPE * min(max(yf - 2024.5, -2.0), 2.0)
+        terms.append(("PRIOR_YEAR_SLOPE", min(max(yf - 2024.5, -2.0), 2.0)))
     effort = _s(subject.get("reasoning_effort")).strip().lower()
-    if effort and effort not in ("none", "off", "0", "false", "no", "disabled", "n/a", "na", "-"):
-        if effort in ("low", "minimal", "min", "lowest"):
-            z += PRIOR_EFFORT_LOW
-        elif effort in ("high", "xhigh", "max", "maximum", "extended", "ultra", "highest"):
-            z += PRIOR_EFFORT_HIGH
+    if effort and effort not in _EFFORT_OFF:
+        if effort in _EFFORT_LOW:
+            terms.append(("PRIOR_EFFORT_LOW", 1.0))
+        elif effort in _EFFORT_HIGH:
+            terms.append(("PRIOR_EFFORT_HIGH", 1.0))
         else:
-            z += PRIOR_EFFORT_MID
+            terms.append(("PRIOR_EFFORT_MID", 1.0))
     name = _s(subject.get("normalized_name")).lower()
     sizes = [float(v) for v in _SIZE_RE.findall(name) if 0.05 <= float(v) <= 2000]
     if sizes:
-        z += PRIOR_SIZE_SLOPE * min(max(math.log2(max(sizes) / 30.0), -4.0), 4.0)
+        terms.append(("PRIOR_SIZE_SLOPE", min(max(math.log2(max(sizes) / 30.0), -4.0), 4.0)))
     else:
         if re.search(r"\b(mini|nano|lite|small|haiku|tiny|flash)\b", name):
-            z += PRIOR_SMALL_NAME
+            terms.append(("PRIOR_SMALL_NAME", 1.0))
         if re.search(r"\b(pro|opus|ultra|large|max)\b", name):
-            z += PRIOR_LARGE_NAME
+            terms.append(("PRIOR_LARGE_NAME", 1.0))
     harness = _s(subject.get("harness")).strip().lower()
-    if harness and harness not in ("default", "none", "null", "n/a", "na", "-"):
-        z += PRIOR_HARNESS
-    return SUBJECT_SHRINK * z
+    if harness and harness not in _HARNESS_DEFAULT:
+        terms.append(("PRIOR_HARNESS", 1.0))
+    return terms
 
 
-def _item_logit(item: dict) -> float:
-    z = 0.0
+def provider_key(subject: dict) -> str:
+    """Lower-case provider string used to look up PRIOR_PROVIDER."""
+    return _s(subject.get("provider")).strip().lower()
+
+
+def item_terms(item: dict, content_length=None) -> list:
+    """Ordered (coefficient name, value) terms of the item part of the prior logit.
+
+    ``content_length`` may be given when the caller knows the length of ``item_content``
+    without materialising the text (used when fitting on the training release).
+    """
+    terms = []
     feats = _s(item.get("item_features")).lower()
     if feats:
         pairs = _KV_RE.findall(feats)
@@ -175,28 +208,45 @@ def _item_logit(item: dict) -> float:
             val = val.strip()
             if key in ("tier", "difficulty", "level", "hardness", "complexity"):
                 if re.search(r"hard|expert|advanced|challeng|difficult|extreme|olympiad|phd|graduate", val):
-                    z += PRIOR_TIER_HARD
+                    terms.append(("PRIOR_TIER_HARD", 1.0))
                 elif re.search(r"easy|basic|elementary|simple|trivial|beginner|intro", val):
-                    z += PRIOR_TIER_EASY
+                    terms.append(("PRIOR_TIER_EASY", 1.0))
                 elif re.search(r"medium|intermediate|moderate|standard", val):
-                    z += 0.0
+                    pass
                 else:
                     nums = re.findall(r"\d+(?:\.\d+)?", val)
                     if nums:
                         num = float(nums[0])
                         if 1 <= num <= 5:
-                            z -= PRIOR_TIER_NUM * (num - 3.0)
+                            terms.append(("PRIOR_TIER_NUM", -(num - 3.0)))
             elif key in ("points", "score", "weight", "marks"):
                 nums = re.findall(r"\d+(?:\.\d+)?", val)
                 if nums:
-                    z -= PRIOR_POINTS * min(max(float(nums[0]) - 1.0, 0.0), 5.0)
+                    terms.append(("PRIOR_POINTS", -min(max(float(nums[0]) - 1.0, 0.0), 5.0)))
         if not pairs:
             if re.search(r"hard|expert|advanced|challeng|difficult", feats):
-                z += 0.67 * PRIOR_TIER_HARD
+                terms.append(("PRIOR_TIER_HARD", 0.67))
             elif re.search(r"easy|basic|elementary|simple", feats):
-                z += 0.8 * PRIOR_TIER_EASY
-    length = len(_s(item.get("item_content")))
-    z -= PRIOR_LENGTH * min(max(math.log2(max(length, 50) / 600.0), -3.0), 3.0)
+                terms.append(("PRIOR_TIER_EASY", 0.8))
+    length = len(_s(item.get("item_content"))) if content_length is None else int(content_length)
+    terms.append(("PRIOR_LENGTH", -min(max(math.log2(max(length, 50) / 600.0), -3.0), 3.0)))
+    return terms
+
+
+def _subject_logit(subject: dict) -> float:
+    g = globals()
+    z = 0.0
+    for name, value in subject_terms(subject):
+        z += g[name] * value
+    z += PRIOR_PROVIDER.get(provider_key(subject), 0.0) if PRIOR_PROVIDER else 0.0
+    return SUBJECT_SHRINK * z + PRIOR_INTERCEPT
+
+
+def _item_logit(item: dict) -> float:
+    g = globals()
+    z = 0.0
+    for name, value in item_terms(item):
+        z += g[name] * value
     return z
 
 

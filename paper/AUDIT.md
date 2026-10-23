@@ -3,7 +3,7 @@
 Every directional claim in paper/main.tex, re-derived from the result files. `HOLDS` means the
 artifact supports the claim as worded; `FAILS` means the text must be changed (or the claim dropped).
 
-50 claims checked, 0 failing.
+66 claims checked, 0 failing.
 
 | # | Claim | Artifact | Values | Status |
 |---|---|---|---|---|
@@ -11,7 +11,7 @@ artifact supports the claim as worded; `FAILS` means the text must be changed (o
 | 2 | [synthetic] ... and the difference is significant (95% CI excludes 0) | `synthetic_main.json` | mean -0.0411 [-0.0488, -0.0339], significant=True, frac_better=0.82 | HOLDS |
 | 3 | [synthetic] full model beats the constant 0.5, significantly | `synthetic_main.json paired.full_vs_const` | mean -0.0703 [-0.0805, -0.0592], significant=True, frac_better=0.84 | HOLDS |
 | 4 | [synthetic] empirical mean is worse than the constant at n=1 (B1 > 0.25) | `synthetic_main.json methods.empirical_mean.brier_by_budget.1` | B1 = 0.3298 | HOLDS |
-| 5 | [synthetic] empirical mean overtakes the constant from n=3 (B3 < 0.25) | `synthetic_main.json` | B3 = 0.2113 | HOLDS |
+| 5 | [synthetic] empirical mean overtakes the constant at n=3 (the budget the text quotes) and not earlier | `synthetic_main.json` | B1=0.3298, B3=0.2113, B7=0.1825 | HOLDS |
 | 6 | [synthetic] prior alone improves on the constant | `synthetic_main.json paired.prior_vs_const` | mean -0.0352 [-0.0454, -0.0244], significant=True, frac_better=0.69 | HOLDS |
 | 7 | [synthetic] shrinkage improves on the prior | `synthetic_main.json paired.shrink_vs_prior` | mean -0.0351 [-0.0415, -0.0285], significant=True, frac_better=0.76 | HOLDS |
 | 8 | [synthetic] item-level effect shrink_knn_vs_shrink is small (|mean| < 0.005 ALC) | `synthetic_main.json paired.shrink_knn_vs_shrink` | mean -0.0003 [-0.0005, -0.0001], significant=True, frac_better=0.66 | HOLDS |
@@ -20,43 +20,59 @@ artifact supports the claim as worded; `FAILS` means the text must be changed (o
 | 11 | [synthetic] gated full model is not significantly worse than shrinkage | `synthetic_main.json paired.full_vs_shrink` | mean +0.0000 [-0.0002, +0.0003], significant=False, frac_better=0.26 | HOLDS |
 | 12 | [synthetic] shrinkage at n=31 is within 0.01 Brier of the rate oracle | `synthetic_main.json` | B31 shrink 0.1571 vs oracle_rate 0.1598 | HOLDS |
 | 13 | [synthetic] full-model ECE below empirical-mean ECE and constant ECE | `synthetic_main.json methods.*.ece_pooled` | full 0.032, emp 0.114, const 0.111 | HOLDS |
-| 14 | [real] full model beats the empirical mean (paired ALC difference < 0) | `real_testbed_main.json paired.full_vs_empirical_mean` | mean -0.0562 [-0.0771, -0.0351], significant=True, frac_better=0.80 | HOLDS |
-| 15 | [real] ... and the difference is significant (95% CI excludes 0) | `real_testbed_main.json` | mean -0.0562 [-0.0771, -0.0351], significant=True, frac_better=0.80 | HOLDS |
-| 16 | [real] full model beats the constant 0.5, significantly | `real_testbed_main.json paired.full_vs_const` | mean -0.0317 [-0.0574, -0.0104], significant=True, frac_better=0.73 | HOLDS |
-| 17 | [real] empirical mean is worse than the constant at n=1 (B1 > 0.25) | `real_testbed_main.json methods.empirical_mean.brier_by_budget.1` | B1 = 0.4679 | HOLDS |
-| 18 | [real] empirical mean overtakes the constant from n=3 (B3 < 0.25) | `real_testbed_main.json` | B3 = 0.2408 | HOLDS |
-| 19 | [real] prior alone improves on the constant | `real_testbed_main.json paired.prior_vs_const` | mean -0.0170 [-0.0315, -0.0032], significant=True, frac_better=0.80 | HOLDS |
-| 20 | [real] shrinkage improves on the prior | `real_testbed_main.json paired.shrink_vs_prior` | mean -0.0143 [-0.0307, +0.0002], significant=False, frac_better=0.53 | HOLDS |
-| 21 | [real] item-level effect shrink_knn_vs_shrink is small (|mean| < 0.005 ALC) | `real_testbed_main.json paired.shrink_knn_vs_shrink` | mean +0.0002 [-0.0007, +0.0011], significant=False, frac_better=0.40 | HOLDS |
-| 22 | [real] item-level effect shrink_ridge_vs_shrink is small (|mean| < 0.005 ALC) | `real_testbed_main.json paired.shrink_ridge_vs_shrink` | mean -0.0025 [-0.0062, +0.0015], significant=False, frac_better=0.67 | HOLDS |
-| 23 | [real] item-level effect full_vs_shrink is small (|mean| < 0.005 ALC) | `real_testbed_main.json paired.full_vs_shrink` | mean -0.0004 [-0.0013, +0.0004], significant=False, frac_better=0.27 | HOLDS |
-| 24 | [real] gated full model is not significantly worse than shrinkage | `real_testbed_main.json paired.full_vs_shrink` | mean -0.0004 [-0.0013, +0.0004], significant=False, frac_better=0.27 | HOLDS |
-| 25 | [real] shrinkage at n=31 is within 0.01 Brier of the rate oracle | `real_testbed_main.json` | B31 shrink 0.2008 vs oracle_rate 0.1966 | HOLDS |
-| 26 | [real] full-model ECE below empirical-mean ECE and constant ECE | `real_testbed_main.json methods.*.ece_pooled` | full 0.046, emp 0.152, const 0.135 | HOLDS |
-| 27 | [real] empirical-mean ALC is above the constant's 0.25 | `real_testbed_main.json methods.empirical_mean.alc.mean` | 0.2745 | HOLDS |
+| 14 | [real] full model beats the empirical mean (paired ALC difference < 0) | `real_testbed_main.json paired.full_vs_empirical_mean` | mean -0.0647 [-0.0872, -0.0415], significant=True, frac_better=0.82 | HOLDS |
+| 15 | [real] ... and the difference is significant (95% CI excludes 0) | `real_testbed_main.json` | mean -0.0647 [-0.0872, -0.0415], significant=True, frac_better=0.82 | HOLDS |
+| 16 | [real] full model beats the constant 0.5, significantly | `real_testbed_main.json paired.full_vs_const` | mean -0.0276 [-0.0506, -0.0050], significant=True, frac_better=0.76 | HOLDS |
+| 17 | [real] empirical mean is worse than the constant at n=1 (B1 > 0.25) | `real_testbed_main.json methods.empirical_mean.brier_by_budget.1` | B1 = 0.4978 | HOLDS |
+| 18 | [real] empirical mean overtakes the constant at n=7 (the budget the text quotes) and not earlier | `real_testbed_main.json` | B1=0.4978, B3=0.2644, B7=0.2308 | HOLDS |
+| 19 | [real] prior alone improves on the constant | `real_testbed_main.json paired.prior_vs_const` | mean -0.0160 [-0.0279, -0.0019], significant=True, frac_better=0.82 | HOLDS |
+| 20 | [real] shrinkage improves on the prior | `real_testbed_main.json paired.shrink_vs_prior` | mean -0.0113 [-0.0283, +0.0042], significant=False, frac_better=0.59 | HOLDS |
+| 21 | [real] item-level effect shrink_knn_vs_shrink is small (|mean| < 0.005 ALC) | `real_testbed_main.json paired.shrink_knn_vs_shrink` | mean -0.0002 [-0.0011, +0.0006], significant=False, frac_better=0.47 | HOLDS |
+| 22 | [real] item-level effect shrink_ridge_vs_shrink is small (|mean| < 0.005 ALC) | `real_testbed_main.json paired.shrink_ridge_vs_shrink` | mean -0.0029 [-0.0061, +0.0003], significant=False, frac_better=0.76 | HOLDS |
+| 23 | [real] item-level effect full_vs_shrink is small (|mean| < 0.005 ALC) | `real_testbed_main.json paired.full_vs_shrink` | mean -0.0004 [-0.0012, +0.0003], significant=False, frac_better=0.29 | HOLDS |
+| 24 | [real] gated full model is not significantly worse than shrinkage | `real_testbed_main.json paired.full_vs_shrink` | mean -0.0004 [-0.0012, +0.0003], significant=False, frac_better=0.29 | HOLDS |
+| 25 | [real] shrinkage at n=31 is within 0.01 Brier of the rate oracle | `real_testbed_main.json` | B31 shrink 0.2005 vs oracle_rate 0.1961 | HOLDS |
+| 26 | [real] full-model ECE below empirical-mean ECE and constant ECE | `real_testbed_main.json methods.*.ece_pooled` | full 0.061, emp 0.170, const 0.127 | HOLDS |
+| 27 | [real] empirical-mean ALC is above the constant's 0.25 | `real_testbed_main.json methods.empirical_mean.alc.mean` | 0.2871 | HOLDS |
 | 28 | [synthetic] item-level headroom (oracle_rate - oracle_p) is about 0.02 ALC (0.01..0.03) | `synthetic_main.json methods.oracle_*` | gap = 0.0219 | HOLDS |
 | 29 | alpha0 preferred by shrinkage differs between testbeds | `alpha0_sensitivity_*.json` | synthetic best 2.0, real best 8.0 | HOLDS |
 | 30 | alpha0 range (1..8) moves the full-model ALC by less than 0.01 on synthetic | `alpha0_sensitivity_synthetic.json` | range 0.0038 | HOLDS |
-| 31 | [real] MiniLM embeddings do not significantly improve the full model over TF-IDF | `real_testbed_embedding.json paired_minilm_vs_tfidf.full` | mean -0.0002 [-0.0005, +0.0000] sig=False | HOLDS |
+| 31 | [real] MiniLM embeddings do not significantly improve the full model over TF-IDF | `real_testbed_embedding.json paired_minilm_vs_tfidf.full` | mean -0.0001 [-0.0005, +0.0001] sig=False | HOLDS |
 | 32 | [synthetic] policy 'ble' is not significantly better than random | `acquisition_policies_synthetic.json paired_vs_random.ble.full` | mean +0.0001 [-0.0027, +0.0030] sig=False | HOLDS |
 | 33 | [synthetic] policy 'novelty' is not significantly better than random | `acquisition_policies_synthetic.json paired_vs_random.novelty.full` | mean -0.0013 [-0.0038, +0.0013] sig=False | HOLDS |
 | 34 | [synthetic] policy 'novelty_unc' is not significantly better than random | `acquisition_policies_synthetic.json paired_vs_random.novelty_unc.full` | mean -0.0013 [-0.0038, +0.0013] sig=False | HOLDS |
 | 35 | [synthetic] policy 'first' is not significantly better than random | `acquisition_policies_synthetic.json paired_vs_random.first.full` | mean -0.0013 [-0.0038, +0.0013] sig=False | HOLDS |
 | 36 | [synthetic] shipped novelty policy is not significantly worse than random | `acquisition_policies_synthetic.json` | mean -0.0013 sig=False | HOLDS |
-| 37 | [real] policy 'ble' is not significantly better than random | `acquisition_policies_real.json paired_vs_random.ble.full` | mean -0.0027 [-0.0086, +0.0026] sig=False | HOLDS |
-| 38 | [real] policy 'novelty' is not significantly better than random | `acquisition_policies_real.json paired_vs_random.novelty.full` | mean -0.0011 [-0.0067, +0.0048] sig=False | HOLDS |
-| 39 | [real] policy 'novelty_unc' is not significantly better than random | `acquisition_policies_real.json paired_vs_random.novelty_unc.full` | mean -0.0011 [-0.0067, +0.0048] sig=False | HOLDS |
-| 40 | [real] policy 'first' is not significantly better than random | `acquisition_policies_real.json paired_vs_random.first.full` | mean -0.0009 [-0.0063, +0.0044] sig=False | HOLDS |
-| 41 | [real] shipped novelty policy is not significantly worse than random | `acquisition_policies_real.json` | mean -0.0011 sig=False | HOLDS |
+| 37 | [real] policy 'ble' is not significantly better than random | `acquisition_policies_real.json paired_vs_random.ble.full` | mean -0.0041 [-0.0096, +0.0016] sig=False | HOLDS |
+| 38 | [real] policy 'novelty' is not significantly better than random | `acquisition_policies_real.json paired_vs_random.novelty.full` | mean -0.0044 [-0.0108, +0.0025] sig=False | HOLDS |
+| 39 | [real] policy 'novelty_unc' is not significantly better than random | `acquisition_policies_real.json paired_vs_random.novelty_unc.full` | mean -0.0044 [-0.0108, +0.0025] sig=False | HOLDS |
+| 40 | [real] policy 'first' is not significantly better than random | `acquisition_policies_real.json paired_vs_random.first.full` | mean -0.0044 [-0.0107, +0.0019] sig=False | HOLDS |
+| 41 | [real] shipped novelty policy is not significantly worse than random | `acquisition_policies_real.json` | mean -0.0044 sig=False | HOLDS |
 | 42 | [synthetic seed 1] full < empirical mean and full < 0.25 | `synthetic_replication.json` | full 0.2266 emp 0.2737 | HOLDS |
 | 43 | [synthetic seed 2] full < empirical mean and full < 0.25 | `synthetic_replication.json` | full 0.1963 emp 0.2438 | HOLDS |
-| 44 | [real seeds] full beats empirical mean in every trajectory (mean difference < 0) | `real_testbed_seeds.json` | 4/4 significant; means -0.0535, -0.0394, -0.0367, -0.0655 | HOLDS |
+| 44 | [real seeds] full beats empirical mean in every trajectory (mean difference < 0) | `real_testbed_seeds.json` | 4/4 significant; means -0.0588, -0.0433, -0.0384, -0.0621 | HOLDS |
 | 45 | [synthetic] gated model is not significantly worse than always-on components | `loo_gating_ablation_synthetic.json` | mean -0.0011 [-0.0017, -0.0005] sig=True | HOLDS |
-| 46 | [real] gated model is not significantly worse than always-on components | `loo_gating_ablation_real.json` | mean +0.0014 [-0.0019, +0.0045] sig=False | HOLDS |
+| 46 | [real] gated model is not significantly worse than always-on components | `loo_gating_ablation_real.json` | mean +0.0021 [-0.0009, +0.0048] sig=False | HOLDS |
 | 47 | [sweep] oracle headroom grows with sigma_topic | `synthetic_signal_sweep.json` | sigma 0.0: 0.0107, sigma 0.35: 0.0144, sigma 0.7: 0.0219, sigma 1.0: 0.0306 | HOLDS |
-| 48 | predict runs at > 100 calls/s at budget 31 with long items, mean < 50 ms | `smoke_test.json` | 499 calls/s, mean 2.00 ms, max 54.8 ms | HOLDS |
+| 48 | predict runs at > 100 calls/s at budget 31 with long items, mean < 50 ms | `smoke_test.json` | 553 calls/s, mean 1.81 ms, max 46.2 ms | HOLDS |
 | 49 | smoke test passed all cases | `smoke_test.json` | 34 cases, ok=True | HOLDS |
 | 50 | official validator accepts the ZIP | `validator_output.txt` | OK: C:\Users\neels\Downloads\gen_papers_2\neurips_challenges\paiec\submission\paiec_submission.zip looks like a valid submission ZIP. | HOLDS |
+| 51 | [sens] frontier-like subjects: p0 stays inside the cap [0.18, 0.82] and spans more than 0.3 | `prior_sensitivity.json frontier_grid` | p0 in [0.386, 0.818] over 160 subjects (values rounded to 4 decimals) | HOLDS |
+| 52 | [sens] alpha0=4: a prior of 0.7 on a pair with true rate 0.3 loses to the constant 0.5 | `prior_sensitivity.json miscalibration` | ALC excess 0.0617 vs constant excess 0.0400 | HOLDS |
+| 53 | [sens] alpha0=4: shrinkage beats the constant whenever |r-0.5| >= 0.2 and |p0-r| <= 0.3 | `prior_sensitivity.json miscalibration` | 21/21 such cells beat the constant | HOLDS |
+| 54 | [sens] alpha0=4: near r=0.5 (|r-0.5| < 0.15) no prior makes shrinkage beat the constant | `prior_sensitivity.json miscalibration` | 0/18 cells beat the constant | HOLDS |
+| 55 | [real] shifts of +0.5 and +1 are significantly worse than the shipped 0 | `prior_sensitivity.json offset_sweep.real` | +0.5: +0.0134 sig=True, +1.0: +0.0353 sig=True | HOLDS |
+| 56 | [real] a shift of -0.5 is not significantly different from 0 | `prior_sensitivity.json offset_sweep.real` | (-0.5) - (0): mean -0.0034 [-0.0117, +0.0049] sig=False | HOLDS |
+| 57 | [synthetic] 0 is the best shift and both +-0.5 are significantly worse | `prior_sensitivity.json offset_sweep.synthetic` | -0.5: +0.0037 sig=True, +0.5: +0.0047 sig=True | HOLDS |
+| 58 | [release] the hand-set prior is not optimistic in the large (mean p0 <= mean pair rate) | `prior_fit.json diagnostics` | mean p0 0.510 vs mean pair rate 0.537 | HOLDS |
+| 59 | measurement-db listing: 281 benchmark directories; core tables under 30 GB; traces and assets over 100 GB | `measurement_db_listing.json` | 281 dirs; core 14.788 GB; traces 107.776 GB; assets 154.748 GB | HOLDS |
+| 60 | [dry run] fitting pipeline recovers the sign of every generating slope and each within 0.15 logits | `prior_fit_dry_run.json dry_run_recovery` | sign agreement 13/13, max |error| 0.0539 | HOLDS |
+| 61 | [release] hand-set prior + shrinkage beats the empirical mean and the constant on the training release (closed-form protocol) | `prior_fit.json cv.hand_alpha4` | shrink 0.2051, empirical mean 0.2396, constant 0.2470 | HOLDS |
+| 62 | [release] alpha0 = 4 is the best of {2, 4, 8} for the hand-set prior on the training release | `prior_fit.json cv.hand_alpha*` | alpha 2: 0.2052, alpha 4: 0.2051, alpha 8: 0.2086 | HOLDS |
+| 63 | [release] the report states the CV outcome of the fitted prior correctly (shipped iff better under CV and on the real testbed) | `prior_fit.json cv_better_than_hand + prior_fit_testbeds.json ship_rule` | cv_better=False; B0 fit-hand +0.0033 [+0.0030, +0.0036]; ship=False | HOLDS |
+| 64 | [real] novelty filter fires on some pairs yet its full-model ALC is within 1e-4 of stream order | `novelty_filter_stats.json + acquisition_policies_real.json` | fired on 10/17 pairs, 40 skipped; ALC novelty 0.21800 vs first 0.21799 | HOLDS |
+| 65 | [synthetic] novelty filter never fires (pseudo-word items never reach the 0.6 cosine threshold) | `novelty_filter_stats.json` | fired on 0/160 pairs | HOLDS |
+| 66 | model.py ships the hand-set prior unless the ship rule passed (consistency of code and result files) | `model.py + prior_fit_testbeds.json` | hand-set constants in model.py: True; ship rule passed: False | HOLDS |
 
 Number provenance: every number in the PDF is a macro from `paper/results_macros.tex`
 (generated by `make_macros.py`); tables are `paper/results_table_*.tex` from the same script;

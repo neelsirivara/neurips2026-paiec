@@ -186,10 +186,10 @@
   }
  ],
  "ok": true,
- "mean_ms_short": 4.84742499990413,
- "mean_ms_long_budget31": 2.0021300001280906,
- "max_ms_long_budget31": 54.81329999747686,
- "calls_per_second_long_budget31": 499.4680664772132,
+ "mean_ms_short": 3.4886916666134007,
+ "mean_ms_long_budget31": 1.809525000053327,
+ "max_ms_long_budget31": 46.22120000021823,
+ "calls_per_second_long_budget31": 552.6312153579142,
  "acquisition_decisions": [
   true,
   true,

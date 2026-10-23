@@ -44,10 +44,11 @@ and a Hugging Face account; create both yourself if you do not have them.
    block with your name and affiliation (the e-mail is already there), then rebuild:
    `bash ../experiments/src/build_paper.sh` (MiKTeX is installed; about a minute). The script
    reports the page count and checks that `main.pdf` has no `??`.
-2. The report must link the released code. Push the `paiec/` directory (experiments/src,
-   experiments/results, paper, submission) to a public repository and put its URL in the
-   `\codeurl` macro at the top of `main.tex` (currently a placeholder that reads
-   "repository URL to be inserted by the author"); rebuild.
+2. The report must link the released code. `\codeurl` in `main.tex` already points to
+   https://github.com/neelsirivara/neurips2026-paiec (the repository that `make_repos.py`
+   maintains from the `paiec/` directory). It is **private** until you flip it to public: do that
+   before the OpenReview upload, and make sure the latest `experiments/results`, `paper` and
+   `submission` are pushed (the reviewers will follow the link).
 3. Go to the OpenReview venue linked from the competition page, create the submission, upload
    `main.pdf`, and enter the Codabench submission ID from Step 2.
 

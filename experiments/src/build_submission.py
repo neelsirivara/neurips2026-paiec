@@ -23,26 +23,36 @@ SUBMISSION_DIR = ROOT / "submission"
 RESULTS = HERE.parent / "results"
 ZIP_PATH = SUBMISSION_DIR / "paiec_submission.zip"
 
-ZIP_README = """# PAIEC submission: hierarchical shrinkage with text-aware test-time adaptation
+sys.path.insert(0, str(HERE))
+import model  # noqa: E402
+
+_PRIOR_SOURCE = ("all constants are hand-set priors documented in the technical report; nothing is fitted "
+                 "on competition data" if not model.PRIOR_PROVIDER and model.PRIOR_INTERCEPT == 0.0 else
+                 "the budget-0 prior coefficients were fitted on the public training release "
+                 "aims-foundations/measurement-db with benchmark-held-out cross-validation, as documented in "
+                 "the technical report; all other constants are hand-set")
+
+ZIP_README = f"""# PAIEC submission: hierarchical shrinkage with text-aware test-time adaptation
 
 `model.py` implements `predict(input, labeled=None) -> float`, the probability that the
 subject (input[0]) answers the item (input[1]) correctly.  It uses only the Python standard
 library, loads no data or model files, makes no network calls, and never raises.
 
-Components (all constants are hand-set priors documented in the technical report; nothing is
-fitted on competition data):
+Components ({_PRIOR_SOURCE}):
 1. budget-0 prior from visible subject attributes (release date, reasoning effort, parameter
-   count in the name, harness) and item cues (tier/points in item_features, item length);
+   count in the name, harness, an intercept and a per-provider table) and item cues
+   (tier/points in item_features, item length), capped at +-{model.PRIOR_LOGIT_CAP:g} logits;
 2. beta-binomial shrinkage of the subject-benchmark success rate towards that prior
-   (prior strength 2 pseudo-counts), using the acquired labels of the same pair;
+   (prior strength {model.ALPHA0:g} pseudo-counts), using the acquired labels of the same pair;
 3. a within-pair ridge-logistic adjustment on three cheap item features (log length, digit
-   density, sentence count), from 7 labels on;
+   density, sentence count), from {model.RIDGE_MIN_N} labels on;
 4. an item-similarity correction: TF-IDF (unigram+bigram) cosine similarity between the target
    item and the acquired items, kernel-weighted residual of the acquired labels;
-5. leave-one-out gating: from 5 labels on, the kernel scale (including "off") and the use of
+5. leave-one-out gating: from {model.LOO_MIN_N} labels on, the kernel scale (including "off") and the use of
    the ridge component are selected by leave-one-out Brier score on the acquired labels, so
-   adaptation is applied only when the pair's own labels show that it helps;
-6. clipping to [0.01, 0.99].
+   adaptation is applied only when the pair's own labels show that it helps (switch-on requires
+   an improvement of {model.LOO_SE_MULT:g} standard errors);
+6. clipping to [{model.CLIP_LO}, {model.CLIP_HI}].
 
 `labeling.py` implements the streaming `acquisition_function(input, prediction=None,
 labeled=None, context=None) -> bool`.  It accepts candidates in stream order (a uniformly
