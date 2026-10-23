@@ -12,7 +12,7 @@ was unreachable (connection refused) for the whole of 2026-10-21, so assume it m
 | File | Purpose |
 |---|---|
 | `paiec_submission.zip` | The Codabench upload. Root contains `model.py`, `labeling.py`, `README.md` (about 11 kB). Size and SHA-256 in `../experiments/results/submission_zip_info.json`. |
-| `model.py`, `labeling.py`, `ZIP_README.md` | Unzipped copies of the same files for inspection (byte-identical to `../experiments/src/model.py` and `labeling.py`). |
+| `model.py`, `labeling.py`, `ZIP_README.md` | Unzipped copies of the same files for inspection. `labeling.py` is byte-identical to `../experiments/src/labeling.py`; `../experiments/src/model.py` additionally carries the round-3 item-text-prior hooks, which are inactive without a `text_prior.json` weight file (the text prior was evaluated and NOT shipped) and give bit-identical predictions on 5,544 test cases (`../experiments/results/round3/shipped_equivalence.json`). The ZIP is unchanged since 2026-10-23 (SHA-256 `3f0d15c8...`). |
 | `../experiments/results/validator_output.txt` | Output of the organisers' `check_submission_zip.py` on the ZIP (`OK`, exit code 0). |
 | `../paper/main.pdf` | The technical report (NeurIPS 2026 template, non-anonymous). |
 
@@ -56,11 +56,12 @@ and a Hugging Face account; create both yourself if you do not have them.
 
 ```
 cd ../experiments/src
-python smoke_test.py                                   # interface, robustness, throughput (seconds)
+python smoke_test.py --dir ../../submission           # shipped files: interface, robustness, throughput (seconds)
 python run_experiments.py --suite all --workers 4      # all result JSONs (about 45 min on 4 cores)
 python run_extras.py --workers 4                       # TF-IDF representation ablation (5 min)
 bash build_paper.sh                                    # macros, figures, audit, PDF
-python build_submission.py                             # ZIP + validator
+python build_submission.py                             # validator on the ZIP (rebuilds only with --force, see below)
+python -I text_prior.py build && python -I text_prior.py cv  # round 3: item-text prior (needs the training payload)
 ```
 
 The real Ollama testbed (`../experiments/results/real_testbed/*.jsonl`, plus the frozen copy of

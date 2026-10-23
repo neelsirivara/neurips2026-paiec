@@ -1,0 +1,7 @@
+{
+ "n_items": 2000,
+ "n_features_bit_identical_to_cache": 2000,
+ "max_abs_feature_diff_float32": 0.0,
+ "max_abs_score_diff_stdlib_vs_numpy": 8.971077825048468e-09,
+ "spec": "text_prior_candidate.json"
+}

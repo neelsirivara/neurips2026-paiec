@@ -102,3 +102,57 @@ page 8; references + 5 appendix sections; 0 `??`, 0 undefined references, 0 over
 - `model.py` refactor verified bit-identical on 7,340 snapshot predictions before/after.
 - Official validator on the rebuilt ZIP: `OK ... valid submission ZIP`, exit 0.
 - `verify_all.py` run after the final build (macros newer than every result JSON).
+
+## Review pass 3 (round 3, 2026-10-23: item-text difficulty prior)
+
+Reviewed artifact: `paper/main.pdf` rebuilt 2026-10-23 (15 pages; main text ends at the bottom of
+page 8; references from page 9; 7 appendix sections including the new "Item-text difficulty prior:
+details"; 0 `??`, 0 undefined references, 0 overfull boxes; 1,675 macros; `make_audit.py`: 86 claims
+re-derived from JSON, 0 failing).
+
+### What changed in the report
+- New Data paragraph "An item-text difficulty prior (pre-registered; not shipped)" and Appendix D
+  (pre-registration and outcome, features/target, nested selection and per-fold fits, Table 2 with the
+  CV results incl. exploratory rows and references, testbeds, engineering gates, shipped-file
+  equivalence, the list of the 144 training-release benchmarks used).
+- Abstract, introduction, contributions, limitations, reproducibility and disclosure now state the
+  third use of the release (item `content`/`item_features` of 515,067 items for a candidate text prior
+  that was not shipped).
+
+### Scores (1-5), updated
+| Criterion | Score | Change and reason |
+|---|---|---|
+| Clarity | 4 | unchanged; the round-3 paragraph is dense but every number has a CI and a pointer to Appendix D. |
+| Soundness | 4 | up in substance, not in score: the text prior was pre-registered (rule, grids, folds), evaluated with a cluster bootstrap over benchmarks rather than over pairs (the pair-bootstrap CI is more than an order of magnitude narrower and would overstate precision), reproduces the iteration-2 hand-set numbers exactly, and the exploratory follow-ups are registered and labelled as such. Weakness: the pre-registered penalty grid was too short (boundary hit in every fold); addressed by exploratory E1 (penalties to 1e4), which changes nothing. |
+| Reproducibility | 4 | `text_prior.py` re-creates every round-3 number from the payload; hashes of PREREG/addendum are checked at build time. Still needs the gated release to re-run. |
+| Significance | 3 | A clean negative result (item text in hashed-n-gram/statistics form does not transfer across benchmarks; W < 0 in every fold) plus a quantified ceiling (benchmark-mean oracle: -0.0061 ALC) is useful to other teams. |
+| Overall | 3.5 | unchanged. |
+
+### Must-fixes found and applied in this pass
+- M13 (build-breaking): `make_macros.py` emitted two macros named `\TpHandBZero` (all-row B0 vs the
+  evaluation-half B0 of the budget table) and two `\TpDiffBZero*` families; LaTeX would have failed on
+  `\newcommand` redefinition. Renamed the per-budget family to `...Bud...` and added a duplicate-name
+  guard to `mac()`.
+- M14 (page budget): the new paragraph pushed the main text 14 lines onto page 9. Moved the full
+  acquisition-policy discussion and the full frontier-subject discussion to the appendix (main text keeps
+  the headline numbers and CIs), shortened the prior-strength, replication, data-listing and
+  limitations sentences. Main text ends at the bottom of page 8 again.
+- M15 (inaccurate wording, inherited): Limitations said the novelty filter "fires on templated items of
+  both testbeds"; it fires on 10/17 real pairs and 0/160 synthetic pairs. Now "real-testbed items".
+- M16: internal jargon "Round 3" in section/paragraph titles replaced by descriptive titles.
+- M17 (provenance): the smoke test now runs against the shipped files (`smoke_test.py --dir
+  ../../submission`, 42 cases); the text-prior variant is smoke-tested separately with its weights
+  loaded (44 cases, `round3/text_prior_smoke_test.json`).
+- M18 (consistency of code and claims): `experiments/src/model.py` is no longer byte-identical to the
+  shipped `submission/model.py` (it carries the dormant text-prior hooks). The report now says so;
+  `round3/shipped_equivalence.json` shows 5,544/5,544 bit-identical predictions and the unchanged ZIP
+  SHA-256; `build_submission.py` refuses to overwrite the validated ZIP without `--force`.
+
+### Checks performed
+- PREREG.md SHA-256 `bb54af42...` equals the value stored in `text_prior_cv.json` (audit claim);
+  addendum SHA-256 `debcd2aa...` equals `text_prior_explore.json`.
+- Every round-3 directional statement (no significant change; W < 0 in every fold; boundary penalty in
+  every fold; < 5% of the oracle gap closed at n = 0, 1, 3; benchmark-mean oracle significantly better;
+  testbeds not significant; exploratory variants not better; ship decision consistent with files) is an
+  audit claim that HOLDS.
+- Official validator on the unchanged ZIP: OK, exit 0.

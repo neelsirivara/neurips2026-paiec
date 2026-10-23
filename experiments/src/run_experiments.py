@@ -38,6 +38,13 @@ def _set_params(params: dict | None):
     for k, v in params.items():
         if k == "POLICY":
             labeling.POLICY = v
+        elif k == "TEXT_PRIOR_FILE":
+            # path of a text-prior specification (text_prior.py), or False/None for the hand-set prior only
+            if not v:
+                if model.TEXT_PRIOR is not None:
+                    model.load_text_prior(False)
+            elif model.TEXT_PRIOR is None or model.TEXT_PRIOR.get("_path") != v:
+                model.load_text_prior(v)
         elif k == "EMBED_NPZ":
             import embed_cache
             model.EMBED_LOOKUP = embed_cache.load_embed_lookup(v) if v else None

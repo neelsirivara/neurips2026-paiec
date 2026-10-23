@@ -318,11 +318,15 @@ def _to_label(col):
 
 
 def load_pairs_from_payload(data_dir: Path, max_items_per_pair: int = MAX_ITEMS_PER_PAIR, seed: int = 0,
-                            dirs: list | None = None) -> list:
+                            dirs: list | None = None, keep_ids: bool = False, item_stats: dict | None = None) -> list:
     """Return a list of pair records built from the payload tables.
 
     Each record: {dir, subject_id, test_condition, subject (dict), n_items, items: [(item_terms, label)]}
     where item_terms are the (name, value) terms of model.item_terms and label is the mean response.
+    ``keep_ids`` adds ``item_ids`` (parallel to ``items``).  ``item_stats`` (a dict, filled in place)
+    receives per benchmark directory a DataFrame indexed by item id with the sum of pair-level responses,
+    the number of pairs and the sum of the pairs' hand-set subject logits over ALL items of the pairs
+    that enter the frame (used by text_prior.py; the sampling of the frame is unchanged).
     """
     import pandas as pd
     import pyarrow as pa
@@ -359,6 +363,17 @@ def load_pairs_from_payload(data_dir: Path, max_items_per_pair: int = MAX_ITEMS_
         ok = ~np.isnan(y)
         df = pd.DataFrame({"sid": sid[ok], "iid": iid[ok], "cond": cond[ok], "y": y[ok]})
         agg = df.groupby(["sid", "cond", "iid"], sort=False)["y"].mean().reset_index()
+        if item_stats is not None:
+            sizes = agg.groupby(["sid", "cond"], sort=False)["iid"].transform("size")
+            sub = agg[sizes >= MIN_PAIR_ITEMS_FIT]
+            keys = sub[["sid", "cond"]].drop_duplicates()
+            zrows = []
+            for s_, c_ in zip(keys["sid"].tolist(), keys["cond"].tolist()):
+                subj_ = subjects.get(s_, {col: "" for col in SUBJECT_COLS})
+                zrows.append((s_, c_, float(model._subject_logit(subj_))))
+            zdf = pd.DataFrame(zrows, columns=["sid", "cond", "zs"])
+            sub = sub.merge(zdf, on=["sid", "cond"], how="left")
+            item_stats[d] = sub.groupby("iid", sort=False).agg(sum_y=("y", "sum"), n=("y", "size"), sum_zs=("zs", "sum"))
         # item features (length and item_features) from the items table, if present
         item_info = {}
         items_path = base / "items.parquet"
@@ -387,8 +402,11 @@ def load_pairs_from_payload(data_dir: Path, max_items_per_pair: int = MAX_ITEMS_
                 L, f = item_info.get(iid_, (0, ""))
                 terms = model.item_terms({"item_features": f}, content_length=L) if item_info else []
                 items.append((terms, float(yy)))
-            pairs.append({"dir": d, "subject_id": s, "test_condition": c, "subject": subject, "n_items": n_items,
-                          "items": items, "has_item_info": bool(item_info)})
+            rec = {"dir": d, "subject_id": s, "test_condition": c, "subject": subject, "n_items": n_items,
+                   "items": items, "has_item_info": bool(item_info)}
+            if keep_ids:
+                rec["item_ids"] = [iid_ for iid_, _ in rows]
+            pairs.append(rec)
         if k % 10 == 0 or k == len(dirs):
             log(f"  {k}/{len(dirs)} dirs, {len(pairs)} pairs so far ({time.time() - t0:.0f}s)")
     return pairs

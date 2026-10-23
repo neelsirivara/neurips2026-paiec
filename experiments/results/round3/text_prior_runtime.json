@@ -1,0 +1,32 @@
+{
+ "spec": "text_prior_candidate.json",
+ "weights_file_bytes": 1402092,
+ "load_ms": 22.43589999852702,
+ "throughput": {
+  "short15": {
+   "calls_per_s": 3055.8331278145397,
+   "mean_ms": 0.3272429999196902,
+   "max_ms": 10.22499999817228
+  },
+  "words300": {
+   "calls_per_s": 672.6686649072384,
+   "mean_ms": 1.4866160000747186,
+   "max_ms": 38.829299999633804
+  },
+  "words2000": {
+   "calls_per_s": 417.285901481661,
+   "mean_ms": 2.3964385004364885,
+   "max_ms": 60.92250000074273
+  }
+ },
+ "smoke_exit_code": 0,
+ "smoke": {
+  "n_cases": 44,
+  "text_prior_loaded": true,
+  "calls_per_second_long_budget31": 701.387203689655,
+  "mean_ms_long_budget31": 1.4257459998407285
+ },
+ "gate_throughput_200": true,
+ "gate_weights_5mb": true,
+ "gate_smoke": true
+}

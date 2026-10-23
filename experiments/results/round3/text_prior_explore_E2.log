@@ -1,0 +1,88 @@
+11:09:31 [E2_statistics_only-fold1] inner 1/4 alpha=0.1: 1s
+11:09:31 [E2_statistics_only-fold1] inner 1/4 alpha=1: 0s
+11:09:31 [E2_statistics_only-fold1] inner 1/4 alpha=10: 0s
+11:09:31 [E2_statistics_only-fold1] inner 1/4 alpha=100: 0s
+11:09:31 [E2_statistics_only-fold1] inner 2/4 alpha=0.1: 0s
+11:09:31 [E2_statistics_only-fold1] inner 2/4 alpha=1: 0s
+11:09:31 [E2_statistics_only-fold1] inner 2/4 alpha=10: 0s
+11:09:31 [E2_statistics_only-fold1] inner 2/4 alpha=100: 0s
+11:09:31 [E2_statistics_only-fold1] inner 3/4 alpha=0.1: 0s
+11:09:31 [E2_statistics_only-fold1] inner 3/4 alpha=1: 0s
+11:09:31 [E2_statistics_only-fold1] inner 3/4 alpha=10: 0s
+11:09:31 [E2_statistics_only-fold1] inner 3/4 alpha=100: 0s
+11:09:31 [E2_statistics_only-fold1] inner 4/4 alpha=0.1: 0s
+11:09:32 [E2_statistics_only-fold1] inner 4/4 alpha=1: 0s
+11:09:32 [E2_statistics_only-fold1] inner 4/4 alpha=10: 0s
+11:09:32 [E2_statistics_only-fold1] inner 4/4 alpha=100: 0s
+11:09:41 [E2_statistics_only-fold1] alpha 100 (inner MSE 3.0330 vs constant 3.0476); W -0.055 B 0.148; cap 1.5; lambda 0; 11s
+11:09:42 [E2_statistics_only-fold2] inner 1/4 alpha=0.1: 0s
+11:09:42 [E2_statistics_only-fold2] inner 1/4 alpha=1: 0s
+11:09:42 [E2_statistics_only-fold2] inner 1/4 alpha=10: 0s
+11:09:42 [E2_statistics_only-fold2] inner 1/4 alpha=100: 0s
+11:09:42 [E2_statistics_only-fold2] inner 2/4 alpha=0.1: 0s
+11:09:42 [E2_statistics_only-fold2] inner 2/4 alpha=1: 0s
+11:09:42 [E2_statistics_only-fold2] inner 2/4 alpha=10: 0s
+11:09:42 [E2_statistics_only-fold2] inner 2/4 alpha=100: 0s
+11:09:42 [E2_statistics_only-fold2] inner 3/4 alpha=0.1: 0s
+11:09:42 [E2_statistics_only-fold2] inner 3/4 alpha=1: 0s
+11:09:43 [E2_statistics_only-fold2] inner 3/4 alpha=10: 0s
+11:09:43 [E2_statistics_only-fold2] inner 3/4 alpha=100: 0s
+11:09:43 [E2_statistics_only-fold2] inner 4/4 alpha=0.1: 0s
+11:09:43 [E2_statistics_only-fold2] inner 4/4 alpha=1: 0s
+11:09:43 [E2_statistics_only-fold2] inner 4/4 alpha=10: 0s
+11:09:43 [E2_statistics_only-fold2] inner 4/4 alpha=100: 0s
+11:09:51 [E2_statistics_only-fold2] alpha 100 (inner MSE 3.4174 vs constant 3.3647); W -0.540 B 0.073; cap 1.5; lambda 0; 10s
+11:09:53 [E2_statistics_only-fold3] inner 1/4 alpha=0.1: 0s
+11:09:53 [E2_statistics_only-fold3] inner 1/4 alpha=1: 0s
+11:09:53 [E2_statistics_only-fold3] inner 1/4 alpha=10: 0s
+11:09:53 [E2_statistics_only-fold3] inner 1/4 alpha=100: 0s
+11:09:53 [E2_statistics_only-fold3] inner 2/4 alpha=0.1: 0s
+11:09:53 [E2_statistics_only-fold3] inner 2/4 alpha=1: 0s
+11:09:53 [E2_statistics_only-fold3] inner 2/4 alpha=10: 0s
+11:09:53 [E2_statistics_only-fold3] inner 2/4 alpha=100: 0s
+11:09:53 [E2_statistics_only-fold3] inner 3/4 alpha=0.1: 0s
+11:09:53 [E2_statistics_only-fold3] inner 3/4 alpha=1: 0s
+11:09:53 [E2_statistics_only-fold3] inner 3/4 alpha=10: 0s
+11:09:53 [E2_statistics_only-fold3] inner 3/4 alpha=100: 0s
+11:09:53 [E2_statistics_only-fold3] inner 4/4 alpha=0.1: 0s
+11:09:53 [E2_statistics_only-fold3] inner 4/4 alpha=1: 0s
+11:09:53 [E2_statistics_only-fold3] inner 4/4 alpha=10: 0s
+11:09:53 [E2_statistics_only-fold3] inner 4/4 alpha=100: 0s
+11:10:04 [E2_statistics_only-fold3] alpha 100 (inner MSE 3.1279 vs constant 3.1237); W -0.618 B 0.250; cap 1.5; lambda 0; 12s
+11:10:05 [E2_statistics_only-fold4] inner 1/4 alpha=0.1: 0s
+11:10:05 [E2_statistics_only-fold4] inner 1/4 alpha=1: 0s
+11:10:05 [E2_statistics_only-fold4] inner 1/4 alpha=10: 0s
+11:10:05 [E2_statistics_only-fold4] inner 1/4 alpha=100: 0s
+11:10:05 [E2_statistics_only-fold4] inner 2/4 alpha=0.1: 0s
+11:10:05 [E2_statistics_only-fold4] inner 2/4 alpha=1: 0s
+11:10:05 [E2_statistics_only-fold4] inner 2/4 alpha=10: 0s
+11:10:05 [E2_statistics_only-fold4] inner 2/4 alpha=100: 0s
+11:10:05 [E2_statistics_only-fold4] inner 3/4 alpha=0.1: 0s
+11:10:05 [E2_statistics_only-fold4] inner 3/4 alpha=1: 0s
+11:10:05 [E2_statistics_only-fold4] inner 3/4 alpha=10: 0s
+11:10:05 [E2_statistics_only-fold4] inner 3/4 alpha=100: 0s
+11:10:05 [E2_statistics_only-fold4] inner 4/4 alpha=0.1: 0s
+11:10:05 [E2_statistics_only-fold4] inner 4/4 alpha=1: 0s
+11:10:05 [E2_statistics_only-fold4] inner 4/4 alpha=10: 0s
+11:10:05 [E2_statistics_only-fold4] inner 4/4 alpha=100: 0s
+11:10:16 [E2_statistics_only-fold4] alpha 100 (inner MSE 3.4616 vs constant 3.4469); W -0.461 B 0.117; cap 2.5; lambda 0; 12s
+11:10:17 [E2_statistics_only-fold5] inner 1/4 alpha=0.1: 0s
+11:10:17 [E2_statistics_only-fold5] inner 1/4 alpha=1: 0s
+11:10:17 [E2_statistics_only-fold5] inner 1/4 alpha=10: 0s
+11:10:17 [E2_statistics_only-fold5] inner 1/4 alpha=100: 0s
+11:10:17 [E2_statistics_only-fold5] inner 2/4 alpha=0.1: 0s
+11:10:17 [E2_statistics_only-fold5] inner 2/4 alpha=1: 0s
+11:10:17 [E2_statistics_only-fold5] inner 2/4 alpha=10: 0s
+11:10:17 [E2_statistics_only-fold5] inner 2/4 alpha=100: 0s
+11:10:17 [E2_statistics_only-fold5] inner 3/4 alpha=0.1: 0s
+11:10:17 [E2_statistics_only-fold5] inner 3/4 alpha=1: 0s
+11:10:17 [E2_statistics_only-fold5] inner 3/4 alpha=10: 0s
+11:10:17 [E2_statistics_only-fold5] inner 3/4 alpha=100: 0s
+11:10:17 [E2_statistics_only-fold5] inner 4/4 alpha=0.1: 0s
+11:10:17 [E2_statistics_only-fold5] inner 4/4 alpha=1: 0s
+11:10:17 [E2_statistics_only-fold5] inner 4/4 alpha=10: 0s
+11:10:17 [E2_statistics_only-fold5] inner 4/4 alpha=100: 0s
+11:10:26 [E2_statistics_only-fold5] alpha 100 (inner MSE 3.1996 vs constant 3.1543); W -0.937 B 0.147; cap 1.5; lambda 0; 9s
+11:10:28 E2_statistics_only: ALC diff vs hand +0.0001 [-0.0010, +0.0014]
+11:10:28 wrote C:\Users\neels\Downloads\gen_papers_2\neurips_challenges\paiec\experiments\results\round3\text_prior_explore.json
+exit 0

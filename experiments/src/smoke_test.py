@@ -17,7 +17,9 @@ import time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE))
+# --dir DIR tests the model.py/labeling.py in DIR (e.g. ../../submission, the shipped files); default: this directory
+_DIR = Path(sys.argv[sys.argv.index("--dir") + 1]).resolve() if "--dir" in sys.argv else HERE
+sys.path.insert(0, str(_DIR))
 import labeling  # noqa: E402
 import model  # noqa: E402
 
@@ -92,6 +94,32 @@ def main() -> int:
                       "non_dicts": ["x", 3], "huge_text": [SAMPLE_SUBJECT, {"item_content": "word " * 200000}]}.items():
         v = check(model.predict(inp, labeled=[]), name)
         report["cases"].append({"case": name, "prediction": v})
+    # item-text prior inputs: JSON contents (valid and truncated) and a malformed specification, which must
+    # fall back to the hand-set prior without raising
+    json_items = {"json_multimedia": '{"multimedia_elements": [{"content_type": "text/plain", "text": "What is 2+2?"}]}',
+                  "json_messages": '{"messages": [{"role": "user", "content": "Prove that sqrt(2) is irrational."}]}',
+                  "json_truncated": '{"prompt": "unterminated', "json_list": '["a", 1, null, {"k": [true, 2.5]}]'}
+    for name, content in json_items.items():
+        for n in (0, 7):
+            labeled = make_labeled(SAMPLE_SUBJECT, SAMPLE_ITEM, n, rng)
+            v = check(model.predict([SAMPLE_SUBJECT, dict(SAMPLE_ITEM, item_content=content, benchmark_id="bench_001")],
+                                    labeled=labeled), name)
+            report["cases"].append({"case": f"{name}_budget{n}", "prediction": v})
+    if hasattr(model, "TEXT_PRIOR"):  # model.py versions with the (optional) item-text prior hooks
+        saved = model.TEXT_PRIOR
+        try:
+            model.TEXT_PRIOR = {"cap": "broken"}
+            model._TEXT_CACHE.clear()
+            for n in (0, 7):
+                v = check(model.predict([SAMPLE_SUBJECT, dict(SAMPLE_ITEM, benchmark_id="bench_001")],
+                                        labeled=make_labeled(SAMPLE_SUBJECT, SAMPLE_ITEM, n, rng)), "malformed_spec")
+                report["cases"].append({"case": f"malformed_text_spec_budget{n}", "prediction": v})
+        finally:
+            model.TEXT_PRIOR = saved
+            model._TEXT_CACHE.clear()
+            model._SET_CACHE.clear()
+    report["text_prior_loaded"] = getattr(model, "TEXT_PRIOR", None) is not None
+    report["tested_dir"] = str(_DIR)
     # determinism
     labeled = make_labeled(SAMPLE_SUBJECT, SAMPLE_ITEM, 15, random.Random(1))
     a = model.predict([SAMPLE_SUBJECT, dict(SAMPLE_ITEM, benchmark_id="bench_001")], labeled=labeled)
@@ -129,7 +157,8 @@ def main() -> int:
     report["calls_per_second_long_budget31"] = len(long_times) / sum(long_times)
     report["acquisition_decisions"] = decisions
     assert report["mean_ms_long_budget31"] < 50, report
-    out = HERE.parent / "results" / "smoke_test.json"
+    out = (Path(sys.argv[sys.argv.index("--out") + 1]).resolve() if "--out" in sys.argv
+           else HERE.parent / "results" / "smoke_test.json")
     out.write_text(json.dumps(report, indent=1))
     print(json.dumps({k: v for k, v in report.items() if k != "cases"}, indent=1))
     print(f"OK: {len(report['cases'])} cases; results in {out}")

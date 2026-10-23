@@ -183,13 +183,47 @@
   {
    "case": "huge_text",
    "prediction": 0.4030486033736412
+  },
+  {
+   "case": "json_multimedia_budget0",
+   "prediction": 0.5778363601665956
+  },
+  {
+   "case": "json_multimedia_budget7",
+   "prediction": 0.4193759720502643
+  },
+  {
+   "case": "json_messages_budget0",
+   "prediction": 0.5783608998145823
+  },
+  {
+   "case": "json_messages_budget7",
+   "prediction": 0.5950789992130283
+  },
+  {
+   "case": "json_truncated_budget0",
+   "prediction": 0.5810831623655597
+  },
+  {
+   "case": "json_truncated_budget7",
+   "prediction": 0.3162296069737748
+  },
+  {
+   "case": "json_list_budget0",
+   "prediction": 0.5810831623655597
+  },
+  {
+   "case": "json_list_budget7",
+   "prediction": 0.5010819739922893
   }
  ],
  "ok": true,
- "mean_ms_short": 3.4886916666134007,
- "mean_ms_long_budget31": 1.809525000053327,
- "max_ms_long_budget31": 46.22120000021823,
- "calls_per_second_long_budget31": 552.6312153579142,
+ "text_prior_loaded": false,
+ "tested_dir": "C:\\Users\\neels\\Downloads\\gen_papers_2\\neurips_challenges\\paiec\\submission",
+ "mean_ms_short": 1.9238708331007122,
+ "mean_ms_long_budget31": 0.9903480001594289,
+ "max_ms_long_budget31": 27.021699999750126,
+ "calls_per_second_long_budget31": 1009.7460688960015,
  "acquisition_decisions": [
   true,
   true,

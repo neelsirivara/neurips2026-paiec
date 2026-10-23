@@ -28,13 +28,27 @@ only speed up identical computations):
      errors, so adaptation is only applied when the pair's own labels show that it helps.
   6. Clipping to [0.01, 0.99].
 
+Item-text difficulty prior (round 3, optional): when ``text_prior.json`` is present next to this
+file, a linear model on hashed word/bigram/character-3-gram counts and 16 text statistics of
+``item_content``/``item_features`` (fitted offline on the official training release with
+text_prior.py; the hashing below is the one used for fitting) adds a logit T(item) to the item
+part of the prior; the pair-level shrinkage then shrinks toward the mean prior of the acquired
+items, and the target item's text offset from that mean is weighted by ``within``.  Without the
+file (or on any error in it) the prior is the hand-set one.
+
 Only the Python standard library is used.  predict never raises: any failure falls back to
 the pair-level shrinkage estimate, then to a smoothed mean, then to 0.5.
 """
 from __future__ import annotations
 
+import array
+import base64
+import json
 import math
+import os
 import re
+import sys
+import zlib
 
 # ----------------------------------------------------------------------------- settings
 ALPHA0 = 4.0           # prior strength (pseudo-counts) of the pair-level beta-binomial
@@ -69,6 +83,17 @@ PRIOR_INTERCEPT = 0.0        # global shift of the prior logit (0 shipped: the k
                              # formative feedback shows systematic over-/under-prediction, or the fitted
                              # intercept if a measurement-db fit is shipped; see fit_prior_from_measurement_db.py)
 PRIOR_PROVIDER: dict = {}    # provider (lower-case) -> logit; empty unless fitted on measurement-db
+# item-text difficulty prior (see text_prior.py); the featurisation constants must equal the ones the
+# weights were fitted with (checked when the file is loaded)
+TEXT_PRIOR_FILE = "text_prior.json"
+TEXT_PRIOR_VERSION = "tp1"
+TEXT_PRIOR_BITS = 18           # 2^18 hashed buckets
+TEXT_PRIOR_WORD_CHARS = 2000   # words/bigrams from the first 2,000 characters of the normalised text
+TEXT_PRIOR_CHAR_CHARS = 500    # character 3-grams from the first 500
+TEXT_PRIOR_STAT_CHARS = 4000   # count statistics from the first 4,000
+TEXT_PRIOR_MAX_PARSE = 2000000  # JSON contents longer than this are not parsed
+TEXT_PRIOR_ABS_CAP = 4.0       # safety cap on |T(item)| in logits
+TEXT_PRIOR = None              # loaded specification (dict) or None: hand-set prior only
 TFIDF_BIGRAM_WEIGHT = 1.0  # weight of bigram terms relative to unigrams (0 = unigrams only)
 TFIDF_RESTRICT_OOV = False  # drop target terms absent from the acquired set (query-side vocabulary)
 CLIP_LO, CLIP_HI = 0.01, 0.99
@@ -84,6 +109,8 @@ _SENT_RE = re.compile(r"[.!?]+")
 
 _TOKEN_CACHE: dict = {}
 _SET_CACHE: dict = {}
+_TEXT_CACHE: dict = {}
+_TEXT_PRIOR_UID = [0]
 
 # Experiments only (never set in the shipped configuration): a callable text -> unit-norm
 # dense vector (list of floats) or None.  When set, it replaces the TF-IDF representation in
@@ -142,6 +169,223 @@ def _item_text(item: dict) -> str:
     feats = _s(item.get("item_features"))[:500]
     inter = _s(item.get("interactors"))[:300]
     return content + " \n " + feats + " \n " + inter
+
+
+# ----------------------------------------------------------------------------- text prior
+TEXT_PRIOR_DENSE = ("log_len", "log_words", "digit_frac", "upper_frac", "nonascii_frac", "cjk_frac", "latex",
+                    "code", "choices", "newlines", "qmarks", "is_json", "images", "has_feats", "feats_len",
+                    "json_leaves")
+_TP_WORD_RE = re.compile(r"[a-z]+|\d+")
+_TP_WS_RE = re.compile(r"\s+")
+_TP_DIGIT_RE = re.compile(r"\d")
+_TP_UPPER_RE = re.compile(r"[A-Z]")
+_TP_NONASCII_RE = re.compile(r"[^\x00-\x7f]")
+_TP_CJK_RE = re.compile("[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]")
+_TP_LATEX_RE = re.compile(r"\\[A-Za-z]+|\$")
+_TP_CODE_RE = re.compile(r"[{};]|\bdef |\bimport |\breturn\b|```|=>|==")
+_TP_CHOICE_RE = re.compile(r"(?m)^\s*\(?[A-Ja-j][.):]\s")
+_TP_MAX_LEAVES = 20000
+
+
+def _json_lines(obj, out: list, key: str, depth: int) -> None:
+    if depth > 32 or len(out) >= _TP_MAX_LEAVES:
+        return
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            _json_lines(v, out, str(k), depth + 1)
+    elif isinstance(obj, list):
+        for v in obj:
+            _json_lines(v, out, key, depth + 1)
+    elif obj is not None:
+        text = obj if isinstance(obj, str) else str(obj)
+        out.append(key + ": " + text if key else text)
+
+
+def text_prior_text(content: str) -> tuple:
+    """Normalised item text: ``key: value`` lines of a JSON content, else the raw string.
+
+    Returns (text, is_json, number of JSON leaves).
+    """
+    if content.lstrip()[:1] in ("{", "[") and len(content) <= TEXT_PRIOR_MAX_PARSE:
+        try:
+            obj = json.loads(content)
+        except Exception:
+            obj = None
+        if isinstance(obj, (dict, list)):
+            out: list = []
+            _json_lines(obj, out, "", 0)
+            return "\n".join(out), True, len(out)
+    return content, False, 0
+
+
+def _tp_family(counts: dict, out: dict, mask: int) -> None:
+    """Sublinear tf, l2-normalised within the family, signed-hashed into ``out``."""
+    if not counts:
+        return
+    vals = {t: 1.0 + math.log(c) for t, c in counts.items()}
+    inv = 1.0 / math.sqrt(sum(v * v for v in vals.values()))
+    for t, v in vals.items():
+        h = zlib.crc32(t.encode("utf-8"))
+        idx = h & mask
+        val = v * inv
+        if h & 0x80000000:
+            val = -val
+        out[idx] = out.get(idx, 0.0) + val
+
+
+def text_prior_features(item: dict) -> tuple:
+    """(hashed {bucket: value}, dense statistics) of one item; used verbatim when fitting."""
+    content = _s(item.get("item_content"))
+    feats = _s(item.get("item_features"))
+    text, is_json, n_leaves = text_prior_text(content)
+    mask = (1 << TEXT_PRIOR_BITS) - 1
+    head = text[:TEXT_PRIOR_WORD_CHARS]
+    words = _TP_WORD_RE.findall(head.lower())
+    toks = [("#" + str(min(len(w), 5))) if w[0].isdigit() else w for w in words]
+    uni: dict = {}
+    for t in toks:
+        k = "w " + t
+        uni[k] = uni.get(k, 0) + 1
+    bi: dict = {}
+    for a, b in zip(toks, toks[1:]):
+        k = "b " + a + " " + b
+        bi[k] = bi.get(k, 0) + 1
+    chead = _TP_WS_RE.sub(" ", text[:TEXT_PRIOR_CHAR_CHARS].lower())
+    tri: dict = {}
+    for i in range(len(chead) - 2):
+        k = "c " + chead[i:i + 3]
+        tri[k] = tri.get(k, 0) + 1
+    ft: dict = {}
+    for t in _TP_WORD_RE.findall(feats[:1000].lower()):
+        k = "f " + t
+        ft[k] = ft.get(k, 0) + 1
+    hashed: dict = {}
+    for fam in (uni, bi, tri, ft):
+        _tp_family(fam, hashed, mask)
+    stat = text[:TEXT_PRIOR_STAT_CHARS]
+    nh = float(max(len(head), 1))
+    dense = [math.log1p(len(text)), math.log1p(len(words)),
+             len(_TP_DIGIT_RE.findall(head)) / nh, len(_TP_UPPER_RE.findall(head)) / nh,
+             len(_TP_NONASCII_RE.findall(head)) / nh, len(_TP_CJK_RE.findall(head)) / nh,
+             math.log1p(len(_TP_LATEX_RE.findall(stat))), math.log1p(len(_TP_CODE_RE.findall(stat))),
+             math.log1p(len(_TP_CHOICE_RE.findall(stat))), math.log1p(stat.count("\n")),
+             math.log1p(stat.count("?")), 1.0 if is_json else 0.0, math.log1p(content.count("image/")),
+             1.0 if feats.strip() else 0.0, math.log1p(len(feats)), math.log1p(n_leaves)]
+    return hashed, dense
+
+
+def _text_spec_ok(spec) -> bool:
+    if not isinstance(spec, dict):
+        return False
+    fe = spec.get("featurizer", {})
+    want = {"version": TEXT_PRIOR_VERSION, "bits": TEXT_PRIOR_BITS, "word_chars": TEXT_PRIOR_WORD_CHARS,
+            "char_chars": TEXT_PRIOR_CHAR_CHARS, "stat_chars": TEXT_PRIOR_STAT_CHARS, "dense": list(TEXT_PRIOR_DENSE)}
+    if any(fe.get(k) != v for k, v in want.items()):
+        return False
+    nums = [spec.get(k) for k in ("intercept", "W", "B", "cap", "within")]
+    if not all(isinstance(v, (int, float)) and math.isfinite(v) for v in nums):
+        return False
+    nd = len(TEXT_PRIOR_DENSE)
+    for k in ("dense_w", "dense_mean", "dense_sd"):
+        v = spec.get(k)
+        if not isinstance(v, list) or len(v) != nd or not all(isinstance(x, (int, float)) and math.isfinite(x) for x in v):
+            return False
+    return all(x > 0 for x in spec["dense_sd"]) and 0.5 <= spec["cap"] <= 5.0 and 0.0 <= spec["within"] <= 1.0
+
+
+def load_text_prior(path=None):
+    """Load the text-prior weights (``text_prior.json`` beside this file by default).
+
+    Returns the specification or None; never raises.  ``path=False`` switches the text prior off.
+    """
+    global TEXT_PRIOR
+    TEXT_PRIOR = None
+    _TEXT_CACHE.clear()
+    _SET_CACHE.clear()
+    if path is False:
+        return None
+    try:
+        if path is None:
+            path = os.path.join(os.path.dirname(os.path.abspath(__file__)), TEXT_PRIOR_FILE)
+        if not os.path.isfile(path):
+            return None
+        with open(path, "r", encoding="utf-8") as fh:
+            spec = json.load(fh)
+        if not _text_spec_ok(spec):
+            return None
+        raw = base64.b64decode(spec["weights_f32_le_b64"])
+        w = array.array("f")
+        w.frombytes(raw)
+        if sys.byteorder != "little":
+            w.byteswap()
+        if len(w) != (1 << TEXT_PRIOR_BITS) or not all(math.isfinite(x) for x in w):
+            return None
+        spec = dict(spec)
+        spec.pop("weights_f32_le_b64", None)
+        spec["_w"] = array.array("d", w)
+        _TEXT_PRIOR_UID[0] += 1
+        spec["_uid"] = _TEXT_PRIOR_UID[0]
+        spec["_path"] = path
+        TEXT_PRIOR = spec
+        return spec
+    except Exception:
+        TEXT_PRIOR = None
+        return None
+
+
+def text_prior_score(item: dict, spec=None) -> float:
+    """Raw linear score s(item) of a loaded specification (before the W, B calibration)."""
+    spec = TEXT_PRIOR if spec is None else spec
+    hashed, dense = text_prior_features(item)
+    w = spec["_w"]
+    s = float(spec["intercept"])
+    for idx, v in hashed.items():
+        s += w[idx] * v
+    dw, mu, sd = spec["dense_w"], spec["dense_mean"], spec["dense_sd"]
+    for k in range(len(dense)):
+        s += dw[k] * ((dense[k] - mu[k]) / sd[k])
+    return s
+
+
+def _text_logit(item: dict) -> float:
+    """T(item) in logits (0 when no text prior is loaded or on any error); cached per item."""
+    spec = TEXT_PRIOR
+    if spec is None:
+        return 0.0
+    try:
+        content = _s(item.get("item_content"))
+        feats = _s(item.get("item_features"))
+        key = (len(content), hash(content), hash(feats))
+        hit = _TEXT_CACHE.get(key)
+        if hit is not None and hit[0] == content[:64]:
+            return hit[1]
+        z = spec["W"] * text_prior_score(item, spec) + spec["B"]
+        if not math.isfinite(z):
+            z = 0.0
+        z = min(max(z, -TEXT_PRIOR_ABS_CAP), TEXT_PRIOR_ABS_CAP)
+        if len(_TEXT_CACHE) >= _CACHE_LIMIT:
+            _TEXT_CACHE.clear()
+        _TEXT_CACHE[key] = (content[:64], z)
+        return z
+    except Exception:
+        return 0.0
+
+
+def _cap() -> float:
+    spec = TEXT_PRIOR
+    if spec is None:
+        return PRIOR_LOGIT_CAP
+    try:
+        return float(spec["cap"])
+    except Exception:
+        return PRIOR_LOGIT_CAP
+
+
+def _within() -> float:
+    try:
+        return float(TEXT_PRIOR["within"])
+    except Exception:
+        return 1.0
 
 
 # ----------------------------------------------------------------------------- prior
@@ -251,8 +495,9 @@ def _item_logit(item: dict) -> float:
 
 
 def _prior_logit(subject: dict, item: dict) -> float:
-    z = _subject_logit(subject) + _item_logit(item)
-    return min(max(z, -PRIOR_LOGIT_CAP), PRIOR_LOGIT_CAP)
+    z = _subject_logit(subject) + _item_logit(item) + _text_logit(item)
+    cap = _cap()
+    return min(max(z, -cap), cap)
 
 
 # ----------------------------------------------------------------------------- text
@@ -447,17 +692,19 @@ def _knn_correction(weights: list, labels: list, anchor: float, n: int) -> float
     return (n / (n + KNN_N0)) * resid / (TAU + wsum)
 
 
-def _labeled_set_stats(items: list, labels, subject_logit, item_logits) -> dict:
+def _labeled_set_stats(items: list, labels, subject_logit, item_logits, off_logits=None) -> dict:
     """Everything that depends only on the acquired set (not on the target), cached.
 
     Includes TF-IDF statistics, the ridge fit, and the leave-one-out selection of the
     kernel scale and of the ridge component.  ``labels`` may be None when only the text
-    statistics are needed (acquisition policy).
+    statistics are needed (acquisition policy).  ``item_logits`` are the acquired items' prior
+    logits (their mean sets the prior rate); ``off_logits`` (default: the same) set each item's
+    offset from the pair rate.
     """
     texts = [_item_text(it) for it in items]
     key = (tuple(hash(t) for t in texts), tuple(labels) if labels is not None else None,
            round(subject_logit, 6) if subject_logit is not None else None, EMBED_LOOKUP is None,
-           TFIDF_BIGRAM_WEIGHT, TFIDF_RESTRICT_OOV)
+           TFIDF_BIGRAM_WEIGHT, TFIDF_RESTRICT_OOV, TEXT_PRIOR["_uid"] if TEXT_PRIOR is not None else 0)
     hit = _SET_CACHE.get(key)
     if hit is not None and hit["first"] == (texts[0][:64] if texts else ""):
         return hit
@@ -472,12 +719,16 @@ def _labeled_set_stats(items: list, labels, subject_logit, item_logits) -> dict:
     vecs = [_text_vec(t, rec) for t in texts]
     rec["vecs"] = vecs
     if labels is not None and n > 0:
+        if off_logits is None:
+            off_logits = item_logits
+        cap = _cap()
         mean_item_logit = sum(item_logits) / n
+        mean_off_logit = sum(off_logits) / n
         k_succ = sum(labels)
         # pair-level logits (full set) and leave-one-out versions
-        prior_rate = _sigmoid(min(max(subject_logit + mean_item_logit, -PRIOR_LOGIT_CAP), PRIOR_LOGIT_CAP))
+        prior_rate = _sigmoid(min(max(subject_logit + mean_item_logit, -cap), cap))
         rate_logit = _logit((ALPHA0 * prior_rate + k_succ) / (ALPHA0 + n))
-        offsets = [rate_logit + (zl - mean_item_logit) for zl in item_logits]
+        offsets = [rate_logit + (zl - mean_off_logit) for zl in off_logits]
         # ridge fit on all acquired items
         feats = [_features(it) for it in items]
         k = len(feats[0])
@@ -498,9 +749,10 @@ def _labeled_set_stats(items: list, labels, subject_logit, item_logits) -> dict:
             loo_pair = []
             for j in range(n):
                 m_j = (sum(item_logits) - item_logits[j]) / (n - 1)
-                pr_j = _sigmoid(min(max(subject_logit + m_j, -PRIOR_LOGIT_CAP), PRIOR_LOGIT_CAP))
+                pr_j = _sigmoid(min(max(subject_logit + m_j, -cap), cap))
                 rl_j = _logit((ALPHA0 * pr_j + k_succ - labels[j]) / (ALPHA0 + n - 1))
-                loo_pair.append(rl_j + (item_logits[j] - m_j))
+                mo_j = (sum(off_logits) - off_logits[j]) / (n - 1)
+                loo_pair.append(rl_j + (off_logits[j] - mo_j))
             briers = {}
             # ridge leave-one-out adjustments
             loo_ridge_adj = [0.0] * n
@@ -560,20 +812,32 @@ def predict_components(input, labeled=None) -> dict:
     items, labels = pair_evidence(subject, item, labeled)
     n = len(labels)
     subject_logit = _subject_logit(subject)
+    cap = _cap()
     target_item_logit = _item_logit(item)
-    prior = _sigmoid(min(max(subject_logit + target_item_logit, -PRIOR_LOGIT_CAP), PRIOR_LOGIT_CAP))
+    target_text_logit = _text_logit(item)
+    prior = _sigmoid(min(max(subject_logit + target_item_logit + target_text_logit, -cap), cap))
     out = {"n": n, "prior": prior}
     if n == 0:
         out.update(pair=prior, ridge=prior, knn=prior, full=prior)
         return out
-    item_logits = [_item_logit(it) for it in items]
+    hand_logits = [_item_logit(it) for it in items]
+    if TEXT_PRIOR is not None:
+        lam = _within()
+        text_logits = [_text_logit(it) for it in items]
+        item_logits = [h + t for h, t in zip(hand_logits, text_logits)]
+        off_logits = [h + lam * t for h, t in zip(hand_logits, text_logits)]
+        target_off_logit = target_item_logit + lam * target_text_logit
+    else:
+        item_logits = off_logits = hand_logits
+        target_off_logit = target_item_logit
     mean_item_logit = sum(item_logits) / n
-    prior_rate = _sigmoid(min(max(subject_logit + mean_item_logit, -PRIOR_LOGIT_CAP), PRIOR_LOGIT_CAP))
+    mean_off_logit = sum(off_logits) / n
+    prior_rate = _sigmoid(min(max(subject_logit + mean_item_logit, -cap), cap))
     rate_logit = _logit((ALPHA0 * prior_rate + sum(labels)) / (ALPHA0 + n))
-    z_pair = rate_logit + (target_item_logit - mean_item_logit)
+    z_pair = rate_logit + (target_off_logit - mean_off_logit)
     p_pair = _sigmoid(z_pair)
     out["pair"] = p_pair
-    stats = _labeled_set_stats(items, labels, subject_logit, item_logits)
+    stats = _labeled_set_stats(items, labels, subject_logit, item_logits, off_logits)
     tvec = _text_vec(_item_text(item), stats)
     sims = [_cosine(tvec, v) for v in stats["vecs"]]
     tfeat = _features(item)
@@ -602,12 +866,12 @@ def predict(input, labeled=None) -> float:
         return _clip(predict_components(input, labeled)["full"])
     except Exception:
         pass
-    try:  # fallback 1: shrinkage only
+    try:  # fallback 1: hand-set prior + shrinkage only (no text prior, no item-level components)
         subject, item = input[0], input[1]
         subject = subject if isinstance(subject, dict) else {}
         item = item if isinstance(item, dict) else {}
         items, labels = pair_evidence(subject, item, labeled)
-        z = _prior_logit(subject, item)
+        z = min(max(_subject_logit(subject) + _item_logit(item), -PRIOR_LOGIT_CAP), PRIOR_LOGIT_CAP)
         if labels:
             n = len(labels)
             rate = (ALPHA0 * _sigmoid(z) + sum(labels)) / (ALPHA0 + n)
@@ -621,3 +885,9 @@ def predict(input, labeled=None) -> float:
         return _clip((ALPHA0 * 0.5 + k) / (ALPHA0 + n))
     except Exception:
         return 0.5
+
+
+try:  # the text prior is optional: without text_prior.json the hand-set prior is used
+    load_text_prior()
+except Exception:
+    TEXT_PRIOR = None

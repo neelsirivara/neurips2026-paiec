@@ -7,6 +7,7 @@ PDF never silently shows a stale or invented value.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -81,9 +82,15 @@ def fmt_int(v):
         return MISSING
 
 
+_MAC_NAMES: set = set()
+
+
 def mac(name, value):
     if not re.fullmatch(r"[A-Za-z]+", name):
         raise ValueError(name)
+    if name in _MAC_NAMES:
+        raise ValueError(f"duplicate macro {name}")
+    _MAC_NAMES.add(name)
     macros.append(f"\\newcommand{{\\{name}}}{{{value}}}")
 
 
@@ -633,6 +640,220 @@ def loo_usage_macros(prefix, summ):
     return
 
 
+def _pct(v, nd=0):
+    if v is None:
+        return MISSING
+    try:
+        return f"{100 * float(v):.{nd}f}"
+    except Exception:
+        return MISSING
+
+
+def cluster_macros(prefix, d, nd=4):
+    """mean [lo, hi] and a significance word of a cluster-bootstrap result (text_prior.cluster_boot)."""
+    mac(prefix + "Mean", fmt(get(d, "mean"), nd, sign=True))
+    mac(prefix + "Lo", fmt(get(d, "ci_lo"), nd, sign=True))
+    mac(prefix + "Hi", fmt(get(d, "ci_hi"), nd, sign=True))
+    s = get(d, "significant")
+    mac(prefix + "Sig", MISSING if s is None else ("significant" if s else "not significant"))
+    mac(prefix + "FracNeg", _pct(get(d, "frac_negative")))
+
+
+def round3_extra_macros(cv, explore, runtime, equiv, addendum_ok):
+    """Round 3: decomposition, exploratory addendum, engineering gates, shipped-file equivalence, data list."""
+    p = get(cv, "summary", "paired_vs_hand") or {}
+    cluster_macros("TpDiffIntShift", get(p, "intercept_shift_only", "alc_cluster"))
+    cluster_macros("TpDiffIntOnly", get(p, "intercept_only", "alc_cluster"))
+    cluster_macros("TpDiffBenchOracle", get(p, "benchmark_mean_oracle", "alc_cluster"))
+    m = get(cv, "summary", "methods") or {}
+    mac("TpIntShiftAlc", fmt(get(m, "intercept_shift_only", "alc", "mean")))
+    mac("TpIntShiftBZero", fmt(get(m, "intercept_shift_only", "b0", "mean")))
+    g = get(p, "benchmark_mean_oracle", "gap_closed")
+    for b, w in (("0", "Zero"), ("1", "One"), ("3", "Three")):
+        mac(f"TpBenchOracleGap{w}", _pct(get(g, b, "ratio")))
+    mac("TpNClusters", fmt_int(get(p, "text", "alc_cluster", "n_clusters")))
+    folds = get(cv, "folds") or []
+    mac("TpNFoldsNegW", f"{sum(1 for f in folds if f['calibration']['W'] < 0)}" if folds else MISSING)
+    mac("TpNFoldsAlphaMax", f"{sum(1 for f in folds if float(f['alpha']) == max(float(a) for a in cv['settings']['alpha_grid']))}"
+        if folds else MISSING)
+    mac("TpAlphaGridMax", f"{max(float(a) for a in cv['settings']['alpha_grid']):g}" if cv else MISSING)
+    ib = [f.get("intercept_alone_B") for f in folds if f.get("intercept_alone_B") is not None]
+    mac("TpIntShiftBMin", fmt(min(ib), 3, sign=True) if ib else MISSING)
+    mac("TpIntShiftBMax", fmt(max(ib), 3, sign=True) if ib else MISSING)
+    mac("TpAddendumConsistent", "verified unchanged" if addendum_ok else r"\textbf{changed}")
+    for name, code in (("E1_heavier_penalty", "EOne"), ("E2_statistics_only", "ETwo")):
+        v = get(explore, "variants", name)
+        cluster_macros(f"Tp{code}Diff", get(v, "summary", "paired_vs_hand", name, "alc_cluster"))
+        mac(f"Tp{code}Alc", fmt(get(v, "summary", "methods", name, "alc", "mean")))
+        mac(f"Tp{code}BZero", fmt(get(v, "summary", "methods", name, "b0", "mean")))
+        fl = get(v, "folds") or []
+        mac(f"Tp{code}Alphas", ", ".join(f"{a:g}" for a in sorted({float(f['alpha']) for f in fl})) if fl else MISSING)
+        mac(f"Tp{code}NegW", f"{sum(1 for f in fl if f['calibration']['W'] < 0)}" if fl else MISSING)
+        mac(f"Tp{code}Grid", ", ".join(f"{float(a):g}" for a in get(v, "alpha_grid") or []) if v else MISSING)
+    thr = get(runtime, "throughput") or {}
+    for key, code in (("short15", "Short"), ("words300", "Mid"), ("words2000", "Long")):
+        mac(f"TpCps{code}", fmt_int(get(thr, key, "calls_per_s")))
+    mac("TpLoadMs", fmt(get(runtime, "load_ms"), 0))
+    mac("TpWeightsMB", fmt((get(runtime, "weights_file_bytes") or 0) / 1e6, 2) if runtime else MISSING)
+    mac("TpSmokeCases", fmt_int(get(runtime, "smoke", "n_cases")))
+    gates = [get(runtime, k) for k in ("gate_throughput_200", "gate_weights_5mb", "gate_smoke")]
+    mac("TpGates", MISSING if any(x is None for x in gates) else ("pass" if all(gates) else "fail"))
+    mac("TpEquivN", fmt_int(get(equiv, "n_cases")))
+    mac("TpEquivSame", fmt_int(get(equiv, "n_bit_identical")))
+    mac("TpZipUnchanged", MISSING if get(equiv, "zip_unchanged") is None else ("unchanged" if equiv["zip_unchanged"] else "changed"))
+    mac("TpZipShaShort", (get(equiv, "zip_sha256") or "????????")[:12] if equiv else MISSING)
+    fit = load("prior_fit.json")
+    dirs = get(cv, "folds_dirs")
+    names = sorted({d for f in dirs for d in f}) if dirs else (get(fit, "data_sources") or [])
+    mac("TpBenchList", ", ".join(r"\texttt{" + d.replace("_", r"\_") + "}" for d in names) if names else MISSING)
+
+
+def round3_macros(cv, inter, tb, final, check, prereg_ok):
+    """Round 3: item-text difficulty prior (results/round3/*.json)."""
+    mac("TpPreregSha", (get(cv, "prereg_sha256") or "??????????")[:10] if cv else MISSING)
+    mac("TpPreregConsistent", "verified unchanged" if prereg_ok else r"\textbf{changed}")
+    mac("TpNPairs", fmt_int(get(cv, "n_pairs")))
+    mac("TpNBench", fmt_int(get(cv, "n_benchmarks")))
+    mac("TpNItems", fmt_int(get(cv, "n_items_featurised")))
+    mac("TpNTargetItems", fmt_int(get(cv, "n_target_items")))
+    mac("TpNnz", fmt_int(get(cv, "X_nnz")))
+    mac("TpBits", MISSING if get(cv, "settings", "bits") is None else f"{2 ** int(cv['settings']['bits']):,}")
+    rep = get(cv, "reproduction")
+    mac("TpReproExact", MISSING if rep is None else ("exactly" if rep.get("exact") else "not exactly"))
+    m = get(cv, "summary", "methods")
+    for key, code in (("hand", "Hand"), ("text", "Text"), ("text_alpha2", "TextAlphaTwo"), ("text_alpha8", "TextAlphaEight"),
+                      ("intercept_only", "IntOnly"), ("benchmark_mean_oracle", "BenchOracle")):
+        mac(f"Tp{code}BZero", fmt(get(m, key, "b0", "mean")))
+        mac(f"Tp{code}Alc", fmt(get(m, key, "alc", "mean")))
+        mac(f"Tp{code}AlcLo", fmt(get(m, key, "alc", "ci_lo")))
+        mac(f"Tp{code}AlcHi", fmt(get(m, key, "alc", "ci_hi")))
+        for b, w in (("0", "Zero"), ("1", "One"), ("3", "Three"), ("7", "Seven"), ("15", "Fifteen"), ("31", "ThirtyOne")):
+            mac(f"Tp{code}Bud{w}", fmt(get(m, key, "brier_by_budget", b)))
+    mac("TpOracleRate", fmt(get(m, "hand", "oracle_rate_brier")))
+    mac("TpNPairsAlc", fmt_int(get(m, "hand", "n_pairs_alc")))
+    mac("TpNPairsBZero", fmt_int(get(m, "hand", "n_pairs_b0")))
+    p = get(cv, "summary", "paired_vs_hand", "text")
+    cluster_macros("TpDiffAlc", get(p, "alc_cluster"))
+    cluster_macros("TpDiffBZero", get(p, "b0_cluster"))
+    paired_macros("TpDiffAlcPairBoot", get(p, "alc_pair_boot"))
+    for b, w in (("0", "Zero"), ("1", "One"), ("3", "Three"), ("7", "Seven"), ("15", "Fifteen"), ("31", "ThirtyOne")):
+        cluster_macros(f"TpDiffBud{w}", get(p, "by_budget_cluster", b))
+        g = get(p, "gap_closed", b)
+        mac(f"TpGap{w}", _pct(get(g, "ratio"), 1))
+        mac(f"TpGap{w}Lo", _pct(get(g, "ci_lo"), 1))
+        mac(f"TpGap{w}Hi", _pct(get(g, "ci_hi"), 1))
+    for key, code in (("text_alpha2", "AlphaTwo"), ("text_alpha8", "AlphaEight")):
+        cluster_macros(f"TpDiff{code}", get(cv, "summary", "paired_vs_hand", key, "alc_cluster"))
+    folds = get(cv, "folds") or []
+    if folds:
+        alphas = sorted({float(f["alpha"]) for f in folds})
+        caps = sorted({float(f["cap"]) for f in folds})
+        lams = sorted({float(f["lambda"]) for f in folds})
+        ws = [float(f["calibration"]["W"]) for f in folds]
+        bs = [float(f["calibration"]["B"]) for f in folds]
+        mac("TpFoldAlphas", ", ".join(f"{a:g}" for a in alphas))
+        mac("TpFoldCaps", ", ".join(f"{c:g}" for c in caps))
+        mac("TpFoldLambdas", ", ".join(f"{c:g}" for c in lams))
+        mac("TpFoldWMin", fmt(min(ws), 2))
+        mac("TpFoldWMax", fmt(max(ws), 2))
+        mac("TpFoldBMin", fmt(min(bs), 2, sign=True))
+        mac("TpFoldBMax", fmt(max(bs), 2, sign=True))
+        r = [1 - f["test_target_mse"] / f["test_target_mse_constant"] for f in folds if f.get("test_target_mse_constant")]
+        mac("TpFoldRsqMin", fmt(min(r), 2) if r else MISSING)
+        mac("TpFoldRsqMax", fmt(max(r), 2) if r else MISSING)
+        ri = [1 - min(f["inner_mse"].values()) / f["inner_mse_constant"] for f in folds]
+        mac("TpInnerRsqMin", fmt(min(ri), 2))
+        mac("TpInnerRsqMax", fmt(max(ri), 2))
+    else:
+        for n in ("TpFoldAlphas", "TpFoldCaps", "TpFoldLambdas", "TpFoldWMin", "TpFoldWMax", "TpFoldBMin", "TpFoldBMax",
+                  "TpFoldRsqMin", "TpFoldRsqMax", "TpInnerRsqMin", "TpInnerRsqMax"):
+            mac(n, MISSING)
+    pf = get(cv, "per_fold") or []
+    nbetter = sum(1 for f in pf if f["diff"]["mean"] < 0)
+    mac("TpFoldsBetter", f"{nbetter}" if pf else MISSING)
+    mac("TpNFolds", f"{len(pf)}" if pf else MISSING)
+    nsig = sum(1 for f in pf if f["diff"]["ci_hi"] < 0)
+    mac("TpFoldsSigBetter", f"{nsig}" if pf else MISSING)
+    pb = get(cv, "per_benchmark") or {}
+    if pb:
+        diffs = {k: v["text_alc"] - v["hand_alc"] for k, v in pb.items()}
+        mac("TpBenchBetter", f"{sum(1 for v in diffs.values() if v < 0)}")
+        mac("TpBenchN", f"{len(diffs)}")
+    else:
+        mac("TpBenchBetter", MISSING)
+        mac("TpBenchN", MISSING)
+    dup = get(cv, "duplicates")
+    mac("TpDupMean", _pct(get(dup, "mean_dup_fraction_pairs"), 2))
+    mac("TpDupPairsOverFive", _pct(get(dup, "frac_pairs_dup_over_5pct")))
+    mac("TpDupPairsOverHalf", _pct(get(dup, "frac_pairs_dup_over_50pct")))
+    cluster_macros("TpDiffLowDup", get(dup, "alc_diff_low_dup_pairs"))
+    mac("TpLowDupN", fmt_int(get(dup, "alc_diff_low_dup_pairs", "n_pairs")))
+    cluster_macros("TpDiffHighDup", get(dup, "alc_diff_high_dup_pairs"))
+    mac("TpHighDupN", fmt_int(get(dup, "alc_diff_high_dup_pairs", "n_pairs")))
+    rule_a = get(cv, "rule_a_cv_alc_ci_below_zero")
+    mac("TpRuleA", MISSING if rule_a is None else ("holds" if rule_a else "fails"))
+    # secondary interaction
+    pi = get(inter, "summary", "paired_vs_text", "text_interaction", "alc_cluster")
+    mac("TpInterRan", "yes" if inter else "no")
+    cluster_macros("TpDiffInter", pi)
+    # testbeds
+    for name, code in (("real", "R"), ("synthetic", "S")):
+        t = get(tb, "testbeds", name)
+        for meth, mc in (("full", "Full"), ("shrink", "Shrink"), ("prior", "Prior")):
+            mac(f"Tp{code}{mc}Hand", fmt(get(t, meth, "hand", "mean")))
+            mac(f"Tp{code}{mc}Text", fmt(get(t, meth, "text", "mean")))
+            paired_macros(f"Tp{code}Pair{mc}", get(t, meth, "paired_text_minus_hand"))
+        paired_macros(f"Tp{code}TextVsEmp", get(t, "paired_text_full_vs_empirical_mean"))
+        mac(f"Tp{code}NPairs", fmt_int(get(t, "n_pairs")))
+    paired_macros("TpRNoBbh", get(tb, "testbeds", "real", "no_bbh", "full"))
+    mac("TpRNoBbhN", fmt_int(get(tb, "testbeds", "real", "no_bbh", "n_pairs")))
+    rule_b = get(tb, "rule_b_real_not_significantly_worse")
+    mac("TpRuleB", MISSING if rule_b is None else ("holds" if rule_b else "fails"))
+    # final fit and check
+    mac("TpFinalAlpha", MISSING if get(final, "alpha") is None else f"{float(final['alpha']):g}")
+    mac("TpFinalW", fmt(get(final, "calibration", "W"), 2))
+    mac("TpFinalB", fmt(get(final, "calibration", "B"), 2, sign=True))
+    mac("TpFinalCap", MISSING if get(final, "cap") is None else f"{float(final['cap']):g}")
+    mac("TpFinalLambda", MISSING if get(final, "lambda") is None else f"{float(final['lambda']):g}")
+    mac("TpFinalNnzW", fmt_int(get(final, "n_nonzero_weights")))
+    mac("TpFinalMB", fmt((get(final, "weights_file_bytes") or 0) / 1e6, 2) if final else MISSING)
+    mac("TpCheckN", fmt_int(get(check, "n_items")))
+    mac("TpCheckIdentical", fmt_int(get(check, "n_features_bit_identical_to_cache")))
+    v = get(check, "max_abs_score_diff_stdlib_vs_numpy")
+    if v is None:
+        mac("TpCheckMaxDiff", MISSING)
+    else:
+        mant, ex = f"{float(v):.1e}".split("e")
+        mac("TpCheckMaxDiff", f"${mant}" + r"\times" + f"10^{{{int(ex)}}}$")
+    ship = None if rule_a is None or rule_b is None else bool(rule_a and rule_b)
+    mac("TpShip", MISSING if ship is None else ("shipped" if ship else "not shipped"))
+
+
+def table_textprior(cv, explore=None):
+    """CV table: hand-set vs text prior vs references (B0, B1, B3, B7, ALC)."""
+    m = dict(get(cv, "summary", "methods") or {})
+    for name in ("E1_heavier_penalty", "E2_statistics_only"):
+        r = get(explore, "variants", name, "summary", "methods", name)
+        if r is not None:
+            m[name] = r
+    rows = [("hand", "hand-set prior (shipped)"), ("text", "hand-set + item-text prior (pre-registered)"),
+            ("text_alpha2", "\\quad same, $\\alpha_0=2$"), ("text_alpha8", "\\quad same, $\\alpha_0=8$"),
+            ("E1_heavier_penalty", "\\quad exploratory E1: penalty up to $10^4$"),
+            ("E2_statistics_only", "\\quad exploratory E2: 16 statistics only"),
+            ("intercept_shift_only", "hand-set + fitted intercept shift only"),
+            ("intercept_only", "intercept only (training mean)"),
+            ("benchmark_mean_oracle", "oracle: held-out benchmark mean")]
+    lines = []
+    for key, label in rows:
+        r = m.get(key)
+        cells = [fmt(get(r, "b0", "mean"))] + [fmt(get(r, "brier_by_budget", b)) for b in ("1", "3", "7")] + [fmt(get(r, "alc", "mean"))]
+        lines.append(f"{label} & " + " & ".join(cells) + r" \\")
+    hand = m.get("hand")
+    orc = fmt(get(hand, "oracle_rate_brier"))
+    lines.append(f"oracle: pair success rate & -- & {orc} & {orc} & {orc} & -- \\\\")
+    (PAPER / "results_table_textprior.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def main() -> None:
     syn, real = load("synthetic_main.json"), load("real_testbed_main.json")
     mac("NBoot", fmt_int(get(syn, "methods", "full", "alc", "n_boot") or get(real, "methods", "full", "alc", "n_boot")))
@@ -660,6 +881,16 @@ def main() -> None:
     fit_macros(load("prior_fit.json"), load("prior_fit_testbeds.json"))
     sensitivity_macros(load("prior_sensitivity.json"))
     novelty_macros(load("novelty_filter_stats.json"))
+    cv3 = load("round3/text_prior_cv.json")
+    prereg = RESULTS / "round3" / "PREREG.md"
+    prereg_ok = bool(cv3 and prereg.exists() and hashlib.sha256(prereg.read_bytes()).hexdigest() == cv3.get("prereg_sha256"))
+    round3_macros(cv3, load("round3/text_prior_cv_interaction.json"), load("round3/text_prior_testbeds.json"),
+                  load("round3/text_prior_final_fit.json"), load("round3/text_prior_check.json"), prereg_ok)
+    exp3 = load("round3/text_prior_explore.json")
+    add = RESULTS / "round3" / "PREREG_ADDENDUM_1.md"
+    addendum_ok = bool(exp3 and add.exists() and hashlib.sha256(add.read_bytes()).hexdigest() == exp3.get("addendum_sha256"))
+    round3_extra_macros(cv3, exp3, load("round3/text_prior_runtime.json"), load("round3/shipped_equivalence.json"), addendum_ok)
+    table_textprior(cv3, exp3)
     model_constant_macros()
     vpath = RESULTS / "validator_output.txt"
     zip_macros(load("submission_zip_info.json"), vpath.read_text(encoding="utf-8") if vpath.exists() else None)

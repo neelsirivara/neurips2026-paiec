@@ -90,6 +90,16 @@ def run_validator(zip_path: Path) -> int:
 
 
 def main() -> int:
+    # Guard (round 3): the shipped ZIP was validated on 2026-10-23 and the development model.py now carries
+    # inactive item-text-prior hooks.  Rebuilding would change the ZIP's bytes (not its predictions), so an
+    # existing ZIP whose model.py differs from experiments/src/model.py is only re-validated unless --force.
+    if ZIP_PATH.exists() and "--force" not in sys.argv:
+        with ZipFile(ZIP_PATH) as zf:
+            shipped = zf.read("model.py") if "model.py" in zf.namelist() else b""
+        if shipped != (HERE / "model.py").read_bytes():
+            print("existing ZIP kept (its model.py differs from experiments/src/model.py; pass --force to rebuild); "
+                  "running the validator on it")
+            return run_validator(ZIP_PATH)
     zip_path = build_zip()
     digest = hashlib.sha256(zip_path.read_bytes()).hexdigest()
     with ZipFile(zip_path) as zf:

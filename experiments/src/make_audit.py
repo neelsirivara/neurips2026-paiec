@@ -211,6 +211,80 @@ def main() -> None:
     claim("model.py ships the hand-set prior unless the ship rule passed (consistency of code and result files)", "model.py + prior_fit_testbeds.json",
           f"hand-set constants in model.py: {hand_shipped}; ship rule passed: {shipped_fit}", hand_shipped == (not shipped_fit))
 
+    # ------------------------------------------------------------------ round 3: item-text prior
+    import hashlib
+    cv3 = load("round3/text_prior_cv.json")
+    if cv3 is None:
+        claim("[round 3] text-prior CV results exist", "round3/text_prior_cv.json", "missing", False)
+    else:
+        pre = RESULTS / "round3" / "PREREG.md"
+        sha = hashlib.sha256(pre.read_bytes()).hexdigest() if pre.exists() else None
+        claim("[round 3] PREREG.md is unchanged since the CV ran (SHA-256 recorded in the result equals the file's)",
+              "round3/PREREG.md + text_prior_cv.json", f"{(sha or 'missing')[:12]} vs {cv3['prereg_sha256'][:12]}", sha == cv3["prereg_sha256"])
+        rep3 = cv3["reproduction"]
+        claim("[round 3] the CV frame reproduces the iteration-2 hand-set numbers exactly", "text_prior_cv.json reproduction",
+              f"B0 {rep3['b0']:.6f} vs {rep3['b0_iteration2']:.6f}; ALC {rep3['alc']:.6f} vs {rep3['alc_iteration2']:.6f}", bool(rep3["exact"]))
+        d = cv3["summary"]["paired_vs_hand"]["text"]["alc_cluster"]
+        claim("[round 3] the item-text prior does not significantly change the benchmark-held-out ALC (cluster CI includes 0; rule (a) fails)",
+              "text_prior_cv.json summary.paired_vs_hand.text.alc_cluster", f"mean {d['mean']:+.4f} [{d['ci_lo']:+.4f}, {d['ci_hi']:+.4f}]",
+              d["ci_lo"] <= 0 <= d["ci_hi"] and not cv3["rule_a_cv_alc_ci_below_zero"])
+        folds = cv3["folds"]
+        claim("[round 3] the out-of-fold calibration slope W is negative in every outer fold", "text_prior_cv.json folds[].calibration.W",
+              ", ".join(f"{f['calibration']['W']:+.3f}" for f in folds), all(f["calibration"]["W"] < 0 for f in folds))
+        amax = max(float(a) for a in cv3["settings"]["alpha_grid"])
+        claim("[round 3] the inner CV selected the largest pre-registered penalty in every fold", "text_prior_cv.json folds[].alpha",
+              ", ".join(f"{float(f['alpha']):g}" for f in folds), all(float(f["alpha"]) == amax for f in folds))
+        gaps = cv3["summary"]["paired_vs_hand"]["text"]["gap_closed"]
+        claim("[round 3] the text prior closes essentially none (|ratio| < 5%) of the gap to the pair-rate oracle at budgets 0, 1, 3",
+              "text_prior_cv.json gap_closed", ", ".join(f"B{b}: {100 * gaps[b]['ratio']:+.1f}%" for b in ("0", "1", "3")),
+              all(abs(gaps[b]["ratio"]) < 0.05 for b in ("0", "1", "3")))
+        d = cv3["summary"]["paired_vs_hand"]["benchmark_mean_oracle"]["alc_cluster"]
+        claim("[round 3] knowing the held-out benchmark's mean rate would improve the ALC significantly (headroom exists)",
+              "text_prior_cv.json benchmark_mean_oracle", f"mean {d['mean']:+.4f} [{d['ci_lo']:+.4f}, {d['ci_hi']:+.4f}]", d["ci_hi"] < 0)
+        dup = cv3["duplicates"]
+        claim("[round 3] exact cross-benchmark duplicates are negligible (< 1% of frame items on average)", "text_prior_cv.json duplicates",
+              f"mean duplicate fraction {100 * dup['mean_dup_fraction_pairs']:.3f}%", dup["mean_dup_fraction_pairs"] < 0.01)
+    tb3 = load("round3/text_prior_testbeds.json")
+    if tb3:
+        for name in ("real", "synthetic"):
+            d = tb3["testbeds"][name]["full"]["paired_text_minus_hand"]
+            claim(f"[round 3, {name}] text prior vs hand-set (full model) is not significantly different", "text_prior_testbeds.json",
+                  f"mean {d['mean']:+.4f} [{d['ci_lo']:+.4f}, {d['ci_hi']:+.4f}]", not d["significant"])
+        claim("[round 3] rule (b) holds (real testbed not significantly worse)", "text_prior_testbeds.json rule_b",
+              str(tb3["rule_b_real_not_significantly_worse"]), bool(tb3["rule_b_real_not_significantly_worse"]))
+    ex3 = load("round3/text_prior_explore.json")
+    if ex3:
+        add = RESULTS / "round3" / "PREREG_ADDENDUM_1.md"
+        sha = hashlib.sha256(add.read_bytes()).hexdigest() if add.exists() else None
+        claim("[round 3] PREREG_ADDENDUM_1.md is unchanged since the exploratory runs", "round3/PREREG_ADDENDUM_1.md + text_prior_explore.json",
+              f"{(sha or 'missing')[:12]} vs {ex3['addendum_sha256'][:12]}", sha == ex3["addendum_sha256"])
+        for name, v in ex3["variants"].items():
+            d = v["summary"]["paired_vs_hand"][name]["alc_cluster"]
+            claim(f"[round 3, exploratory] {name} does not significantly improve on the hand-set prior", "text_prior_explore.json",
+                  f"mean {d['mean']:+.4f} [{d['ci_lo']:+.4f}, {d['ci_hi']:+.4f}]", not (d["ci_hi"] < 0))
+            claim(f"[round 3, exploratory] {name}: W negative in every fold", "text_prior_explore.json",
+                  ", ".join(f"{f['calibration']['W']:+.3f}" for f in v["folds"]), all(f["calibration"]["W"] < 0 for f in v["folds"]))
+    chk = load("round3/text_prior_check.json")
+    if chk:
+        claim("[round 3] stdlib featurisation is bit-identical to the fitting cache and scores agree with numpy (< 1e-6)",
+              "text_prior_check.json", f"{chk['n_features_bit_identical_to_cache']}/{chk['n_items']} identical; max diff {chk['max_abs_score_diff_stdlib_vs_numpy']:.1e}",
+              chk["n_features_bit_identical_to_cache"] == chk["n_items"] and chk["max_abs_score_diff_stdlib_vs_numpy"] < 1e-6)
+    rt = load("round3/text_prior_runtime.json")
+    if rt:
+        claim("[round 3] the engineering gates would have passed (>= 200 calls/s, <= 5 MB, smoke test with the weights loaded)",
+              "text_prior_runtime.json", f"min calls/s {min(v['calls_per_s'] for v in rt['throughput'].values()):.0f}; "
+              f"{rt['weights_file_bytes'] / 1e6:.2f} MB; smoke exit {rt['smoke_exit_code']}",
+              bool(rt["gate_throughput_200"] and rt["gate_weights_5mb"] and rt["gate_smoke"]))
+    eq = load("round3/shipped_equivalence.json")
+    if eq:
+        ship3 = bool(cv3 and cv3["rule_a_cv_alc_ci_below_zero"] and tb3 and tb3["rule_b_real_not_significantly_worse"])
+        present = (HERE / "text_prior.json").exists()
+        claim("[round 3] ship decision is consistent with the files: no text_prior.json shipped and the ZIP unchanged iff the rule failed",
+              "shipped_equivalence.json + experiments/src", f"rule passed: {ship3}; text_prior.json present: {present}; ZIP unchanged: {eq['zip_unchanged']}",
+              (not ship3) == ((not present) and eq["zip_unchanged"]))
+        claim("[round 3] the shipped model.py and the development model.py (dormant hooks, no weights) give bit-identical predictions",
+              "shipped_equivalence.json", f"{eq['n_bit_identical']}/{eq['n_cases']}", eq["n_bit_identical"] == eq["n_cases"] > 0)
+
     n_fail = sum(1 for r in rows if not r[3])
     lines = ["# Claim audit (generated by experiments/src/make_audit.py)", "",
              "Every directional claim in paper/main.tex, re-derived from the result files. `HOLDS` means the",

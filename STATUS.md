@@ -1,23 +1,23 @@
 # PAIEC (NeurIPS 2026 Predictive AI Evaluation Competition) -- status
 
-Last updated: 2026-10-23 (iteration 2026-10-22, see the last section). Deadline: **2026-10-30 23:59 AoE** (codebase + report via
+Last updated: 2026-10-23 (round 3, see the last section). Deadline: **2026-10-30 23:59 AoE** (codebase + report via
 OpenReview with the Codabench submission ID). Codabench competition 17828.
 
 ## What was built (all under `neurips_challenges/paiec/`)
 
 | Deliverable | Path | State |
 |---|---|---|
-| Submission ZIP | `submission/paiec_submission.zip` (11.7 kB; `model.py`, `labeling.py`, `README.md` at root) | rebuilt 2026-10-23; **passes the official validator** (`experiments/results/validator_output.txt`: `OK ... valid submission ZIP`, exit 0); SHA-256 `3f0d15c8...` in `experiments/results/submission_zip_info.json` |
-| Predictor | `experiments/src/model.py` (= ZIP copy, byte-identical) | stdlib only (`math`, `re`); deterministic; never raises; 455 predict calls/s at budget 31 with 300-word items (mean 2.2 ms, max 54 ms; `smoke_test.json`) |
+| Submission ZIP | `submission/paiec_submission.zip` (11.7 kB; `model.py`, `labeling.py`, `README.md` at root) | **unchanged in round 3** (SHA-256 `3f0d15c8...`, same bytes as iteration 2); **passes the official validator** (re-run 2026-10-23, `experiments/results/validator_output.txt`: `OK ... valid submission ZIP`, exit 0); `build_submission.py` now only re-validates an existing ZIP unless `--force` |
+| Predictor | shipped: `submission/model.py` (= ZIP member); development: `experiments/src/model.py` = shipped file + round-3 item-text-prior hooks that are inactive without `text_prior.json` (5,544/5,544 bit-identical predictions, `results/round3/shipped_equivalence.json`) | shipped file: stdlib only (`math`, `re`); deterministic; never raises; 1,010 predict calls/s at budget 31 with 300-word items (`smoke_test.json`, run on `submission/`, 42 cases) |
 | Acquisition policy | `experiments/src/labeling.py` | streaming `acquisition_function(input, prediction=None, labeled=None, context=None) -> bool`; novelty (near-duplicate) filter, otherwise stream order; never raises |
 | Local evaluation harness | `experiments/src/{harness,simulate,real_testbed,run_experiments,run_extras,embed_cache}.py` | reproduces pairs, 50/50 pools, random stream, budgets 0..31, Brier ALC, ECE, bootstrap CIs, paired tests, oracle rows |
 | Real testbed | `experiments/results/real_testbed/*.jsonl` (+ frozen `real_testbed_external/`) | 17 pairs, 3,800 labelled items, 4 Ollama models x {GSM8K, SVAMP, BBH-mix} x 2 harnesses (7B completed on all three benchmarks on 2026-10-22) |
 | Results | `experiments/results/*.json` (26 files) | all generated with the shipped constants; plus `prior_fit*.json` (training-release fit, not shipped), `prior_sensitivity.json`, `novelty_filter_stats.json`, `measurement_db_listing.json` |
-| Report | `paper/main.pdf` (13 pages; main text ends at the bottom of page 8; refs + 5 appendix sections) | 0 `??`, 0 undefined refs, 0 overfull boxes; every number is a macro (`paper/results_macros.tex` from `make_macros.py`, 1,361 macros) |
-| Audit / review / bib | `paper/AUDIT.md` (66 claims re-derived from JSON, 0 failing), `paper/review/REVIEW_1.md` (2 passes), `paper/bib_verification_log.json` (13 entries verified) | done |
+| Report | `paper/main.pdf` (15 pages; main text ends at the bottom of page 8; refs + 7 appendix sections) | 0 `??`, 0 undefined refs, 0 overfull boxes; every number is a macro (`paper/results_macros.tex` from `make_macros.py`, 1,675 macros, duplicate-name guard) |
+| Audit / review / bib | `paper/AUDIT.md` (86 claims re-derived from JSON, 0 failing), `paper/review/REVIEW_1.md` (3 passes), `paper/bib_verification_log.json` (13 entries verified) | done |
 | User instructions | `submission/README.md` | registration, Codabench upload, OpenReview upload |
 
-Rebuild everything: `cd experiments/src && python run_experiments.py --suite all --workers 4 && python run_extras.py && python prior_sensitivity.py --suite all --workers 4 && python novelty_stats.py && bash build_paper.sh && python build_submission.py` (the training-release fit: `python -I fit_prior_from_measurement_db.py all`, needs an HF login).
+Rebuild everything: `cd experiments/src && python run_experiments.py --suite all --workers 4 && python run_extras.py && python prior_sensitivity.py --suite all --workers 4 && python novelty_stats.py && bash build_paper.sh && python build_submission.py` (the training-release fit: `python -I fit_prior_from_measurement_db.py all`, needs an HF login; round 3: `python -I text_prior.py build|cv|final|check|testbeds|explore|runtime|equivalence`, needs the downloaded payload).
 
 ## Method (shipped constants)
 
@@ -204,3 +204,96 @@ Validator: official `check_submission_zip.py` on the rebuilt ZIP -> OK, exit 0 (
 - Codabench still refused connections (one WebFetch attempt, ECONNREFUSED); the leaderboard was not seen.
 - The synthetic suite was not re-run (the predictor is bit-identical; its JSONs are unchanged and valid).
 - The fitted coefficients are not shipped (rule failed on its first condition); `PRIOR_INTERCEPT` stays 0.
+
+## Round 3 (2026-10-23, autonomous; 4 laptop threads; Mac not used)
+
+**Question.** Does the item text predict difficulty across benchmarks well enough to move the budget-0 /
+low-budget predictions for an unseen benchmark? (Benchmark mean success rates have sd 0.223 on the release;
+the attribute prior cannot see them.)
+
+**Pre-registration** (`experiments/results/round3/PREREG.md`, written 10:27 PDT before any fit, SHA-256
+`bb54af425da8...`, stored in every result JSON and checked by the audit). Design: stdlib featuriser in
+`model.py` (`text_prior_features`: JSON contents flattened to `key: value` lines; signed `zlib.crc32` hashing
+into 2^18 buckets of word unigrams/bigrams from the first 2,000 chars, char 3-grams from the first 500,
+`item_features` tokens; sublinear tf, per-family l2; plus 16 text statistics) -> sklearn ridge on the residual
+item logit `logit((n r + .5)/(n + 1)) - mean hand subject logit - hand item logit` (<= 1,000 items per benchmark,
+benchmarks weighted equally) -> stacked onto the hand-set prior as `T = W s + B` (W, B by pair-weighted logistic
+on inner out-of-fold scores), cap in {1.5, 2.5, 3.5}, within-pair weight lambda in {0, .5, 1}, alpha0 = 4 kept;
+ridge penalty in {0.03 ... 10} by 4-fold inner benchmark-grouped CV; all selection inside the training benchmarks
+of each of the iteration-2 outer folds. **Ship rule:** ship iff (a) benchmark-held-out ALC difference (text - hand)
+has a 95% cluster-bootstrap CI (over benchmarks, 2,000 resamples) entirely below 0, AND (b) the real Ollama testbed
+full-model ALC difference is not significantly > 0, AND engineering gates (>= 200 calls/s on one core with a new
+target item per call, weights <= 5 MB, validator + smoke test, never raises). Secondary (text x release-year
+interaction) only if the primary ships -> not run.
+
+**Data used** (disclosed in the report, Appendix D lists all 144 benchmarks): the iteration-2 frame (16,718 pairs,
+3,118,742 rows, 144 benchmarks; hand-set B0 0.238753 / ALC 0.205100 reproduced *exactly*), plus `content` and
+`item_features` of 515,067 items (109,233 target items) from `items.parquet` of those benchmarks; features cached
+outside the repo in `_downloads/measurement_db_payload/round3_cache/` (about 2 GB; deletable, `text_prior.py build`
+re-creates it in ~8 min).
+
+### Results (all in `experiments/results/round3/`)
+
+| | hand-set (shipped) | + item-text prior |
+|---|---|---|
+| benchmark-held-out CV, B0 (16,718 pairs) | 0.2388 | 0.2391 |
+| benchmark-held-out CV, ALC (16,303 pairs) | 0.2051 [0.2042, 0.2060] | 0.2051 [0.2042, 0.2060] |
+| paired ALC, text - hand (cluster bootstrap over 135 benchmarks) | | **-0.0000 [-0.0013, +0.0014]**, not significant (pair bootstrap [-0.0001, +0.0001]) |
+| paired B0, text - hand | | +0.0003 [-0.0036, +0.0046] |
+| gap to the pair-rate oracle closed at n = 0 / 1 / 3 | | -0.1% [-6.7, 7.1] / 0.1% [-5.6, 6.0] / 0.1% [-4.2, 4.3] |
+| real Ollama testbed, full-model ALC (17 pairs) | 0.2224 | 0.2243; paired +0.0019 [-0.0002, +0.0037], n.s. (without BBH pairs: +0.0017 [-0.0007, +0.0042]) |
+| synthetic IRT testbed, full-model ALC (160 pairs) | 0.1797 | 0.1800; paired +0.0003 [-0.0002, +0.0008], n.s. |
+
+- Why it fails: the inner CV picked the **largest penalty (10) in 5/5 folds** (inner MSE at or above the constant's),
+  and the out-of-fold calibration slope **W was negative in 5/5 folds (-0.32 to -0.03)**: what the text model learns
+  on some benchmarks points the wrong way on others. Held-out R^2 of the residual target -0.06 .. 0.04.
+- Headroom exists: an oracle knowing each held-out benchmark's mean rate gets ALC 0.1990 (-0.0061 [-0.0113, -0.0035];
+  closes 30% / 25% / 19% of the gap at n = 0 / 1 / 3). Text gets none of it.
+- Descriptive: refitting only the intercept shift (W = 0) gives +0.0003 [-0.0007, +0.0009]; alpha0 = 2 +0.0001,
+  alpha0 = 8 +0.0035 (significantly worse); per fold the text prior is better in 1/5 (0 significant), per benchmark
+  57/135; exact cross-benchmark duplicate items are 0.02% (no leakage concern).
+- **Exploratory** (`PREREG_ADDENDUM_1.md`, written after the folds ran and before the CV summary; cannot change the
+  decision): E1 penalties {10, 100, 1e3, 1e4}: +0.0002 [-0.0007, +0.0011]; E2 16 statistics only: +0.0001
+  [-0.0010, +0.0014]; W < 0 in 5/5 folds for both. So the negative result is not an artefact of the grid.
+
+**Ship decision: NOT shipped** (rule (a) fails; (b) holds; engineering gates would have passed). The submission ZIP is
+unchanged (SHA-256 `3f0d15c879d9...`), re-validated: `OK ... valid submission ZIP`, exit 0.
+
+**Engineering (would-be-shipped variant, `results/round3/text_prior_runtime.json`, `text_prior_check.json`):**
+weights `text_prior_candidate.json` 1.40 MB (float32, base64, 262,077 non-zero), load 22 ms; predict 3,056 / 673 / 417
+calls/s on one core with a new 15- / 300- / 2,000-word target item per call at budget 31; smoke test with the weights
+loaded 44 cases OK (incl. malformed JSON contents and a corrupted spec -> hand-set fallback); stdlib features
+bit-identical to the fit cache on 2,000/2,000 release items, stdlib vs numpy score max |diff| 9.0e-9. Final all-benchmark
+fit: penalty 10, W -0.20, B +0.14, cap 1.5, lambda 0.
+
+### Code / files changed
+- `experiments/src/text_prior.py` (new): `build`, `cv` (+ `--resume`), `final`, `check`, `testbeds`, `explore`,
+  `runtime`, `equivalence`.
+- `experiments/src/model.py`: optional text prior (`text_prior_features`, `load_text_prior`, `_text_logit`, `_cap`,
+  `within` offset weight; hand-only fallback path); without `text_prior.json` bit-identical to the shipped file.
+- `fit_prior_from_measurement_db.py`: `load_pairs_from_payload(keep_ids=, item_stats=)` (defaults unchanged).
+- `run_experiments.py`: `TEXT_PRIOR_FILE` param; `smoke_test.py`: `--dir`, `--out`, JSON/malformed-spec cases;
+  `build_submission.py`: no silent rebuild of a validated ZIP; `make_macros.py` (+ round-3 macros, table,
+  duplicate guard), `make_audit.py` (+ 20 round-3 claims).
+- Paper: Data paragraph "An item-text difficulty prior (pre-registered; not shipped)", Appendix D (details, Table 2,
+  benchmark list), abstract/intro/contributions/limitations/reproducibility/disclosure updated; acquisition-policy and
+  frontier-subject discussions moved to the appendix to keep 8 pages. 15 pages total.
+- `submission/README.md`: model.py provenance note; Step 4 commands.
+
+### Before / after (round 3)
+
+| | before | after |
+|---|---|---|
+| shipped predictor / ZIP | hand-set prior + shrinkage + gated item-level; SHA `3f0d15c8...` | unchanged (same bytes) |
+| CV ALC on the release (hand-set) | 0.2051 | 0.2051 (text prior: 0.2051, diff -0.0000 [-0.0013, +0.0014]) |
+| report | 13 pages, 66 audited claims | 15 pages (main text still 8), 86 audited claims, 0 failing |
+
+### Not done / notes
+- The secondary interaction (text x release year) was not run (pre-registered as conditional on the primary shipping).
+- Pretrained text encoders (e.g. the organisers' item embeddings) were not tried; they remain the obvious next
+  hypothesis and would need their own pre-registration (and `models.txt` / allow-listed model if shipped).
+- User actions are unchanged (register, upload the unchanged ZIP, fill the author block, OpenReview).
+- Timeline / transparency: PREREG.md 10:27 PDT; feature build 10:36-10:44; a solver timing test (one 60/40 benchmark
+  split, penalties 1 and 0.03; scratch only) ran before the CV and already showed held-out MSE above the constant --
+  the pre-registration was not changed; CV folds 10:45-10:58 (first run, stuck in a slow duplicate diagnostic, killed
+  and rerun identically 11:07-11:20); addendum 11:08 (after the first run's folds, before any CV summary).

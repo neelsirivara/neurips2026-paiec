@@ -1,0 +1,88 @@
+11:20:36 [E1_heavier_penalty-fold1] inner 1/4 alpha=10: 3s
+11:20:38 [E1_heavier_penalty-fold1] inner 1/4 alpha=100: 2s
+11:20:39 [E1_heavier_penalty-fold1] inner 1/4 alpha=1000: 1s
+11:20:41 [E1_heavier_penalty-fold1] inner 1/4 alpha=10000: 1s
+11:20:43 [E1_heavier_penalty-fold1] inner 2/4 alpha=10: 3s
+11:20:45 [E1_heavier_penalty-fold1] inner 2/4 alpha=100: 2s
+11:20:47 [E1_heavier_penalty-fold1] inner 2/4 alpha=1000: 2s
+11:20:48 [E1_heavier_penalty-fold1] inner 2/4 alpha=10000: 2s
+11:20:51 [E1_heavier_penalty-fold1] inner 3/4 alpha=10: 3s
+11:20:53 [E1_heavier_penalty-fold1] inner 3/4 alpha=100: 2s
+11:20:55 [E1_heavier_penalty-fold1] inner 3/4 alpha=1000: 2s
+11:20:57 [E1_heavier_penalty-fold1] inner 3/4 alpha=10000: 2s
+11:20:59 [E1_heavier_penalty-fold1] inner 4/4 alpha=10: 2s
+11:21:01 [E1_heavier_penalty-fold1] inner 4/4 alpha=100: 2s
+11:21:02 [E1_heavier_penalty-fold1] inner 4/4 alpha=1000: 1s
+11:21:04 [E1_heavier_penalty-fold1] inner 4/4 alpha=10000: 1s
+11:21:15 [E1_heavier_penalty-fold1] alpha 100 (inner MSE 3.0302 vs constant 3.0476); W -0.059 B 0.149; cap 1.5; lambda 0; 42s
+11:21:18 [E1_heavier_penalty-fold2] inner 1/4 alpha=10: 3s
+11:21:20 [E1_heavier_penalty-fold2] inner 1/4 alpha=100: 2s
+11:21:22 [E1_heavier_penalty-fold2] inner 1/4 alpha=1000: 2s
+11:21:24 [E1_heavier_penalty-fold2] inner 1/4 alpha=10000: 2s
+11:21:26 [E1_heavier_penalty-fold2] inner 2/4 alpha=10: 2s
+11:21:28 [E1_heavier_penalty-fold2] inner 2/4 alpha=100: 2s
+11:21:29 [E1_heavier_penalty-fold2] inner 2/4 alpha=1000: 1s
+11:21:31 [E1_heavier_penalty-fold2] inner 2/4 alpha=10000: 1s
+11:21:33 [E1_heavier_penalty-fold2] inner 3/4 alpha=10: 2s
+11:21:35 [E1_heavier_penalty-fold2] inner 3/4 alpha=100: 2s
+11:21:37 [E1_heavier_penalty-fold2] inner 3/4 alpha=1000: 2s
+11:21:38 [E1_heavier_penalty-fold2] inner 3/4 alpha=10000: 2s
+11:21:41 [E1_heavier_penalty-fold2] inner 4/4 alpha=10: 2s
+11:21:42 [E1_heavier_penalty-fold2] inner 4/4 alpha=100: 2s
+11:21:44 [E1_heavier_penalty-fold2] inner 4/4 alpha=1000: 1s
+11:21:45 [E1_heavier_penalty-fold2] inner 4/4 alpha=10000: 1s
+11:21:56 [E1_heavier_penalty-fold2] alpha 1000 (inner MSE 3.3952 vs constant 3.3647); W -1.474 B 0.066; cap 1.5; lambda 0; 40s
+11:21:59 [E1_heavier_penalty-fold3] inner 1/4 alpha=10: 2s
+11:22:01 [E1_heavier_penalty-fold3] inner 1/4 alpha=100: 2s
+11:22:03 [E1_heavier_penalty-fold3] inner 1/4 alpha=1000: 2s
+11:22:04 [E1_heavier_penalty-fold3] inner 1/4 alpha=10000: 1s
+11:22:07 [E1_heavier_penalty-fold3] inner 2/4 alpha=10: 3s
+11:22:09 [E1_heavier_penalty-fold3] inner 2/4 alpha=100: 2s
+11:22:11 [E1_heavier_penalty-fold3] inner 2/4 alpha=1000: 2s
+11:22:12 [E1_heavier_penalty-fold3] inner 2/4 alpha=10000: 2s
+11:22:15 [E1_heavier_penalty-fold3] inner 3/4 alpha=10: 2s
+11:22:16 [E1_heavier_penalty-fold3] inner 3/4 alpha=100: 2s
+11:22:18 [E1_heavier_penalty-fold3] inner 3/4 alpha=1000: 1s
+11:22:19 [E1_heavier_penalty-fold3] inner 3/4 alpha=10000: 1s
+11:22:22 [E1_heavier_penalty-fold3] inner 4/4 alpha=10: 2s
+11:22:23 [E1_heavier_penalty-fold3] inner 4/4 alpha=100: 2s
+11:22:25 [E1_heavier_penalty-fold3] inner 4/4 alpha=1000: 2s
+11:22:26 [E1_heavier_penalty-fold3] inner 4/4 alpha=10000: 1s
+11:22:38 [E1_heavier_penalty-fold3] alpha 1000 (inner MSE 3.1253 vs constant 3.1237); W -0.965 B 0.274; cap 1.5; lambda 0; 41s
+11:22:41 [E1_heavier_penalty-fold4] inner 1/4 alpha=10: 2s
+11:22:43 [E1_heavier_penalty-fold4] inner 1/4 alpha=100: 2s
+11:22:44 [E1_heavier_penalty-fold4] inner 1/4 alpha=1000: 1s
+11:22:45 [E1_heavier_penalty-fold4] inner 1/4 alpha=10000: 1s
+11:22:47 [E1_heavier_penalty-fold4] inner 2/4 alpha=10: 2s
+11:22:49 [E1_heavier_penalty-fold4] inner 2/4 alpha=100: 2s
+11:22:50 [E1_heavier_penalty-fold4] inner 2/4 alpha=1000: 1s
+11:22:52 [E1_heavier_penalty-fold4] inner 2/4 alpha=10000: 1s
+11:22:54 [E1_heavier_penalty-fold4] inner 3/4 alpha=10: 2s
+11:22:56 [E1_heavier_penalty-fold4] inner 3/4 alpha=100: 2s
+11:22:57 [E1_heavier_penalty-fold4] inner 3/4 alpha=1000: 1s
+11:22:59 [E1_heavier_penalty-fold4] inner 3/4 alpha=10000: 1s
+11:23:01 [E1_heavier_penalty-fold4] inner 4/4 alpha=10: 2s
+11:23:03 [E1_heavier_penalty-fold4] inner 4/4 alpha=100: 2s
+11:23:04 [E1_heavier_penalty-fold4] inner 4/4 alpha=1000: 1s
+11:23:06 [E1_heavier_penalty-fold4] inner 4/4 alpha=10000: 1s
+11:23:19 [E1_heavier_penalty-fold4] alpha 100 (inner MSE 3.4593 vs constant 3.4469); W -0.448 B 0.117; cap 2.5; lambda 0; 40s
+11:23:22 [E1_heavier_penalty-fold5] inner 1/4 alpha=10: 3s
+11:23:24 [E1_heavier_penalty-fold5] inner 1/4 alpha=100: 2s
+11:23:26 [E1_heavier_penalty-fold5] inner 1/4 alpha=1000: 2s
+11:23:28 [E1_heavier_penalty-fold5] inner 1/4 alpha=10000: 2s
+11:23:30 [E1_heavier_penalty-fold5] inner 2/4 alpha=10: 2s
+11:23:32 [E1_heavier_penalty-fold5] inner 2/4 alpha=100: 2s
+11:23:34 [E1_heavier_penalty-fold5] inner 2/4 alpha=1000: 2s
+11:23:35 [E1_heavier_penalty-fold5] inner 2/4 alpha=10000: 2s
+11:23:38 [E1_heavier_penalty-fold5] inner 3/4 alpha=10: 2s
+11:23:40 [E1_heavier_penalty-fold5] inner 3/4 alpha=100: 2s
+11:23:41 [E1_heavier_penalty-fold5] inner 3/4 alpha=1000: 1s
+11:23:43 [E1_heavier_penalty-fold5] inner 3/4 alpha=10000: 1s
+11:23:45 [E1_heavier_penalty-fold5] inner 4/4 alpha=10: 2s
+11:23:47 [E1_heavier_penalty-fold5] inner 4/4 alpha=100: 2s
+11:23:49 [E1_heavier_penalty-fold5] inner 4/4 alpha=1000: 2s
+11:23:50 [E1_heavier_penalty-fold5] inner 4/4 alpha=10000: 1s
+11:24:00 [E1_heavier_penalty-fold5] alpha 10000 (inner MSE 3.1614 vs constant 3.1543); W -4.802 B -0.009; cap 1.5; lambda 0; 40s
+11:24:02 E1_heavier_penalty: ALC diff vs hand +0.0002 [-0.0007, +0.0011]
+11:24:02 wrote C:\Users\neels\Downloads\gen_papers_2\neurips_challenges\paiec\experiments\results\round3\text_prior_explore.json
+exit 0

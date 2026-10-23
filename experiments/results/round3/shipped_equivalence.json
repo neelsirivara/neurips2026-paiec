@@ -1,0 +1,12 @@
+{
+ "n_cases": 5544,
+ "n_bit_identical": 5544,
+ "shipped_model_sha256": "2f7e2bcdc65956dcfc0310d630d6315044e3a8192847de867505613ff5bed5af",
+ "zip_model_sha256": "2f7e2bcdc65956dcfc0310d630d6315044e3a8192847de867505613ff5bed5af",
+ "zip_sha256": "3f0d15c879d90bb76b2c7f607bee3ce28375149c6b04812c0a276c08f23fc195",
+ "zip_sha256_recorded_iteration2": "3f0d15c879d90bb76b2c7f607bee3ce28375149c6b04812c0a276c08f23fc195",
+ "zip_unchanged": true,
+ "zip_member_equals_submission_model": true,
+ "dev_model_sha256": "658bfdf5b6c266159092d394e92e41c77addaf50cb507d583b20f89ae6411c43",
+ "dev_text_prior_file_present": false
+}

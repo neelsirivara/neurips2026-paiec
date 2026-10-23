@@ -3,7 +3,7 @@
 Every directional claim in paper/main.tex, re-derived from the result files. `HOLDS` means the
 artifact supports the claim as worded; `FAILS` means the text must be changed (or the claim dropped).
 
-66 claims checked, 0 failing.
+86 claims checked, 0 failing.
 
 | # | Claim | Artifact | Values | Status |
 |---|---|---|---|---|
@@ -54,8 +54,8 @@ artifact supports the claim as worded; `FAILS` means the text must be changed (o
 | 45 | [synthetic] gated model is not significantly worse than always-on components | `loo_gating_ablation_synthetic.json` | mean -0.0011 [-0.0017, -0.0005] sig=True | HOLDS |
 | 46 | [real] gated model is not significantly worse than always-on components | `loo_gating_ablation_real.json` | mean +0.0021 [-0.0009, +0.0048] sig=False | HOLDS |
 | 47 | [sweep] oracle headroom grows with sigma_topic | `synthetic_signal_sweep.json` | sigma 0.0: 0.0107, sigma 0.35: 0.0144, sigma 0.7: 0.0219, sigma 1.0: 0.0306 | HOLDS |
-| 48 | predict runs at > 100 calls/s at budget 31 with long items, mean < 50 ms | `smoke_test.json` | 553 calls/s, mean 1.81 ms, max 46.2 ms | HOLDS |
-| 49 | smoke test passed all cases | `smoke_test.json` | 34 cases, ok=True | HOLDS |
+| 48 | predict runs at > 100 calls/s at budget 31 with long items, mean < 50 ms | `smoke_test.json` | 1010 calls/s, mean 0.99 ms, max 27.0 ms | HOLDS |
+| 49 | smoke test passed all cases | `smoke_test.json` | 42 cases, ok=True | HOLDS |
 | 50 | official validator accepts the ZIP | `validator_output.txt` | OK: C:\Users\neels\Downloads\gen_papers_2\neurips_challenges\paiec\submission\paiec_submission.zip looks like a valid submission ZIP. | HOLDS |
 | 51 | [sens] frontier-like subjects: p0 stays inside the cap [0.18, 0.82] and spans more than 0.3 | `prior_sensitivity.json frontier_grid` | p0 in [0.386, 0.818] over 160 subjects (values rounded to 4 decimals) | HOLDS |
 | 52 | [sens] alpha0=4: a prior of 0.7 on a pair with true rate 0.3 loses to the constant 0.5 | `prior_sensitivity.json miscalibration` | ALC excess 0.0617 vs constant excess 0.0400 | HOLDS |
@@ -73,6 +73,26 @@ artifact supports the claim as worded; `FAILS` means the text must be changed (o
 | 64 | [real] novelty filter fires on some pairs yet its full-model ALC is within 1e-4 of stream order | `novelty_filter_stats.json + acquisition_policies_real.json` | fired on 10/17 pairs, 40 skipped; ALC novelty 0.21800 vs first 0.21799 | HOLDS |
 | 65 | [synthetic] novelty filter never fires (pseudo-word items never reach the 0.6 cosine threshold) | `novelty_filter_stats.json` | fired on 0/160 pairs | HOLDS |
 | 66 | model.py ships the hand-set prior unless the ship rule passed (consistency of code and result files) | `model.py + prior_fit_testbeds.json` | hand-set constants in model.py: True; ship rule passed: False | HOLDS |
+| 67 | [round 3] PREREG.md is unchanged since the CV ran (SHA-256 recorded in the result equals the file's) | `round3/PREREG.md + text_prior_cv.json` | bb54af425da8 vs bb54af425da8 | HOLDS |
+| 68 | [round 3] the CV frame reproduces the iteration-2 hand-set numbers exactly | `text_prior_cv.json reproduction` | B0 0.238753 vs 0.238753; ALC 0.205100 vs 0.205100 | HOLDS |
+| 69 | [round 3] the item-text prior does not significantly change the benchmark-held-out ALC (cluster CI includes 0; rule (a) fails) | `text_prior_cv.json summary.paired_vs_hand.text.alc_cluster` | mean -0.0000 [-0.0013, +0.0014] | HOLDS |
+| 70 | [round 3] the out-of-fold calibration slope W is negative in every outer fold | `text_prior_cv.json folds[].calibration.W` | -0.027, -0.314, -0.323, -0.282, -0.273 | HOLDS |
+| 71 | [round 3] the inner CV selected the largest pre-registered penalty in every fold | `text_prior_cv.json folds[].alpha` | 10, 10, 10, 10, 10 | HOLDS |
+| 72 | [round 3] the text prior closes essentially none (|ratio| < 5%) of the gap to the pair-rate oracle at budgets 0, 1, 3 | `text_prior_cv.json gap_closed` | B0: -0.1%, B1: +0.1%, B3: +0.1% | HOLDS |
+| 73 | [round 3] knowing the held-out benchmark's mean rate would improve the ALC significantly (headroom exists) | `text_prior_cv.json benchmark_mean_oracle` | mean -0.0061 [-0.0113, -0.0035] | HOLDS |
+| 74 | [round 3] exact cross-benchmark duplicates are negligible (< 1% of frame items on average) | `text_prior_cv.json duplicates` | mean duplicate fraction 0.018% | HOLDS |
+| 75 | [round 3, real] text prior vs hand-set (full model) is not significantly different | `text_prior_testbeds.json` | mean +0.0019 [-0.0002, +0.0037] | HOLDS |
+| 76 | [round 3, synthetic] text prior vs hand-set (full model) is not significantly different | `text_prior_testbeds.json` | mean +0.0003 [-0.0002, +0.0008] | HOLDS |
+| 77 | [round 3] rule (b) holds (real testbed not significantly worse) | `text_prior_testbeds.json rule_b` | True | HOLDS |
+| 78 | [round 3] PREREG_ADDENDUM_1.md is unchanged since the exploratory runs | `round3/PREREG_ADDENDUM_1.md + text_prior_explore.json` | debcd2aa1b6c vs debcd2aa1b6c | HOLDS |
+| 79 | [round 3, exploratory] E2_statistics_only does not significantly improve on the hand-set prior | `text_prior_explore.json` | mean +0.0001 [-0.0010, +0.0014] | HOLDS |
+| 80 | [round 3, exploratory] E2_statistics_only: W negative in every fold | `text_prior_explore.json` | -0.055, -0.540, -0.618, -0.461, -0.937 | HOLDS |
+| 81 | [round 3, exploratory] E1_heavier_penalty does not significantly improve on the hand-set prior | `text_prior_explore.json` | mean +0.0002 [-0.0007, +0.0011] | HOLDS |
+| 82 | [round 3, exploratory] E1_heavier_penalty: W negative in every fold | `text_prior_explore.json` | -0.059, -1.474, -0.965, -0.448, -4.802 | HOLDS |
+| 83 | [round 3] stdlib featurisation is bit-identical to the fitting cache and scores agree with numpy (< 1e-6) | `text_prior_check.json` | 2000/2000 identical; max diff 9.0e-09 | HOLDS |
+| 84 | [round 3] the engineering gates would have passed (>= 200 calls/s, <= 5 MB, smoke test with the weights loaded) | `text_prior_runtime.json` | min calls/s 417; 1.40 MB; smoke exit 0 | HOLDS |
+| 85 | [round 3] ship decision is consistent with the files: no text_prior.json shipped and the ZIP unchanged iff the rule failed | `shipped_equivalence.json + experiments/src` | rule passed: False; text_prior.json present: False; ZIP unchanged: True | HOLDS |
+| 86 | [round 3] the shipped model.py and the development model.py (dormant hooks, no weights) give bit-identical predictions | `shipped_equivalence.json` | 5544/5544 | HOLDS |
 
 Number provenance: every number in the PDF is a macro from `paper/results_macros.tex`
 (generated by `make_macros.py`); tables are `paper/results_table_*.tex` from the same script;

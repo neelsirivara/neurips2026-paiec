@@ -1,0 +1,27 @@
+10:45:53 [final] inner 1/4 alpha=0.03: 18s
+10:46:03 [final] inner 1/4 alpha=0.1: 10s
+10:46:10 [final] inner 1/4 alpha=0.3: 7s
+10:46:15 [final] inner 1/4 alpha=1: 5s
+10:46:19 [final] inner 1/4 alpha=3: 4s
+10:46:22 [final] inner 1/4 alpha=10: 3s
+10:46:38 [final] inner 2/4 alpha=0.03: 16s
+10:46:48 [final] inner 2/4 alpha=0.1: 10s
+10:46:55 [final] inner 2/4 alpha=0.3: 7s
+10:47:01 [final] inner 2/4 alpha=1: 5s
+10:47:05 [final] inner 2/4 alpha=3: 4s
+10:47:08 [final] inner 2/4 alpha=10: 3s
+10:47:25 [final] inner 3/4 alpha=0.03: 18s
+10:47:36 [final] inner 3/4 alpha=0.1: 11s
+10:47:43 [final] inner 3/4 alpha=0.3: 7s
+10:47:48 [final] inner 3/4 alpha=1: 5s
+10:47:52 [final] inner 3/4 alpha=3: 4s
+10:47:55 [final] inner 3/4 alpha=10: 3s
+10:48:11 [final] inner 4/4 alpha=0.03: 16s
+10:48:21 [final] inner 4/4 alpha=0.1: 10s
+10:48:28 [final] inner 4/4 alpha=0.3: 7s
+10:48:33 [final] inner 4/4 alpha=1: 5s
+10:48:37 [final] inner 4/4 alpha=3: 4s
+10:48:40 [final] inner 4/4 alpha=10: 3s
+10:48:56 [final] alpha 10 (inner MSE 3.2251 vs constant 3.2309); W -0.205 B 0.136; cap 1.5; lambda 0; 201s
+10:48:56 wrote C:\Users\neels\Downloads\gen_papers_2\neurips_challenges\paiec\experiments\results\round3\text_prior_candidate.json (1.40 MB)
+exit 0
