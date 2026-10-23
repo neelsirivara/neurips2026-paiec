@@ -1,0 +1,119 @@
+700 unique item texts
+wrote C:\Users\neels\Downloads\gen_papers_2\neurips_challenges\paiec\experiments\results\embeddings_real_testbed.npz (700, 384) in 67.4s
+wrote C:\Users\neels\Downloads\gen_papers_2\neurips_challenges\paiec\experiments\results\real_testbed_pairs.json
+--- real testbed (n_pairs=15)
+  const            ALC 0.2500 [0.2500, 0.2500]  ECE 0.135  B0=0.250 B1=0.250 B3=0.250 B7=0.250 B15=0.250 B31=0.250
+  empirical_mean   ALC 0.2745 [0.2302, 0.3117]  ECE 0.152  B0=0.250 B1=0.468 B3=0.241 B7=0.228 B15=0.209 B31=0.202
+  prior            ALC 0.2330 [0.2184, 0.2491]  ECE 0.071  B0=0.233 B1=0.233 B3=0.233 B7=0.233 B15=0.233 B31=0.233
+  shrink           ALC 0.2187 [0.1925, 0.2416]  ECE 0.048  B0=0.233 B1=0.241 B3=0.217 B7=0.212 B15=0.206 B31=0.201
+  shrink_ridge     ALC 0.2162 [0.1919, 0.2367]  ECE 0.046  B0=0.233 B1=0.241 B3=0.217 B7=0.212 B15=0.199 B31=0.188
+  shrink_knn       ALC 0.2189 [0.1924, 0.2420]  ECE 0.046  B0=0.233 B1=0.241 B3=0.217 B7=0.212 B15=0.207 B31=0.201
+  full             ALC 0.2183 [0.1923, 0.2410]  ECE 0.046  B0=0.233 B1=0.241 B3=0.217 B7=0.211 B15=0.206 B31=0.199
+  oracle_rate      ALC 0.1966 [0.1685, 0.2215]  ECE 0.000  B0=0.197 B1=0.197 B3=0.197 B7=0.197 B15=0.197 B31=0.197
+wrote C:\Users\neels\Downloads\gen_papers_2\neurips_challenges\paiec\experiments\results\real_testbed_main.json
+--- real LOO off (n_pairs=15)
+  const            ALC 0.2500 [0.2500, 0.2500]  ECE 0.135  B0=0.250 B1=0.250 B3=0.250 B7=0.250 B15=0.250 B31=0.250
+  empirical_mean   ALC 0.2745 [0.2302, 0.3117]  ECE 0.152  B0=0.250 B1=0.468 B3=0.241 B7=0.228 B15=0.209 B31=0.202
+  prior            ALC 0.2330 [0.2184, 0.2491]  ECE 0.071  B0=0.233 B1=0.233 B3=0.233 B7=0.233 B15=0.233 B31=0.233
+  shrink           ALC 0.2187 [0.1925, 0.2416]  ECE 0.048  B0=0.233 B1=0.241 B3=0.217 B7=0.212 B15=0.206 B31=0.201
+  shrink_ridge     ALC 0.2162 [0.1919, 0.2367]  ECE 0.046  B0=0.233 B1=0.241 B3=0.217 B7=0.212 B15=0.199 B31=0.188
+  shrink_knn       ALC 0.2189 [0.1924, 0.2420]  ECE 0.046  B0=0.233 B1=0.241 B3=0.217 B7=0.212 B15=0.207 B31=0.201
+  full             ALC 0.2169 [0.1926, 0.2383]  ECE 0.047  B0=0.233 B1=0.241 B3=0.217 B7=0.213 B15=0.201 B31=0.191
+  oracle_rate      ALC 0.1966 [0.1685, 0.2215]  ECE 0.000  B0=0.197 B1=0.197 B3=0.197 B7=0.197 B15=0.197 B31=0.197
+wrote C:\Users\neels\Downloads\gen_papers_2\neurips_challenges\paiec\experiments\results\loo_gating_ablation_real.json
+LOO_SE_MULT=0.0: full 0.2178
+LOO_SE_MULT=1.0: full 0.2182
+LOO_SE_MULT=2.0: full 0.2183
+wrote C:\Users\neels\Downloads\gen_papers_2\neurips_challenges\paiec\experiments\results\loo_margin_sensitivity_real.json
+--- real MiniLM similarity (n_pairs=15)
+  const            ALC 0.2500 [0.2500, 0.2500]  ECE 0.135  B0=0.250 B1=0.250 B3=0.250 B7=0.250 B15=0.250 B31=0.250
+  empirical_mean   ALC 0.2745 [0.2302, 0.3117]  ECE 0.152  B0=0.250 B1=0.468 B3=0.241 B7=0.228 B15=0.209 B31=0.202
+  prior            ALC 0.2330 [0.2184, 0.2491]  ECE 0.071  B0=0.233 B1=0.233 B3=0.233 B7=0.233 B15=0.233 B31=0.233
+  shrink           ALC 0.2187 [0.1925, 0.2416]  ECE 0.048  B0=0.233 B1=0.241 B3=0.217 B7=0.212 B15=0.206 B31=0.201
+  shrink_ridge     ALC 0.2162 [0.1919, 0.2367]  ECE 0.046  B0=0.233 B1=0.241 B3=0.217 B7=0.212 B15=0.199 B31=0.188
+  shrink_knn       ALC 0.2206 [0.1934, 0.2448]  ECE 0.049  B0=0.233 B1=0.245 B3=0.218 B7=0.216 B15=0.208 B31=0.200
+  full             ALC 0.2181 [0.1923, 0.2407]  ECE 0.046  B0=0.233 B1=0.241 B3=0.217 B7=0.210 B15=0.206 B31=0.197
+  oracle_rate      ALC 0.1966 [0.1685, 0.2215]  ECE 0.000  B0=0.197 B1=0.197 B3=0.197 B7=0.197 B15=0.197 B31=0.197
+wrote C:\Users\neels\Downloads\gen_papers_2\neurips_challenges\paiec\experiments\results\real_testbed_embedding.json
+alpha0=1.0: shrink 0.2318 full 0.2313
+alpha0=2.0: shrink 0.2232 full 0.2227
+alpha0=4.0: shrink 0.2187 full 0.2183
+alpha0=8.0: shrink 0.2180 full 0.2178
+wrote C:\Users\neels\Downloads\gen_papers_2\neurips_challenges\paiec\experiments\results\alpha0_sensitivity_real.json
+--- real policy random (n_pairs=15)
+  const            ALC 0.2500 [0.2500, 0.2500]  ECE 0.135  B0=0.250 B1=0.250 B3=0.250 B7=0.250 B15=0.250 B31=0.250
+  empirical_mean   ALC 0.2745 [0.2302, 0.3117]  ECE 0.152  B0=0.250 B1=0.468 B3=0.241 B7=0.228 B15=0.209 B31=0.202
+  prior            ALC 0.2330 [0.2184, 0.2491]  ECE 0.071  B0=0.233 B1=0.233 B3=0.233 B7=0.233 B15=0.233 B31=0.233
+  shrink           ALC 0.2187 [0.1925, 0.2416]  ECE 0.048  B0=0.233 B1=0.241 B3=0.217 B7=0.212 B15=0.206 B31=0.201
+  shrink_ridge     ALC 0.2162 [0.1919, 0.2367]  ECE 0.046  B0=0.233 B1=0.241 B3=0.217 B7=0.212 B15=0.199 B31=0.188
+  shrink_knn       ALC 0.2189 [0.1924, 0.2420]  ECE 0.046  B0=0.233 B1=0.241 B3=0.217 B7=0.212 B15=0.207 B31=0.201
+  full             ALC 0.2183 [0.1923, 0.2410]  ECE 0.046  B0=0.233 B1=0.241 B3=0.217 B7=0.211 B15=0.206 B31=0.199
+  oracle_rate      ALC 0.1966 [0.1685, 0.2215]  ECE 0.000  B0=0.197 B1=0.197 B3=0.197 B7=0.197 B15=0.197 B31=0.197
+--- real policy first (n_pairs=15)
+  const            ALC 0.2500 [0.2500, 0.2500]  ECE 0.135  B0=0.250 B1=0.250 B3=0.250 B7=0.250 B15=0.250 B31=0.250
+  empirical_mean   ALC 0.2599 [0.2161, 0.3024]  ECE 0.160  B0=0.250 B1=0.367 B3=0.258 B7=0.232 B15=0.213 B31=0.210
+  prior            ALC 0.2330 [0.2184, 0.2491]  ECE 0.071  B0=0.233 B1=0.233 B3=0.233 B7=0.233 B15=0.233 B31=0.233
+  shrink           ALC 0.2178 [0.1904, 0.2411]  ECE 0.051  B0=0.233 B1=0.226 B3=0.221 B7=0.215 B15=0.208 B31=0.206
+  shrink_ridge     ALC 0.2143 [0.1882, 0.2375]  ECE 0.049  B0=0.233 B1=0.226 B3=0.221 B7=0.210 B15=0.203 B31=0.190
+  shrink_knn       ALC 0.2179 [0.1911, 0.2417]  ECE 0.050  B0=0.233 B1=0.225 B3=0.221 B7=0.215 B15=0.208 B31=0.208
+  full             ALC 0.2174 [0.1905, 0.2407]  ECE 0.051  B0=0.233 B1=0.226 B3=0.221 B7=0.213 B15=0.208 B31=0.206
+  oracle_rate      ALC 0.1966 [0.1685, 0.2215]  ECE 0.000  B0=0.197 B1=0.197 B3=0.197 B7=0.197 B15=0.197 B31=0.197
+--- real policy novelty (n_pairs=15)
+  const            ALC 0.2500 [0.2500, 0.2500]  ECE 0.135  B0=0.250 B1=0.250 B3=0.250 B7=0.250 B15=0.250 B31=0.250
+  empirical_mean   ALC 0.2599 [0.2162, 0.3029]  ECE 0.154  B0=0.250 B1=0.367 B3=0.258 B7=0.232 B15=0.214 B31=0.209
+  prior            ALC 0.2330 [0.2184, 0.2491]  ECE 0.071  B0=0.233 B1=0.233 B3=0.233 B7=0.233 B15=0.233 B31=0.233
+  shrink           ALC 0.2177 [0.1902, 0.2412]  ECE 0.051  B0=0.233 B1=0.226 B3=0.221 B7=0.215 B15=0.208 B31=0.206
+  shrink_ridge     ALC 0.2142 [0.1878, 0.2378]  ECE 0.049  B0=0.233 B1=0.226 B3=0.221 B7=0.210 B15=0.203 B31=0.189
+  shrink_knn       ALC 0.2179 [0.1907, 0.2421]  ECE 0.050  B0=0.233 B1=0.225 B3=0.221 B7=0.215 B15=0.208 B31=0.206
+  full             ALC 0.2172 [0.1902, 0.2410]  ECE 0.051  B0=0.233 B1=0.226 B3=0.221 B7=0.213 B15=0.208 B31=0.205
+  oracle_rate      ALC 0.1966 [0.1685, 0.2215]  ECE 0.000  B0=0.197 B1=0.197 B3=0.197 B7=0.197 B15=0.197 B31=0.197
+--- real policy novelty_unc (n_pairs=15)
+  const            ALC 0.2500 [0.2500, 0.2500]  ECE 0.135  B0=0.250 B1=0.250 B3=0.250 B7=0.250 B15=0.250 B31=0.250
+  empirical_mean   ALC 0.2599 [0.2162, 0.3029]  ECE 0.154  B0=0.250 B1=0.367 B3=0.258 B7=0.232 B15=0.214 B31=0.209
+  prior            ALC 0.2330 [0.2184, 0.2491]  ECE 0.071  B0=0.233 B1=0.233 B3=0.233 B7=0.233 B15=0.233 B31=0.233
+  shrink           ALC 0.2177 [0.1902, 0.2412]  ECE 0.051  B0=0.233 B1=0.226 B3=0.221 B7=0.215 B15=0.208 B31=0.206
+  shrink_ridge     ALC 0.2142 [0.1878, 0.2378]  ECE 0.049  B0=0.233 B1=0.226 B3=0.221 B7=0.210 B15=0.203 B31=0.189
+  shrink_knn       ALC 0.2179 [0.1907, 0.2421]  ECE 0.050  B0=0.233 B1=0.225 B3=0.221 B7=0.215 B15=0.208 B31=0.206
+  full             ALC 0.2172 [0.1902, 0.2410]  ECE 0.051  B0=0.233 B1=0.226 B3=0.221 B7=0.213 B15=0.208 B31=0.205
+  oracle_rate      ALC 0.1966 [0.1685, 0.2215]  ECE 0.000  B0=0.197 B1=0.197 B3=0.197 B7=0.197 B15=0.197 B31=0.197
+--- real policy ble (n_pairs=15)
+  const            ALC 0.2500 [0.2500, 0.2500]  ECE 0.135  B0=0.250 B1=0.250 B3=0.250 B7=0.250 B15=0.250 B31=0.250
+  empirical_mean   ALC 0.2600 [0.2152, 0.3006]  ECE 0.156  B0=0.250 B1=0.367 B3=0.259 B7=0.234 B15=0.214 B31=0.204
+  prior            ALC 0.2330 [0.2184, 0.2491]  ECE 0.071  B0=0.233 B1=0.233 B3=0.233 B7=0.233 B15=0.233 B31=0.233
+  shrink           ALC 0.2165 [0.1889, 0.2403]  ECE 0.043  B0=0.233 B1=0.226 B3=0.218 B7=0.213 B15=0.208 B31=0.202
+  shrink_ridge     ALC 0.2133 [0.1869, 0.2380]  ECE 0.040  B0=0.233 B1=0.226 B3=0.218 B7=0.207 B15=0.205 B31=0.187
+  shrink_knn       ALC 0.2163 [0.1890, 0.2403]  ECE 0.042  B0=0.233 B1=0.225 B3=0.218 B7=0.214 B15=0.208 B31=0.200
+  full             ALC 0.2156 [0.1882, 0.2391]  ECE 0.044  B0=0.233 B1=0.226 B3=0.218 B7=0.209 B15=0.208 B31=0.201
+  oracle_rate      ALC 0.1966 [0.1685, 0.2215]  ECE 0.000  B0=0.197 B1=0.197 B3=0.197 B7=0.197 B15=0.197 B31=0.197
+wrote C:\Users\neels\Downloads\gen_papers_2\neurips_challenges\paiec\experiments\results\acquisition_policies_real.json
+wrote C:\Users\neels\Downloads\gen_papers_2\neurips_challenges\paiec\experiments\results\real_testbed_seeds.json
+real suite exit 0
+--- real tfidf shipped_uni_bi (n_pairs=15)
+  const            ALC 0.2500 [0.2500, 0.2500]  ECE 0.135  B0=0.250 B1=0.250 B3=0.250 B7=0.250 B15=0.250 B31=0.250
+  empirical_mean   ALC 0.2745 [0.2302, 0.3117]  ECE 0.152  B0=0.250 B1=0.468 B3=0.241 B7=0.228 B15=0.209 B31=0.202
+  prior            ALC 0.2330 [0.2184, 0.2491]  ECE 0.071  B0=0.233 B1=0.233 B3=0.233 B7=0.233 B15=0.233 B31=0.233
+  shrink           ALC 0.2187 [0.1925, 0.2416]  ECE 0.048  B0=0.233 B1=0.241 B3=0.217 B7=0.212 B15=0.206 B31=0.201
+  shrink_ridge     ALC 0.2162 [0.1919, 0.2367]  ECE 0.046  B0=0.233 B1=0.241 B3=0.217 B7=0.212 B15=0.199 B31=0.188
+  shrink_knn       ALC 0.2189 [0.1924, 0.2420]  ECE 0.046  B0=0.233 B1=0.241 B3=0.217 B7=0.212 B15=0.207 B31=0.201
+  full             ALC 0.2183 [0.1923, 0.2410]  ECE 0.046  B0=0.233 B1=0.241 B3=0.217 B7=0.211 B15=0.206 B31=0.199
+  oracle_rate      ALC 0.1966 [0.1685, 0.2215]  ECE 0.000  B0=0.197 B1=0.197 B3=0.197 B7=0.197 B15=0.197 B31=0.197
+--- real tfidf unigram_restricted (n_pairs=15)
+  const            ALC 0.2500 [0.2500, 0.2500]  ECE 0.135  B0=0.250 B1=0.250 B3=0.250 B7=0.250 B15=0.250 B31=0.250
+  empirical_mean   ALC 0.2745 [0.2302, 0.3117]  ECE 0.152  B0=0.250 B1=0.468 B3=0.241 B7=0.228 B15=0.209 B31=0.202
+  prior            ALC 0.2330 [0.2184, 0.2491]  ECE 0.071  B0=0.233 B1=0.233 B3=0.233 B7=0.233 B15=0.233 B31=0.233
+  shrink           ALC 0.2187 [0.1925, 0.2416]  ECE 0.048  B0=0.233 B1=0.241 B3=0.217 B7=0.212 B15=0.206 B31=0.201
+  shrink_ridge     ALC 0.2162 [0.1919, 0.2367]  ECE 0.046  B0=0.233 B1=0.241 B3=0.217 B7=0.212 B15=0.199 B31=0.188
+  shrink_knn       ALC 0.2206 [0.1931, 0.2451]  ECE 0.049  B0=0.233 B1=0.245 B3=0.219 B7=0.213 B15=0.208 B31=0.204
+  full             ALC 0.2184 [0.1927, 0.2410]  ECE 0.045  B0=0.233 B1=0.241 B3=0.217 B7=0.211 B15=0.206 B31=0.199
+  oracle_rate      ALC 0.1966 [0.1685, 0.2215]  ECE 0.000  B0=0.197 B1=0.197 B3=0.197 B7=0.197 B15=0.197 B31=0.197
+--- real tfidf uni_bi_restricted (n_pairs=15)
+  const            ALC 0.2500 [0.2500, 0.2500]  ECE 0.135  B0=0.250 B1=0.250 B3=0.250 B7=0.250 B15=0.250 B31=0.250
+  empirical_mean   ALC 0.2745 [0.2302, 0.3117]  ECE 0.152  B0=0.250 B1=0.468 B3=0.241 B7=0.228 B15=0.209 B31=0.202
+  prior            ALC 0.2330 [0.2184, 0.2491]  ECE 0.071  B0=0.233 B1=0.233 B3=0.233 B7=0.233 B15=0.233 B31=0.233
+  shrink           ALC 0.2187 [0.1925, 0.2416]  ECE 0.048  B0=0.233 B1=0.241 B3=0.217 B7=0.212 B15=0.206 B31=0.201
+  shrink_ridge     ALC 0.2162 [0.1919, 0.2367]  ECE 0.046  B0=0.233 B1=0.241 B3=0.217 B7=0.212 B15=0.199 B31=0.188
+  shrink_knn       ALC 0.2200 [0.1929, 0.2442]  ECE 0.047  B0=0.233 B1=0.244 B3=0.218 B7=0.212 B15=0.208 B31=0.203
+  full             ALC 0.2184 [0.1925, 0.2410]  ECE 0.046  B0=0.233 B1=0.241 B3=0.217 B7=0.211 B15=0.207 B31=0.199
+  oracle_rate      ALC 0.1966 [0.1685, 0.2215]  ECE 0.000  B0=0.197 B1=0.197 B3=0.197 B7=0.197 B15=0.197 B31=0.197
+wrote C:\Users\neels\Downloads\gen_papers_2\neurips_challenges\paiec\experiments\results\tfidf_variants_real.json
+real extras exit 0

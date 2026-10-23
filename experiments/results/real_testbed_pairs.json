@@ -1,0 +1,110 @@
+{
+ "pairs": [
+  {
+   "bench": "bbh_mix",
+   "model": "llama3.2:3b",
+   "harness": "ollama-direct-answer",
+   "n_items": 300,
+   "accuracy": 0.49333333333333335
+  },
+  {
+   "bench": "bbh_mix",
+   "model": "qwen2.5:1.5b-instruct",
+   "harness": "ollama-direct-answer",
+   "n_items": 300,
+   "accuracy": 0.3933333333333333
+  },
+  {
+   "bench": "bbh_mix",
+   "model": "qwen2.5:3b-instruct",
+   "harness": "ollama-direct-answer",
+   "n_items": 300,
+   "accuracy": 0.29333333333333333
+  },
+  {
+   "bench": "gsm8k",
+   "model": "llama3.2:3b",
+   "harness": "ollama-direct-answer",
+   "n_items": 200,
+   "accuracy": 0.08
+  },
+  {
+   "bench": "gsm8k",
+   "model": "qwen2.5:1.5b-instruct",
+   "harness": "ollama-direct-answer",
+   "n_items": 200,
+   "accuracy": 0.12
+  },
+  {
+   "bench": "gsm8k",
+   "model": "qwen2.5:3b-instruct",
+   "harness": "ollama-direct-answer",
+   "n_items": 200,
+   "accuracy": 0.125
+  },
+  {
+   "bench": "svamp",
+   "model": "llama3.2:3b",
+   "harness": "ollama-direct-answer",
+   "n_items": 200,
+   "accuracy": 0.33
+  },
+  {
+   "bench": "svamp",
+   "model": "qwen2.5:1.5b-instruct",
+   "harness": "ollama-direct-answer",
+   "n_items": 200,
+   "accuracy": 0.325
+  },
+  {
+   "bench": "svamp",
+   "model": "qwen2.5:3b-instruct",
+   "harness": "ollama-direct-answer",
+   "n_items": 200,
+   "accuracy": 0.395
+  },
+  {
+   "bench": "svamp",
+   "model": "qwen2.5:7b-instruct",
+   "harness": "ollama-direct-answer",
+   "n_items": 126,
+   "accuracy": 0.6428571428571429
+  },
+  {
+   "bench": "gsm8k",
+   "model": "qwen2.5:1.5b-instruct",
+   "harness": "ollama-cot-8shot",
+   "n_items": 200,
+   "accuracy": 0.375
+  },
+  {
+   "bench": "gsm8k",
+   "model": "qwen2.5:3b-instruct",
+   "harness": "ollama-cot-8shot",
+   "n_items": 200,
+   "accuracy": 0.24
+  },
+  {
+   "bench": "gsm8k",
+   "model": "qwen2.5:7b-instruct",
+   "harness": "ollama-cot-8shot",
+   "n_items": 200,
+   "accuracy": 0.425
+  },
+  {
+   "bench": "svamp",
+   "model": "qwen2.5:1.5b-instruct",
+   "harness": "ollama-cot-8shot",
+   "n_items": 200,
+   "accuracy": 0.79
+  },
+  {
+   "bench": "svamp",
+   "model": "qwen2.5:3b-instruct",
+   "harness": "ollama-cot-8shot",
+   "n_items": 200,
+   "accuracy": 0.67
+  }
+ ],
+ "n_pairs": 15
+}

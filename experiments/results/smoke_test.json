@@ -1,0 +1,204 @@
+{
+ "cases": [
+  {
+   "subject": "OpenAI GPT-4o",
+   "benchmark_id": true,
+   "budget": 0,
+   "prediction": 0.5810831623655597
+  },
+  {
+   "subject": "OpenAI GPT-4o",
+   "benchmark_id": true,
+   "budget": 1,
+   "prediction": 0.6707721417968944
+  },
+  {
+   "subject": "OpenAI GPT-4o",
+   "benchmark_id": true,
+   "budget": 3,
+   "prediction": 0.6252220902155499
+  },
+  {
+   "subject": "OpenAI GPT-4o",
+   "benchmark_id": true,
+   "budget": 7,
+   "prediction": 0.41906589598881977
+  },
+  {
+   "subject": "OpenAI GPT-4o",
+   "benchmark_id": true,
+   "budget": 15,
+   "prediction": 0.5688265419445935
+  },
+  {
+   "subject": "OpenAI GPT-4o",
+   "benchmark_id": true,
+   "budget": 31,
+   "prediction": 0.6347860063540463
+  },
+  {
+   "subject": "OpenAI GPT-4o",
+   "benchmark_id": false,
+   "budget": 0,
+   "prediction": 0.5810831623655597
+  },
+  {
+   "subject": "OpenAI GPT-4o",
+   "benchmark_id": false,
+   "budget": 1,
+   "prediction": 0.4648665298924477
+  },
+  {
+   "subject": "OpenAI GPT-4o",
+   "benchmark_id": false,
+   "budget": 3,
+   "prediction": 0.6302116339744008
+  },
+  {
+   "subject": "OpenAI GPT-4o",
+   "benchmark_id": false,
+   "budget": 7,
+   "prediction": 0.6804777414701166
+  },
+  {
+   "subject": "OpenAI GPT-4o",
+   "benchmark_id": false,
+   "budget": 15,
+   "prediction": 0.35859825775790544
+  },
+  {
+   "subject": "OpenAI GPT-4o",
+   "benchmark_id": false,
+   "budget": 31,
+   "prediction": 0.6071334975170297
+  },
+  {
+   "subject": "sample-model",
+   "benchmark_id": true,
+   "budget": 0,
+   "prediction": 0.7325306102876052
+  },
+  {
+   "subject": "sample-model",
+   "benchmark_id": true,
+   "budget": 1,
+   "prediction": 0.6016777388300986
+  },
+  {
+   "subject": "sample-model",
+   "benchmark_id": true,
+   "budget": 3,
+   "prediction": 0.717108785533838
+  },
+  {
+   "subject": "sample-model",
+   "benchmark_id": true,
+   "budget": 7,
+   "prediction": 0.7401958086022411
+  },
+  {
+   "subject": "sample-model",
+   "benchmark_id": true,
+   "budget": 15,
+   "prediction": 0.5416922124741594
+  },
+  {
+   "subject": "sample-model",
+   "benchmark_id": true,
+   "budget": 31,
+   "prediction": 0.5397046296831857
+  },
+  {
+   "subject": "sample-model",
+   "benchmark_id": false,
+   "budget": 0,
+   "prediction": 0.7325306102876052
+  },
+  {
+   "subject": "sample-model",
+   "benchmark_id": false,
+   "budget": 1,
+   "prediction": 0.5980533932186745
+  },
+  {
+   "subject": "sample-model",
+   "benchmark_id": false,
+   "budget": 3,
+   "prediction": 0.8484949886029507
+  },
+  {
+   "subject": "sample-model",
+   "benchmark_id": false,
+   "budget": 7,
+   "prediction": 0.6462755154827254
+  },
+  {
+   "subject": "sample-model",
+   "benchmark_id": false,
+   "budget": 15,
+   "prediction": 0.6013307608136987
+  },
+  {
+   "subject": "sample-model",
+   "benchmark_id": false,
+   "budget": 31,
+   "prediction": 0.5417610705476293
+  },
+  {
+   "case": "labels_as_strings",
+   "prediction": 0.5540554415770399
+  },
+  {
+   "case": "labels_none",
+   "prediction": 0.5810831623655597
+  },
+  {
+   "case": "labels_float",
+   "prediction": 0.6648665298924478
+  },
+  {
+   "case": "entries_broken",
+   "prediction": 0.5810831623655597
+  },
+  {
+   "case": "labeled_none",
+   "prediction": 0.5810831623655597
+  },
+  {
+   "case": "labeled_tuple",
+   "prediction": 0.6648665298924478
+  },
+  {
+   "case": "empty_dicts",
+   "prediction": 0.5890404340586651
+  },
+  {
+   "case": "none_fields",
+   "prediction": 0.5890404340586651
+  },
+  {
+   "case": "non_dicts",
+   "prediction": 0.5890404340586651
+  },
+  {
+   "case": "huge_text",
+   "prediction": 0.4030486033736412
+  }
+ ],
+ "ok": true,
+ "mean_ms_short": 4.84742499990413,
+ "mean_ms_long_budget31": 2.0021300001280906,
+ "max_ms_long_budget31": 54.81329999747686,
+ "calls_per_second_long_budget31": 499.4680664772132,
+ "acquisition_decisions": [
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true
+ ]
+}

@@ -1,0 +1,35 @@
+# caches and large intermediates
+experiments/results/cache/
+experiments/results/**/timeseries.csv
+experiments/results/**/*.png
+kit/
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.npy
+*.npz
+*.pt
+*.pth
+*.safetensors
+*.bin
+*.ckpt
+*.wav
+*.flac
+*.tar.bz2
+# LaTeX build products (keep main.pdf)
+paper/*.aux
+paper/*.log
+paper/*.out
+paper/*.bbl
+paper/*.blg
+paper/*.toc
+paper/*.synctex.gz
+paper/*.fdb_latexmk
+paper/*.fls
+paper/build*.log
+paper/bibtex.log
+# secrets never belong here
+*.token
+*_token*
+.env

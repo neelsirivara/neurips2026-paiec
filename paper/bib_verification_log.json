@@ -1,0 +1,16 @@
+{
+  "_note": "Every entry in references.bib was checked on 2026-10-21 by fetching the listed source URL (arXiv abstract page, Crossref metadata record, publisher page or institutional repository) and comparing title, authors, venue and year.",
+  "brier1950": {"source_url": "https://api.crossref.org/works/10.1175%2F1520-0493(1950)078%3C0001%3AVOFEIT%3E2.0.CO%3B2", "verified": true, "checked": "title, author, journal, volume 78(1), pages 1-3, year 1950"},
+  "efron1975": {"source_url": "https://api.crossref.org/works/10.1080/01621459.1975.10479864", "verified": true, "checked": "title, authors, JASA 70(350):311-319, 1975"},
+  "lord1980": {"source_url": "https://www.routledge.com/Applications-of-Item-Response-Theory-To-Practical-Testing-Problems/Lord/p/book/9780898590067", "verified": true, "checked": "title, author F. M. Lord, publisher Routledge, original publication year 1980; DOI 10.4324/9780203056615 is the Routledge e-book record (Crossref lookup rate-limited at check time)"},
+  "embretson2000": {"source_url": "https://api.crossref.org/works/10.4324/9781410605269", "verified": true, "checked": "title 'Item Response Theory', authors Embretson & Reise, publisher Psychology Press; Crossref lists the 2013 e-book edition of the 2000 book (original: Lawrence Erlbaum, 2000, 'Item Response Theory for Psychologists')"},
+  "settles2009": {"source_url": "https://minds.wisc.edu/handle/1793/60660", "verified": true, "checked": "title, author, year 2009, CS Technical Report TR1648, University of Wisconsin-Madison"},
+  "polo2024tinybenchmarks": {"source_url": "https://arxiv.org/abs/2402.14992", "verified": true, "checked": "title, six authors, ICML 2024"},
+  "ruan2024observational": {"source_url": "https://arxiv.org/abs/2405.10938", "verified": true, "checked": "title, three authors, NeurIPS 2024 spotlight"},
+  "perlitz2024efficient": {"source_url": "https://arxiv.org/abs/2308.11696", "verified": true, "checked": "title, nine authors, NAACL 2024 main track"},
+  "liang2022helm": {"source_url": "https://arxiv.org/abs/2211.09110", "verified": true, "checked": "title, first authors, 50 authors total, TMLR 2023"},
+  "guo2017calibration": {"source_url": "https://arxiv.org/abs/1706.04599", "verified": true, "checked": "title, four authors, ICML 2017"},
+  "pacchiardi2024hundred": {"source_url": "https://arxiv.org/abs/2409.03563", "verified": true, "checked": "title, three authors, 2024, KDD 2024 workshop on Evaluation and Trustworthiness of Generative AI Models"},
+  "paiec_baselines_2026": {"source_url": "https://github.com/aims-foundations/paiec_baseline", "verified": true, "checked": "citation block copied verbatim from the cloned repository README (clone at _downloads/kits/aims-foundations_paiec_baseline)"},
+  "paiec2026": {"source_url": "https://aims.stanford.edu/competition", "verified": true, "checked": "competition page fetched 2026-10-21; rules quoted in the report were extracted from it"}
+}

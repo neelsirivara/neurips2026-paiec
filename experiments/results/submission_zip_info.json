@@ -1,0 +1,10 @@
+{
+ "zip": "C:\\Users\\neels\\Downloads\\gen_papers_2\\neurips_challenges\\paiec\\submission\\paiec_submission.zip",
+ "bytes": 10801,
+ "sha256": "770f86e783588bf7a0abd4c07a0d50d91ccb1ec27de592869cda9e446df45237",
+ "members": [
+  "README.md",
+  "labeling.py",
+  "model.py"
+ ]
+}

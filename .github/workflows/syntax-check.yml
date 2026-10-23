@@ -1,0 +1,14 @@
+name: syntax-check
+on: [push, pull_request]
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Byte-compile all Python
+        run: python -m compileall -q experiments submission || python -m compileall -q .
+      - name: Check the bundle exists
+        run: ls -la submission

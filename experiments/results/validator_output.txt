@@ -1,0 +1,4 @@
+$ python -I check_submission_zip.py paiec_submission.zip
+OK: C:\Users\neels\Downloads\gen_papers_2\neurips_challenges\paiec\submission\paiec_submission.zip looks like a valid submission ZIP.
+
+[exit code 0]
