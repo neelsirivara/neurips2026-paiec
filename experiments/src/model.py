@@ -1,10 +1,23 @@
-"""PAIEC predictor: hierarchical shrinkage with LOO-gated, text-aware test-time adaptation.
+"""PAIEC predictor: cross-pair random-effects model on the evaluator's global label list, with a
+hierarchical per-pair shrinkage fallback.
 
 predict(input, labeled) -> float estimates P(subject answers item correctly).
 
-Design (every constant below is a hand-set prior documented in the technical report; nothing
-is fitted on competition data, and no state is kept between calls other than caches that
-only speed up identical computations):
+Round 4 (shipped, ``XP_ENABLED``): the official evaluator passes ONE global ``labeled`` list (labels of
+all sampled subject-benchmark pairs acquired so far) to every predict() call of a budget checkpoint.
+When that list is non-empty, a Rasch-style random-effects logistic model is fitted to it once per
+checkpoint (module-level cache keyed by a fingerprint of the list; thread-safe):
+logit p = o(subject, item) + mu + v_benchmark + u_subject + w_(subject, benchmark), with o the budget-0
+prior below and Gaussian priors on the effects (sds in ``XP_TAUS``); if the target item itself was
+labelled for other subjects (same benchmark_id and text), an item effect with prior sd ``XP_TAU_ITEM``
+is added; the posterior sd is integrated with the probit approximation.  The prior sds were selected by
+benchmark-held-out simulation of the official protocol on the public training release
+(measurement-db); see the technical report, round 4.  Any failure falls back to the per-pair
+predictor of rounds 1-3 described next (which also handles budget 0, where the list is empty).
+
+Per-pair predictor (rounds 1-3; every constant below is a hand-set prior documented in the
+technical report; no state is kept between calls other than caches that only speed up identical
+computations):
 
   1. Budget-0 prior.  A small logistic form over visible subject attributes (release
      date, reasoning effort, parameter count parsed from the name, harness) and item cues
@@ -97,6 +110,19 @@ TEXT_PRIOR = None              # loaded specification (dict) or None: hand-set p
 TFIDF_BIGRAM_WEIGHT = 1.0  # weight of bigram terms relative to unigrams (0 = unigrams only)
 TFIDF_RESTRICT_OOV = False  # drop target terms absent from the acquired set (query-side vocabulary)
 CLIP_LO, CLIP_HI = 0.01, 0.99
+# cross-pair evidence (round 4): the official evaluator passes ONE global ``labeled`` list (labels of all
+# sampled subject-benchmark pairs) to every predict() call of a budget checkpoint.  A Rasch-style random-effects
+# logistic model is fitted to that list once per checkpoint (cached); see _xp_fit / _xp_predict_keys.
+XP_ENABLED = True            # False: the per-pair predictor of rounds 1-3 only
+# prior sds (logits) of the effects; 0 switches an effect off.  Selected by benchmark-held-out simulation of the
+# official protocol on the training release (round 4; experiments/results/round4/xpair_cv.json)
+XP_TAUS = (("mu", 0.5), ("bench", 1.5), ("name", 0.0), ("subj", 0.5), ("namebench", 0.0), ("pair", 0.6))
+XP_TAU_ITEM = 2.25           # prior sd (logits) of an exact item's effect learned from other subjects' labels
+XP_PROBIT = True             # integrate the posterior sd of the latent logit (probit approximation)
+XP_SWEEPS = 25               # maximal backfitting sweeps (one Newton step per effect type per sweep)
+XP_TOL = 1e-4                # stop when the largest parameter step is below this
+XP_ITEM_NEWTON = 4           # Newton iterations of the one-dimensional item effect
+XP_MAX_ENTRIES = 400000      # larger lists: the per-pair predictor only (runtime guard)
 MAX_TEXT_CHARS = 4000
 _CACHE_LIMIT = 200000
 _SET_CACHE_LIMIT = 4000
@@ -860,8 +886,232 @@ def predict_components(input, labeled=None) -> dict:
     return out
 
 
+# ----------------------------------------------------------------------------- cross-pair evidence (round 4)
+# Model for an acquired label y of subject s on item i of benchmark b (all keys from the visible attributes):
+#   logit P(y = 1) = o(s, i) + mu + v_b + a_name + u_s + c_(name,b) + w_(s,b)      (stage 1, "marginal" scale)
+# o = the hand-set budget-0 prior logit (capped); every effect ~ N(0, tau_type^2); MAP by backfitting with one
+# Newton step per effect type per sweep.  Stage 2: if the target item itself was labelled for other subjects
+# (same benchmark_id and item text), an item effect d ~ N(0, XP_TAU_ITEM^2) is estimated from those labels on
+# the conditional scale (stage-1 logits times sqrt(1 + pi tau_item^2 / 8)).  The prediction integrates the
+# posterior sd of the latent logit with the probit approximation.  Subjects are identified by ALL visible
+# attributes (as the organisers' empirical-mean baseline does); ``name`` is the normalised model name.
+import threading as _threading  # noqa: E402
+import hashlib as _hashlib  # noqa: E402
+
+_XP_LOCK = _threading.Lock()
+_XP_CACHE: dict = {"entry": None}   # (fingerprint, fitted state), replaced atomically
+_XP_SUBJ_FIELDS = ("normalized_name", "provider", "release_date", "access_date", "harness", "harness_version",
+                   "reasoning_effort", "subject_features_extra")
+_PI8 = math.pi / 8.0
+
+
+def xp_subject_key(subject: dict) -> str:
+    """Canonical identity of a subject: all visible attributes (extra keys included, sorted)."""
+    try:
+        keys = sorted(set(_XP_SUBJ_FIELDS) | set(k for k in subject if isinstance(k, str)))
+        return json.dumps([[k, _s(subject.get(k))] for k in keys], separators=(",", ":"))
+    except Exception:
+        return _s(subject)
+
+
+def xp_item_key(item: dict) -> tuple:
+    return (_s(item.get("benchmark_id")), _s(item.get("item_content")), _s(item.get("item_features")),
+            _s(item.get("interactors")))
+
+
+def _xp_group_keys(bench, name, skey) -> tuple:
+    """Group key of each effect type, in the order of XP_TAUS."""
+    nk = name if name else "\x00" + skey
+    return {"mu": 0, "bench": bench, "name": nk, "subj": skey, "namebench": (nk, bench), "pair": (skey, bench)}
+
+
+def xp_build(keys: list, ys: list, offsets: list, item_keys: list | None = None, taus=None,
+             sweeps: int | None = None) -> dict:
+    """Fit the stage-1 model.  keys[e] = (bench, name, subject key); ys[e] in [0, 1]; offsets[e] = o(s, i).
+
+    Returns the state used by _xp_predict_keys.  Pure Python; O(entries x effect types x sweeps).
+    """
+    taus = XP_TAUS if taus is None else taus
+    sweeps = XP_SWEEPS if sweeps is None else sweeps
+    n = len(ys)
+    types = []
+    all_groups = [_xp_group_keys(bench, nm, skey) for (bench, nm, skey) in keys]
+    for name, tau in taus:
+        tau = float(tau)
+        if tau <= 0:
+            continue
+        index: dict = {}
+        gidx = []
+        for gk in all_groups:
+            g = gk[name]
+            j = index.get(g)
+            if j is None:
+                j = len(index)
+                index[g] = j
+            gidx.append(j)
+        types.append({"name": name, "tau": tau, "prec": 1.0 / (tau * tau), "index": index, "gidx": gidx,
+                      "theta": [0.0] * len(index), "H": [0.0] * len(index)})
+    eta = [float(o) for o in offsets]
+    sig = _sigmoid
+    for _ in range(max(int(sweeps), 1)):
+        max_step = 0.0
+        for t in types:
+            k = len(t["theta"])
+            G = [0.0] * k
+            H = [0.0] * k
+            gidx = t["gidx"]
+            for e in range(n):
+                p = sig(eta[e])
+                j = gidx[e]
+                G[j] += ys[e] - p
+                H[j] += p * (1.0 - p)
+            theta, prec = t["theta"], t["prec"]
+            step = [0.0] * k
+            for j in range(k):
+                s_ = (G[j] - theta[j] * prec) / (H[j] + prec)
+                step[j] = s_
+                theta[j] += s_
+                if abs(s_) > max_step:
+                    max_step = abs(s_)
+            t["H"] = H
+            for e in range(n):
+                eta[e] += step[gidx[e]]
+        if max_step < XP_TOL:
+            break
+    items: dict = {}
+    if item_keys is not None:
+        for e, ik in enumerate(item_keys):
+            items.setdefault(ik, []).append(e)
+    return {"types": types, "eta": eta, "ys": ys, "items": items, "n": n}
+
+
+def _xp_predict_keys(state: dict, bench, name, skey, ikey, offset: float, tau_item: float | None = None,
+                     probit: bool | None = None) -> float:
+    tau_item = XP_TAU_ITEM if tau_item is None else tau_item
+    probit = XP_PROBIT if probit is None else probit
+    groups = _xp_group_keys(bench, name, skey)
+    m = float(offset)
+    var = 0.0
+    for t in state["types"]:
+        j = t["index"].get(groups[t["name"]])
+        if j is None:
+            var += t["tau"] * t["tau"]
+        else:
+            m += t["theta"][j]
+            var += 1.0 / (t["H"][j] + t["prec"])
+    if probit:
+        m = m / math.sqrt(1.0 + _PI8 * var)
+    if tau_item > 0 and ikey is not None:
+        hits = state["items"].get(ikey)
+        if hits:
+            c = math.sqrt(1.0 + _PI8 * tau_item * tau_item)
+            prec = 1.0 / (tau_item * tau_item)
+            eta, ys = state["eta"], state["ys"]
+            d = 0.0
+            h = prec
+            for _ in range(XP_ITEM_NEWTON):
+                g = -d * prec
+                h = prec
+                for e in hits:
+                    p = _sigmoid(c * eta[e] + d)
+                    g += ys[e] - p
+                    h += p * (1.0 - p)
+                d += g / h
+            return _sigmoid((c * m + d) / math.sqrt(1.0 + _PI8 / h))
+    return _sigmoid(m)
+
+
+def _xp_fingerprint(labeled) -> str:
+    """Cheap identity of a labeled list: its length and a hash of up to ~80 evenly spaced entries."""
+    n = len(labeled)
+    h = _hashlib.blake2b(digest_size=16)
+    h.update(str(n).encode())
+    if n:
+        step = max(1, n // 64)
+        idx = list(range(0, n, step)) + list(range(max(0, n - 8), n))
+        for i in idx:
+            try:
+                (subj, item), lab = labeled[i][0], labeled[i][1]
+                h.update(repr((i, _s(lab), _s(subj.get("normalized_name")) if isinstance(subj, dict) else _s(subj),
+                               _s(item.get("benchmark_id")) if isinstance(item, dict) else "",
+                               _s(item.get("item_content"))[:96] if isinstance(item, dict) else "")).encode("utf-8", "replace"))
+            except Exception:
+                h.update(repr((i, "?")).encode())
+    return h.hexdigest()
+
+
+def _xp_state(labeled):
+    """Parse and fit the global labeled list once per distinct list (thread-safe module-level cache)."""
+    key = _xp_fingerprint(labeled)
+    hit = _XP_CACHE.get("entry")
+    if hit is not None and hit[0] == key:
+        return hit[1]
+    with _XP_LOCK:
+        hit = _XP_CACHE.get("entry")
+        if hit is not None and hit[0] == key:
+            return hit[1]
+        keys, ys, offs, iks = [], [], [], []
+        s_cache: dict = {}
+        i_cache: dict = {}
+        for entry in labeled:
+            try:
+                pair, label = entry[0], entry[1]
+                subj, item = pair[0], pair[1]
+                if not isinstance(subj, dict) or not isinstance(item, dict):
+                    continue
+                y = _label_value(label)
+                if y is None:
+                    continue
+                skey = xp_subject_key(subj)
+                zs = s_cache.get(skey)
+                if zs is None:
+                    zs = _subject_logit(subj)
+                    s_cache[skey] = zs
+                ik = xp_item_key(item)
+                zi = i_cache.get(ik)
+                if zi is None:
+                    zi = _item_logit(item)
+                    i_cache[ik] = zi
+                keys.append((ik[0], _s(subj.get("normalized_name")).strip().lower(), skey))
+                ys.append(float(y))
+                offs.append(min(max(zs + zi, -PRIOR_LOGIT_CAP), PRIOR_LOGIT_CAP))
+                iks.append(ik)
+            except Exception:
+                continue
+        state = xp_build(keys, ys, offs, iks) if ys else None
+        _XP_CACHE["entry"] = (key, state)
+        return state
+
+
+def xp_clear_cache() -> None:
+    _XP_CACHE["entry"] = None
+
+
+def predict_cross_pair(input, labeled):
+    """Cross-pair prediction, or None when it does not apply (no labels / too many / no parsable entry)."""
+    if not labeled or len(labeled) > XP_MAX_ENTRIES:
+        return None
+    subject, item = input[0], input[1]
+    if not isinstance(subject, dict) or not isinstance(item, dict):
+        return None
+    state = _xp_state(labeled)
+    if state is None:
+        return None
+    ik = xp_item_key(item)
+    off = min(max(_subject_logit(subject) + _item_logit(item), -PRIOR_LOGIT_CAP), PRIOR_LOGIT_CAP)
+    p = _xp_predict_keys(state, ik[0], _s(subject.get("normalized_name")).strip().lower(), xp_subject_key(subject), ik, off)
+    return _clip(p)
+
+
 def predict(input, labeled=None) -> float:
     """Probability that the subject answers the item correctly.  Never raises."""
+    if XP_ENABLED and labeled:
+        try:
+            p = predict_cross_pair(input, labeled)
+            if p is not None:
+                return p
+        except Exception:
+            pass
     try:
         return _clip(predict_components(input, labeled)["full"])
     except Exception:

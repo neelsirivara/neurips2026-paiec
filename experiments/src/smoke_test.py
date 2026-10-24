@@ -61,6 +61,142 @@ def check(value, label):
     return v
 
 
+def _global_list(n_subjects, n_benches, n_items, budget, rng, words=WORDS, item_words=12):
+    """Synthetic GLOBAL labeled list as the official evaluator passes it (all pairs' labels)."""
+    subjects = [dict(SMOKE_SUBJECT, normalized_name=f"model-{i % max(1, n_subjects // 2)}",
+                     reasoning_effort=("low", "high")[i % 2]) for i in range(n_subjects)]
+    items = {b: [{"benchmark_id": f"bench_{b:03d}",
+                  "item_content": f"Q{b}.{k}: " + " ".join(rng.choice(words) for _ in range(item_words)),
+                  "item_features": "", "interactors": ""} for k in range(n_items)] for b in range(n_benches)}
+    labeled, targets = [], []
+    for i, s in enumerate(subjects):
+        for b in range(n_benches):
+            if (i + b) % 3 == 2 and n_subjects > 2:  # not every subject on every benchmark
+                continue
+            idx = list(range(n_items))
+            rng.shuffle(idx)
+            half = n_items // 2
+            for k in idx[:half][:budget]:
+                labeled.append([[copy.deepcopy(s), dict(items[b][k])], int(rng.random() < 0.3 + 0.4 * (b % 2))])
+            targets += [[s, items[b][k]] for k in idx[half:]]
+    return subjects, items, labeled, targets
+
+
+def _raise(*args, **kwargs):
+    raise RuntimeError("simulated failure of the cross-pair fit")
+
+
+def round4_checks(rng) -> dict:
+    """Cross-pair predictor (model.XP_*) and the fresh-first acquisition policy under global labeled lists."""
+    out = {"xp_enabled": bool(getattr(model, "XP_ENABLED", False))}
+    if not hasattr(model, "predict_cross_pair"):
+        return out
+    import threading
+    sys.path.insert(0, str(HERE / "validator" / "tools"))
+    from streaming_ingestion import AcquisitionHook  # verbatim copy of the organisers' hook
+    cases = 0
+    for budget in (1, 3, 7, 15, 31):
+        subjects, items, labeled, targets = _global_list(6, 3, 60, budget, rng)
+        model.xp_clear_cache()
+        extra = [[SAMPLE_SUBJECT, dict(SAMPLE_ITEM, benchmark_id="bench_new")],             # unseen subject and benchmark
+                 [dict(SMOKE_SUBJECT, normalized_name="unseen"), items[0][0]],             # unseen subject, seen item
+                 [subjects[0], dict(items[1][0], item_content="new text")]]                # seen pair, new item
+        for x in targets[:40] + extra:
+            p = model.predict(x, labeled)
+            check(p, f"xp budget {budget}")
+            if model.XP_ENABLED:
+                assert p == model.predict_cross_pair(x, labeled), "XP path not used"
+            cases += 1
+        bad = labeled + [None, 5, [], [[1, 2], 1], [["a"], 1], [[SAMPLE_SUBJECT, SAMPLE_ITEM], None],
+                         [[SAMPLE_SUBJECT, SAMPLE_ITEM], "yes"], [["x", {"item_content": 3}], 0.2]]
+        check(model.predict(targets[0], bad), "xp malformed")
+        cases += 1
+    # determinism: cache cleared, deep copy
+    subjects, items, labeled, targets = _global_list(8, 4, 60, 15, random.Random(3))
+    model.xp_clear_cache()
+    a = [model.predict(x, labeled) for x in targets[:50]]
+    model.xp_clear_cache()
+    b = [model.predict(x, copy.deepcopy(labeled)) for x in targets[:50]]
+    assert a == b, "cross-pair predictions are not deterministic"
+    # thread safety: 4 threads on the same list give the sequential predictions
+    model.xp_clear_cache()
+    res = [None] * 4
+
+    def work(k):
+        res[k] = [model.predict(x, labeled) for x in targets[:50]]
+    ths = [threading.Thread(target=work, args=(k,)) for k in range(4)]
+    for t in ths:
+        t.start()
+    for t in ths:
+        t.join()
+    assert all(r == a for r in res), "threaded predictions differ"
+    # fallback: a failing cross-pair fit falls back to the per-pair predictor
+    saved_build, saved_flag = model.xp_build, model.XP_ENABLED
+    try:
+        model.xp_build = _raise
+        model.xp_clear_cache()
+        p = check(model.predict(targets[0], labeled), "xp fallback")
+        model.XP_ENABLED = False
+        q = model.predict(targets[0], labeled)
+        assert p == q, "fallback is not the per-pair predictor"
+    finally:
+        model.xp_build, model.XP_ENABLED = saved_build, saved_flag
+        model.xp_clear_cache()
+    # scale: 2,000 pairs x 31 labels = 62,000 entries (one checkpoint): fit once, then cache hits
+    big_rng = random.Random(7)
+    subjects = [dict(SMOKE_SUBJECT, normalized_name=f"model-{i % 400}", reasoning_effort=("low", "high", "")[i % 3])
+                for i in range(2000)]
+    bench_items = {b: [{"benchmark_id": f"bench_{b:03d}",
+                        "item_content": f"Q{b}.{k}: " + " ".join(big_rng.choice(WORDS) for _ in range(250)),
+                        "item_features": "tier=hard" if k % 4 == 0 else "", "interactors": ""} for k in range(100)]
+                   for b in range(40)}
+    big, big_targets = [], []
+    for i, s in enumerate(subjects):
+        b = i % 40
+        idx = list(range(100))
+        big_rng.shuffle(idx)
+        big += [[[s, bench_items[b][k]], int(big_rng.random() < 0.5)] for k in idx[:31]]
+        big_targets += [[s, bench_items[b][k]] for k in idx[50:]]
+    model.xp_clear_cache()
+    t0 = time.perf_counter()
+    check(model.predict(big_targets[0], big), "big first call")
+    first = time.perf_counter() - t0
+    t0 = time.perf_counter()
+    n_calls = 3000
+    for x in big_targets[1:1 + n_calls]:
+        check(model.predict(x, big), "big")
+    per_call = (time.perf_counter() - t0) / n_calls
+    model.xp_clear_cache()
+    out.update({"xp_cases": cases, "xp_big_entries": len(big), "xp_big_first_call_s": first,
+                "xp_big_ms_per_call": 1000 * per_call, "xp_big_targets": len(big_targets),
+                "xp_big_checkpoint_estimate_s": first + per_call * len(big_targets)})
+    if model.XP_ENABLED:
+        assert first <= 60.0 and 1000 * per_call <= 5.0, out
+    # acquisition: evaluator call shape (no prediction parameter -> predict is not called per candidate)
+    hook = AcquisitionHook(labeling.acquisition_function)
+    out["acquisition_hook_mode"] = hook.mode
+    out["acquisition_hook_keywords"] = list(hook.keywords)
+    out["acquisition_needs_prediction"] = bool(hook.needs_prediction)
+    assert hook.mode == "stream"
+    subjects, items, labeled, targets = _global_list(4, 2, 40, 7, random.Random(5))
+    ctx = {"subject_id": "s", "benchmark_id": "bench_000", "labels_acquired": 3, "labels_remaining": 28,
+           "max_labels": 31, "items_remaining": 35}
+    other = labeled[0][0][1]      # an item already labelled for subject 0
+    fresh = dict(other, item_content="never labelled")
+    newsub = dict(SMOKE_SUBJECT, normalized_name="someone-else")
+    d_stale = hook([newsub, other], None, labeled, ctx)
+    d_fresh = hook([newsub, fresh], None, labeled, ctx)
+    d_urgent = hook([newsub, other], None, labeled, dict(ctx, items_remaining=28))
+    d_none = hook([newsub, other], None, None, None)
+    for d in (d_stale, d_fresh, d_urgent, d_none):
+        assert type(d) is bool
+    out["acquisition_fresh_checks"] = {"stale_item": d_stale, "fresh_item": d_fresh, "stale_but_urgent": d_urgent,
+                                       "no_context": d_none}
+    if getattr(labeling, "POLICY", "") == "fresh":
+        assert d_stale is False and d_fresh is True and d_urgent is True
+    return out
+
+
 def main() -> int:
     rng = random.Random(0)
     report = {"cases": [], "ok": True}
@@ -140,17 +276,18 @@ def main() -> int:
     ctx = {"subject_id": "s", "benchmark_id": "b", "labels_acquired": 0, "labels_remaining": 31,
            "max_labels": 31, "items_remaining": 40}
     decisions = []
+    full_shape = getattr(labeling, "acquisition_policy", labeling.acquisition_function)
     for lab in (None, [], long_labeled[:7]):
         for pred in (None, 0.5, 0.95):
-            d = labeling.acquisition_function([SAMPLE_SUBJECT, dict(SAMPLE_ITEM, benchmark_id="b")],
-                                              prediction=pred, labeled=lab, context=ctx)
+            d = full_shape([SAMPLE_SUBJECT, dict(SAMPLE_ITEM, benchmark_id="b")], prediction=pred, labeled=lab, context=ctx)
             assert type(d) is bool
             decisions.append(d)
-    assert type(labeling.acquisition_function([SAMPLE_SUBJECT, SAMPLE_ITEM], 0.5, [], ctx)) is bool
-    assert labeling.acquisition_function([SAMPLE_SUBJECT, SAMPLE_ITEM], 0.5, [], dict(ctx, labels_remaining=0)) is False
-    assert labeling.acquisition_function([SAMPLE_SUBJECT, SAMPLE_ITEM], 0.5, [], dict(ctx, items_remaining=5)) is True
-    assert type(labeling.acquisition_function([SAMPLE_SUBJECT, SAMPLE_ITEM], None, None, None)) is bool
-    assert type(labeling.acquisition_function(["bad", None], "x", "y", {"labels_remaining": "q"})) is bool
+    assert type(full_shape([SAMPLE_SUBJECT, SAMPLE_ITEM], 0.5, [], ctx)) is bool
+    assert full_shape([SAMPLE_SUBJECT, SAMPLE_ITEM], 0.5, [], dict(ctx, labels_remaining=0)) is False
+    assert full_shape([SAMPLE_SUBJECT, SAMPLE_ITEM], 0.5, [], dict(ctx, items_remaining=5)) is True
+    assert type(full_shape([SAMPLE_SUBJECT, SAMPLE_ITEM], None, None, None)) is bool
+    assert type(full_shape(["bad", None], "x", "y", {"labels_remaining": "q"})) is bool
+    report.update(round4_checks(rng))
     report["mean_ms_short"] = 1000 * sum(times) / len(times)
     report["mean_ms_long_budget31"] = 1000 * sum(long_times) / len(long_times)
     report["max_ms_long_budget31"] = 1000 * max(long_times)

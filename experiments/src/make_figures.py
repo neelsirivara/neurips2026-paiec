@@ -150,8 +150,53 @@ def fig_alpha0():
     plt.close(fig)
 
 
+XP_STYLE = {
+    "XP": dict(color="#2a78d6", marker="o", label="XP: cross-pair model (shipped)", ls="-"),
+    "S0": dict(color="#eb6834", marker="s", label="S0: rounds 1-3 predictor on the global list", ls="-"),
+    "S1": dict(color="#1baf7a", marker="D", label="S1: same, own pair's labels only", ls="--"),
+    "oracle_rate": dict(color="#6250d6", marker="", label="oracle: pair success rate", ls="--"),
+}
+
+
+def fig_xp_budget():
+    cv, add = load("round4/xpair_cv.json"), load("round4/xpair_addendum1.json")
+    if cv is None or add is None:
+        return
+    panels = [(cv["configs"]["A"], "(a) config A: formative-like, %d pairs" % cv["configs"]["A"]["n_units"]),
+              (add["configs"]["E"], "(b) config E: distinct models, %d pairs" % add["configs"]["E"]["n_units"])]
+    x = [math.log2(int(b) + 1) for b in BUDGETS]
+    fig, axes = plt.subplots(1, 2, figsize=(7.0, 2.6), sharey=True)
+    for ax, (summ, title) in zip(axes, panels):
+        for m in ("S0", "S1", "XP", "oracle_rate"):
+            rec = summ["methods"].get(m)
+            if rec is None:
+                continue
+            st = XP_STYLE[m]
+            y = rec["brier"]
+            if m in ("XP", "S0"):
+                lo = [c["ci_lo"] for c in rec["brier_ci"]]
+                hi = [c["ci_hi"] for c in rec["brier_ci"]]
+                ax.fill_between(x, lo, hi, color=st["color"], alpha=0.14, lw=0, zorder=1)
+            ax.plot(x, y, color=st["color"], marker=st["marker"] or None, ls=st["ls"], lw=1.6, ms=5,
+                    markeredgecolor="white", markeredgewidth=0.8, label=st["label"], zorder=3)
+        ax.set_xticks(x)
+        ax.set_xticklabels(BUDGETS)
+        ax.set_xlabel(r"labels per pair $n$ (axis: $\log_2(n+1)$)")
+        ax.set_title(title, loc="left", fontsize=8.5, color=TEXT)
+        ax.grid(axis="y", color=GRID, lw=0.6)
+        ax.set_axisbelow(True)
+    axes[0].set_ylabel("Brier score (lower is better)")
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="lower center", ncol=2, bbox_to_anchor=(0.5, -0.1), fontsize=7.5)
+    fig.tight_layout(rect=(0, 0.1, 1, 1))
+    fig.savefig(FIGS / "xp_budget.pdf", bbox_inches="tight")
+    fig.savefig(FIGS / "xp_budget.png", dpi=180, bbox_inches="tight")
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     fig_brier_vs_budget()
     fig_signal_sweep()
     fig_alpha0()
+    fig_xp_budget()
     print("figures written to", FIGS)

@@ -1,0 +1,9 @@
+{
+ "prereg_sha256": "b9e95a5b47e9742094fa2052bd6b278e12a890aa7e61c12259f6f6e1d38655b8",
+ "setting": "xp|bench1.5|name0|subj0.5|namebench0|pair0.6|item2.25|probit1",
+ "n_testsets": 24,
+ "n_predictions": 56750,
+ "max_abs_diff": 1.3506208146107923e-05,
+ "passes_1e-3": true,
+ "seconds": 3.962759017944336
+}

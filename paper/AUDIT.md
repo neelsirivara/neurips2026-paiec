@@ -3,7 +3,7 @@
 Every directional claim in paper/main.tex, re-derived from the result files. `HOLDS` means the
 artifact supports the claim as worded; `FAILS` means the text must be changed (or the claim dropped).
 
-86 claims checked, 0 failing.
+133 claims checked, 0 failing.
 
 | # | Claim | Artifact | Values | Status |
 |---|---|---|---|---|
@@ -54,8 +54,8 @@ artifact supports the claim as worded; `FAILS` means the text must be changed (o
 | 45 | [synthetic] gated model is not significantly worse than always-on components | `loo_gating_ablation_synthetic.json` | mean -0.0011 [-0.0017, -0.0005] sig=True | HOLDS |
 | 46 | [real] gated model is not significantly worse than always-on components | `loo_gating_ablation_real.json` | mean +0.0021 [-0.0009, +0.0048] sig=False | HOLDS |
 | 47 | [sweep] oracle headroom grows with sigma_topic | `synthetic_signal_sweep.json` | sigma 0.0: 0.0107, sigma 0.35: 0.0144, sigma 0.7: 0.0219, sigma 1.0: 0.0306 | HOLDS |
-| 48 | predict runs at > 100 calls/s at budget 31 with long items, mean < 50 ms | `smoke_test.json` | 1010 calls/s, mean 0.99 ms, max 27.0 ms | HOLDS |
-| 49 | smoke test passed all cases | `smoke_test.json` | 42 cases, ok=True | HOLDS |
+| 48 | predict runs at > 100 calls/s at budget 31 with long items, mean < 50 ms | `smoke_test.json` | 16449 calls/s, mean 0.06 ms, max 0.7 ms | HOLDS |
+| 49 | smoke test passed all cases | `smoke_test.json` | 44 cases, ok=True | HOLDS |
 | 50 | official validator accepts the ZIP | `validator_output.txt` | OK: C:\Users\neels\Downloads\gen_papers_2\neurips_challenges\paiec\submission\paiec_submission.zip looks like a valid submission ZIP. | HOLDS |
 | 51 | [sens] frontier-like subjects: p0 stays inside the cap [0.18, 0.82] and spans more than 0.3 | `prior_sensitivity.json frontier_grid` | p0 in [0.386, 0.818] over 160 subjects (values rounded to 4 decimals) | HOLDS |
 | 52 | [sens] alpha0=4: a prior of 0.7 on a pair with true rate 0.3 loses to the constant 0.5 | `prior_sensitivity.json miscalibration` | ALC excess 0.0617 vs constant excess 0.0400 | HOLDS |
@@ -93,6 +93,53 @@ artifact supports the claim as worded; `FAILS` means the text must be changed (o
 | 84 | [round 3] the engineering gates would have passed (>= 200 calls/s, <= 5 MB, smoke test with the weights loaded) | `text_prior_runtime.json` | min calls/s 417; 1.40 MB; smoke exit 0 | HOLDS |
 | 85 | [round 3] ship decision is consistent with the files: no text_prior.json shipped and the ZIP unchanged iff the rule failed | `shipped_equivalence.json + experiments/src` | rule passed: False; text_prior.json present: False; ZIP unchanged: True | HOLDS |
 | 86 | [round 3] the shipped model.py and the development model.py (dormant hooks, no weights) give bit-identical predictions | `shipped_equivalence.json` | 5544/5544 | HOLDS |
+| 87 | [round 4] PREREG.md hash recorded in every round-4 result file equals the file on disk | `round4/*.json` | xpair_cv: ok, xpair_addendum1: ok, xpair_real_testbed: ok, xpair_acq: ok, xpair_real_acq: ok, xpair_runtime: ok, xpair_equivalence: ok, xpair_perpair: ok | HOLDS |
+| 88 | [round 4, rule (a)] config A: XP - S0 ALC CI entirely below 0 (primary) | `xpair_cv.json configs.A.paired.XP_minus_S0` | -0.0129 [-0.0151, -0.0109] | HOLDS |
+| 89 | [round 4] config B: XP better than S0 with CI below 0 (rule (c) for B-D; addendum E) | `xpair_cv.json configs.B.paired.XP_minus_S0` | -0.0289 [-0.0342, -0.0239] | HOLDS |
+| 90 | [round 4] config C: XP better than S0 with CI below 0 (rule (c) for B-D; addendum E) | `xpair_cv.json configs.C.paired.XP_minus_S0` | -0.0393 [-0.0521, -0.0280] | HOLDS |
+| 91 | [round 4] config D: XP better than S0 with CI below 0 (rule (c) for B-D; addendum E) | `xpair_cv.json configs.D.paired.XP_minus_S0` | -0.0128 [-0.0150, -0.0108] | HOLDS |
+| 92 | [round 4] config E: XP better than S0 with CI below 0 (rule (c) for B-D; addendum E) | `xpair_addendum1.json configs.E.paired.XP_minus_S0` | -0.0125 [-0.0148, -0.0100] | HOLDS |
+| 93 | [round 4] config A: XP better than S1 (correct per-pair filter), CI below 0 | `configs.A.paired.XP_minus_S1` | -0.0108 [-0.0134, -0.0084] | HOLDS |
+| 94 | [round 4] config B: XP better than S1 (correct per-pair filter), CI below 0 | `configs.B.paired.XP_minus_S1` | -0.0245 [-0.0312, -0.0181] | HOLDS |
+| 95 | [round 4] config C: XP better than S1 (correct per-pair filter), CI below 0 | `configs.C.paired.XP_minus_S1` | -0.0287 [-0.0384, -0.0191] | HOLDS |
+| 96 | [round 4] config D: XP better than S1 (correct per-pair filter), CI below 0 | `configs.D.paired.XP_minus_S1` | -0.0127 [-0.0160, -0.0094] | HOLDS |
+| 97 | [round 4] config E: XP better than S1 (correct per-pair filter), CI below 0 | `configs.E.paired.XP_minus_S1` | -0.0121 [-0.0146, -0.0095] | HOLDS |
+| 98 | [round 4] config A: S1 vs S0 (name pooling) not significant | `xpair_cv.json configs.A.paired.S1_minus_S0` | -0.0021 [-0.0050, +0.0009] | HOLDS |
+| 99 | [round 4] config C: name pooling costs (S1 - S0 CI below 0) | `xpair_cv.json configs.C.paired.S1_minus_S0` | -0.0106 [-0.0168, -0.0025] | HOLDS |
+| 100 | [round 4] config D: evaluation-only pairs gain (CI below 0) | `xpair_cv.json configs.D.paired.XP_minus_S0_evalonly_pairs` | -0.0120 [-0.0217, -0.0036] | HOLDS |
+| 101 | [round 4] config A: XP - S0 significant at every budget from n=1, largest at n=31 | `configs.A.paired.XP_minus_S0.brier` | +0.0000, -0.0096, -0.0106, -0.0132, -0.0180, -0.0261 | HOLDS |
+| 102 | [round 4] config A: XP at n=31 below the pair-rate oracle | `configs.A.methods` | XP B31 0.1663 vs oracle 0.1731 | HOLDS |
+| 103 | [round 4] config E: XP - S0 significant at every budget from n=1, largest at n=31 | `configs.E.paired.XP_minus_S0.brier` | +0.0000, -0.0147, -0.0128, -0.0111, -0.0135, -0.0203 | HOLDS |
+| 104 | [round 4] config E: XP at n=31 below the pair-rate oracle | `configs.E.methods` | XP B31 0.1628 vs oracle 0.1730 | HOLDS |
+| 105 | [round 4] config A: removing the benchmark effect and removing the item effect both hurt significantly | `configs.A.paired.minus_*` | bench +0.0048 [+0.0032, +0.0064]; item +0.0048 [+0.0038, +0.0059] | HOLDS |
+| 106 | [round 4] config A: benchmark and item contributions are about equal (ratio within 2/3..3/2) | `configs.A.paired.minus_*` | ratio 1.00 | HOLDS |
+| 107 | [round 4] config A: subject, pair and probit components are small (|effect| < 0.002) | `configs.A.paired` | +0.0004 [+0.0001, +0.0008], +0.0010 [+0.0004, +0.0017], +0.0005 [+0.0000, +0.0009] | HOLDS |
+| 108 | [round 4] config E: removing the benchmark effect and removing the item effect both hurt significantly | `configs.E.paired.minus_*` | bench +0.0050 [+0.0032, +0.0070]; item +0.0053 [+0.0038, +0.0068] | HOLDS |
+| 109 | [round 4] config E: benchmark and item contributions are about equal (ratio within 2/3..3/2) | `configs.E.paired.minus_*` | ratio 0.95 | HOLDS |
+| 110 | [round 4] config E: subject, pair and probit components are small (|effect| < 0.002) | `configs.E.paired` | +0.0002 [-0.0002, +0.0006], +0.0006 [-0.0000, +0.0014], +0.0006 [-0.0000, +0.0011] | HOLDS |
+| 111 | [round 4] config A: benchmark+pair recovers more than half of the gain; name/subject+pair and item+pair recover none | `xpair_cv.json configs.A.methods` | S0 0.2095, XP 0.1965, bench+pair 0.2018, name/subj+pair 0.2095, item+pair 0.2101 | HOLDS |
+| 112 | [round 4] extended grid: the best tau_item on A is interior (2.25, not 0 or 4) | `xpair_addendum1.json tau_item_profile` | 0: 0.2013, 0.75: 0.1989, 1.5: 0.1969, 2.25: 0.1965, 3: 0.1968, 4: 0.1980 | HOLDS |
+| 113 | [round 4] extended grid: the best tau_bench on A is interior (1.5) | `xpair_addendum1.json tau_bench_profile` | 0.5: 0.1978, 1: 0.1966, 1.5: 0.1965, 2: 0.1966, 3: 0.1969 | HOLDS |
+| 114 | [round 4] addendum robust pick equals the pre-registered all-fold pick | `xpair_addendum1.json` | xp|bench1.5|name0|subj0.5|namebench0|pair0.6|item2.25|probit1 vs xp|bench1.5|name0|subj0.5|namebench0|pair0.6|item2.25|probit1 | HOLDS |
+| 115 | [round 4] config A: XP - S0 negative in every outer fold | `xpair_cv.json configs.A.per_fold` | -0.0136, -0.0074, -0.0167, -0.0128, -0.0137 | HOLDS |
+| 116 | [round 4, rule (b)] real testbed seed 0: XP - shipped (global list) not significantly positive | `xpair_real_testbed.json runs[0]` | -0.0074 [-0.0203, +0.0032] | HOLDS |
+| 117 | [round 4] real testbed: XP - shipped global significantly negative in 4 of 5 trajectories (the abstract's count) | `xpair_real_testbed.json runs` | 4 of 5 | HOLDS |
+| 118 | [round 4] real testbed seed 0: XP vs per-pair shipped predictor not significant | `xpair_real_testbed.json runs[0]` | -0.0002 [-0.0072, +0.0074] | HOLDS |
+| 119 | [round 4] real testbed seed 0: XP with per-pair lists is significantly worse than the per-pair predictor (limitation) | `xpair_real_testbed.json runs[0]` | +0.0060 [+0.0022, +0.0099] | HOLDS |
+| 120 | [round 4] real testbed seed 0: XP is worse at n=1 than the deployed per-pair predictor | `xpair_real_testbed.json runs[0].methods` | XP B1 0.2549 vs 0.2468 | HOLDS |
+| 121 | [round 4] release, per-pair lists: XP better than S1 (CI below 0) | `xpair_perpair.json` | -0.0016 [-0.0028, -0.0005] | HOLDS |
+| 122 | [round 4] config A: fresh-first better than random under XP (CI below 0) | `xpair_acq.json fresh_minus_random` | -0.0005 [-0.0009, -0.0002] | HOLDS |
+| 123 | [round 4] fresh-first: the gain is at n=15 and n=31 (significant there, not at n=1..7) | `xpair_acq.json fresh_minus_random.brier` | +0.00000, +0.00013, -0.00016, -0.00010, -0.00169, -0.00170 | HOLDS |
+| 124 | [round 4] fresh-first does not affect S0 significantly | `xpair_acq.json S0_fresh_minus_random` | +0.0001 [-0.0001, +0.0003] | HOLDS |
+| 125 | [round 4] real testbed seed 0: fresh-first not significantly worse (acquisition ship rule) | `xpair_real_acq.json runs[0]` | +0.0001 [-0.0010, +0.0011] | HOLDS |
+| 126 | [round 4] equivalence: stdlib model.py vs numpy simulator max |diff| < 1e-3 | `xpair_equivalence.json` | 1.3506208146107923e-05 over 56750 | HOLDS |
+| 127 | [round 4] official client: stream mode, no predict calls during acquisition, ALC equals the simulator | `official_loop_check.json` | mode stream, acq predict calls 0, match True | HOLDS |
+| 128 | [round 4, rule (d)] 62,000-label checkpoint within 60 s; cache-hit calls <= 5 ms | `xpair_runtime.json sizes[2000]` | checkpoint 13.3 s, 0.116 ms | HOLDS |
+| 129 | [round 4] 4,000 pairs per checkpoint well under a minute | `xpair_runtime.json sizes[4000]` | 29.3 s | HOLDS |
+| 130 | [round 4] smoke test of the shipped files passed with cross-pair cases | `round4/smoke_test_submission.json` | ok=True, xp cases 220, hook stream | HOLDS |
+| 131 | [round 4] shipped model.py constants equal the selected setting and XP is enabled | `experiments/src/model.py vs xpair_addendum1.json` | xp|bench1.5|name0|subj0.5|namebench0|pair0.6|item2.25|probit1; XP_TAUS={'mu': 0.5, 'bench': 1.5, 'name': 0.0, 'subj': 0.5, 'namebench': 0.0, 'pair': 0.6}, item=2.25, probit=True, enabled=True | HOLDS |
+| 132 | [round 4] labeling.POLICY is 'fresh' iff the acquisition ship rule holds | `experiments/src/labeling.py` | POLICY=fresh; rule holds=True | HOLDS |
+| 133 | [round 4] the ZIP members equal the development model.py and labeling.py | `submission/paiec_submission.zip` | identical=True | HOLDS |
 
 Number provenance: every number in the PDF is a macro from `paper/results_macros.tex`
 (generated by `make_macros.py`); tables are `paper/results_table_*.tex` from the same script;

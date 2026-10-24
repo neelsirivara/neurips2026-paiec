@@ -24,10 +24,10 @@ METHOD_LABELS = {"const": "constant 0.5", "empirical_mean": "empirical mean (org
                  "prior": "attribute prior only", "shrink": "prior + shrinkage",
                  "shrink_ridge": "shrinkage + ridge (always on)",
                  "shrink_knn": "shrinkage + $k$NN (always on)",
-                 "full": "full: LOO-gated ridge + $k$NN (shipped)",
+                 "full": "full: LOO-gated ridge + $k$NN (rounds 1--3)",
                  "oracle_rate": "oracle: pair success rate", "oracle_p": "oracle: true item probability"}
 POLICY_LABELS = {"random": "random (evaluator default)", "first": "stream order",
-                 "novelty": "novelty filter (shipped)", "novelty_unc": "novelty + uncertainty",
+                 "novelty": "novelty filter (rounds 1--3)", "novelty_unc": "novelty + uncertainty",
                  "ble": "uncertainty band (BLE rule)"}
 ALPHA_WORDS = {"1.0": "One", "2.0": "Two", "3.0": "Three", "4.0": "Four", "6.0": "Six", "8.0": "Eight"}
 MULT_WORDS = {"0.0": "Zero", "1.0": "One", "2.0": "Two"}
@@ -854,6 +854,291 @@ def table_textprior(cv, explore=None):
     (PAPER / "results_table_textprior.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+# ============================================================================= round 4: cross-pair evidence
+R4_BUDGET_IDX = {"Zero": 0, "One": 1, "Three": 2, "Seven": 3, "Fifteen": 4, "ThirtyOne": 5}
+R4_CONFIG_WORD = {"A": "A", "B": "B", "C": "C", "D": "D", "E": "E"}
+
+
+def _sha_ok(path: Path, recorded) -> bool:
+    return bool(path.exists() and recorded and hashlib.sha256(path.read_bytes()).hexdigest() == recorded)
+
+
+def _sci(v):
+    if v is None:
+        return MISSING
+    mant, ex = f"{float(v):.1e}".split("e")
+    return f"${mant}" + r"\times" + f"10^{{{int(ex)}}}$"
+
+
+def _tau_label(label: str) -> dict:
+    out = {}
+    for part in (label or "").split("|")[1:]:
+        for key in ("bench", "namebench", "name", "subj", "pair", "item", "probit"):
+            if part.startswith(key) and part[len(key):].replace(".", "", 1).isdigit():
+                if key == "name" and part.startswith("namebench"):
+                    continue
+                out[key] = float(part[len(key):])
+                break
+    return out
+
+
+def round4_macros(cv, add, real, acq, realacq, runtime, equiv, perpair, frame, loop, smoke_sub) -> None:
+    pre = RESULTS / "round4" / "PREREG.md"
+    mac("XpPreregSha", MISSING if not pre.exists() else hashlib.sha256(pre.read_bytes()).hexdigest()[:12])
+    recs = [cv, add, real, acq, realacq, runtime, equiv, perpair]
+    ok = all(_sha_ok(pre, get(r, "prereg_sha256")) for r in recs if r is not None) and all(r is not None for r in recs)
+    mac("XpPreregConsistent", "consistent" if ok else "INCONSISTENT")
+    addp = RESULTS / "round4" / "PREREG_ADDENDUM_1.md"
+    mac("XpAddendumConsistent", "consistent" if _sha_ok(addp, get(add, "addendum_sha256")) else "INCONSISTENT")
+    # frame
+    for key, name in (("n_pairs", "FrNPairs"), ("n_pairs_80", "FrNPairsEighty"), ("n_rows", "FrNRows"), ("n_items", "FrNItems"),
+                      ("n_benchmarks", "FrNBench"), ("n_subject_keys", "FrNSubjKeys"), ("n_names", "FrNNames"),
+                      ("max_items_per_pair", "FrMaxItems"), ("names_on_2plus_benchmarks", "FrNamesMulti"),
+                      ("subject_keys_on_2plus_benchmarks", "FrSubjMulti"), ("pairs_per_benchmark_max", "FrPairsPerBenchMax")):
+        mac("Xp" + name, fmt_int(get(frame, key)))
+    mac("XpFrPairsPerBenchMedian", fmt(get(frame, "pairs_per_benchmark_median"), 1))
+    mac("XpFrNamesPerBenchMedian", fmt(get(frame, "names_per_benchmark_median"), 0))
+    mac("XpFrShareNameBench", _pct(get(frame, "frac_pairs_sharing_name_and_benchmark"), 1))
+    mac("XpFrItemShared", _pct(get(frame, "frac_rows_on_item_answered_by_2plus_pairs"), 1))
+    # selection
+    sel = get(cv, "selection") or {}
+    mac("XpGridN", fmt_int(get(sel, "n_settings")))
+    rob = get(add, "selection_robust") or {}
+    mac("XpGridExtN", fmt_int(get(rob, "n_settings")))
+    ship = get(add, "decision", "ship_label")
+    t = _tau_label(ship)
+    for key, name in (("bench", "Bench"), ("name", "Name"), ("subj", "Subj"), ("namebench", "Namebench"), ("pair", "Pair"),
+                      ("item", "Item")):
+        v = t.get(key)
+        mac("XpTau" + name, MISSING if v is None else f"{v:g}")
+    mac("XpProbit", MISSING if "probit" not in t else ("on" if t["probit"] else "off"))
+    folds = get(sel, "per_fold") or []
+    mac("XpSelNFoldsSame", fmt_int(sum(1 for r in folds if r.get("label") == get(sel, "all", "label"))))
+    mac("XpSelNFolds", fmt_int(len(folds)))
+    rfolds = get(rob, "per_fold") or []
+    mac("XpRobNFoldsSame", fmt_int(sum(1 for r in rfolds if r.get("label") == get(rob, "all", "label"))))
+    mac("XpRobSameAsPrereg", "the same setting" if ship and ship == get(sel, "all", "label") else "a different setting")
+    mac("XpShipSource", MISSING if add is None else str(get(add, "decision", "ship_source")))
+    for v, word in (("0", "Zero"), ("0.75", "ZeroSevenFive"), ("1.5", "OneFive"), ("2.25", "TwoTwoFive"), ("3", "Three"), ("4", "Four")):
+        mac("XpProfItem" + word + "A", fmt(get(rob, "tau_item_profile", v, "best_A")))
+        mac("XpProfItem" + word + "E", fmt(get(rob, "tau_item_profile", v, "best_E")))
+    for v, word in (("0.5", "ZeroFive"), ("1", "One"), ("1.5", "OneFive"), ("2", "Two"), ("3", "Three")):
+        mac("XpProfBench" + word + "A", fmt(get(rob, "tau_bench_profile", v, "best_A")))
+    # configurations
+    confs = {c: get(cv, "configs", c) for c in ("A", "B", "C", "D")}
+    confs["E"] = get(add, "configs", "E")
+    for c, s in confs.items():
+        p = "XpC" + c
+        mac(p + "NUnits", fmt_int(get(s, "n_units")))
+        mac(p + "NBench", fmt_int(get(s, "n_benchmarks")))
+        mac(p + "NTestsets", fmt_int(get(s, "n_testsets")))
+        mac(p + "NLabels", fmt_int(get(s, "n_labels_budget31")))
+        for m, code in (("S0", "SZero"), ("S1", "SOne"), ("XP", "Xp"), ("oracle_rate", "Or"), ("prior", "Prior")):
+            r = get(s, "methods", m)
+            mac(p + code + "Alc", fmt(get(r, "alc", "mean")))
+            mac(p + code + "AlcLo", fmt(get(r, "alc", "ci_lo")))
+            mac(p + code + "AlcHi", fmt(get(r, "alc", "ci_hi")))
+            for bw, bi in R4_BUDGET_IDX.items():
+                mac(p + code + "B" + bw, fmt(get(r, "brier", bi), 4))
+        for key, code in (("XP_minus_S0", "DiffSZero"), ("XP_minus_S1", "DiffSOne"), ("S1_minus_S0", "SOneMinusSZero")):
+            cluster_macros(p + code, get(s, "paired", key, "alc"))
+            for bw, bi in R4_BUDGET_IDX.items():
+                if bw == "Zero":
+                    continue
+                d = get(s, "paired", key, "brier", bi)
+                mac(p + code + "B" + bw + "Mean", fmt(get(d, "mean"), 4, sign=True))
+                mac(p + code + "B" + bw + "Lo", fmt(get(d, "ci_lo"), 4, sign=True))
+                mac(p + code + "B" + bw + "Hi", fmt(get(d, "ci_hi"), 4, sign=True))
+        gap_s0 = get(s, "methods", "S0", "alc", "mean")
+        gap_or = get(s, "methods", "oracle_rate", "alc", "mean")
+        gap_xp = get(s, "methods", "XP", "alc", "mean")
+        mac(p + "GapClosed", MISSING if None in (gap_s0, gap_or, gap_xp) else _pct((gap_s0 - gap_xp) / (gap_s0 - gap_or), 0))
+    for k, code in (("XP_minus_S0_evalonly_pairs", "EvalOnly"), ("XP_minus_S0_acquired_pairs", "Acquired")):
+        cluster_macros("XpCD" + code, get(confs["D"], "paired", k, "alc"))
+    # pre-registered nested vs all-fold, robust vs prereg
+    cluster_macros("XpCAAllfoldDiff", get(confs["A"], "paired", "XP_allfold_minus_S0", "alc"))
+    cluster_macros("XpCARobVsPre", get(add, "configs", "A", "paired", "XPrb_minus_XP", "alc"))
+    # components: config A (xpair_cv.json) and E (addendum)
+    comps = (("minus_bench", "Bench"), ("minus_subj", "Subj"), ("minus_pair", "Pair"), ("minus_item", "Item"),
+             ("minus_probit", "Probit"), ("bench_and_pair", "BenchPair"), ("name_subj_and_pair", "NameSubjPair"),
+             ("pair_and_item", "PairItem"), ("only_pair", "OnlyPair"))
+    for c, ref in (("A", "XP_allfold"), ("E", "XPrb_allfold")):
+        s = confs[c]
+        for key, code in comps:
+            cluster_macros(f"XpComp{c}{code}", get(s, "paired", f"{key}_minus_{ref}", "alc"))
+            mac(f"XpComp{c}{code}Alc", fmt(get(s, "methods", key, "alc", "mean")))
+    # equivalence, per-pair robustness, official loop
+    mac("XpEquivN", fmt_int(get(equiv, "n_predictions")))
+    mac("XpEquivNTestsets", fmt_int(get(equiv, "n_testsets")))
+    mac("XpEquivMaxDiff", _sci(get(equiv, "max_abs_diff")))
+    cluster_macros("XpPerPair", get(perpair, "summary", "paired", "XP_minus_S1", "alc"))
+    mac("XpLoopAcqCalls", fmt_int(get(loop, "acquisition_calls")))
+    mac("XpLoopAcqPredCalls", fmt_int(get(loop, "acquisition_prediction_calls")))
+    mac("XpLoopPredCalls", fmt_int(get(loop, "prediction_calls_count")))
+    mac("XpLoopMode", MISSING if loop is None else str(loop.get("acquisition_mode")))
+    mac("XpLoopMatch", MISSING if loop is None else ("equals" if loop.get("matches_xpair_sim") else "DIFFERS FROM"))
+    mac("XpLoopAlc", fmt(get(loop, "alc_mean")))
+    # real testbed (global list), seed 0 and seeds summary
+    runs = get(real, "runs") or []
+    r0 = runs[0] if runs else None
+    mac("XpRealNPairs", fmt_int(get(r0, "n_pairs")))
+    mac("XpRealNSeeds", fmt_int(len(runs)))
+    for m, code in (("XP", "Xp"), ("shipped_global", "ShipGlobal"), ("shipped_perpair", "ShipPerPair"), ("XP_perpair", "XpPerPair")):
+        mac("XpReal" + code + "Alc", fmt(get(r0, "methods", m, "alc", "mean")))
+        mac("XpReal" + code + "AlcLo", fmt(get(r0, "methods", m, "alc", "ci_lo")))
+        mac("XpReal" + code + "AlcHi", fmt(get(r0, "methods", m, "alc", "ci_hi")))
+        for bw, bi in R4_BUDGET_IDX.items():
+            mac("XpReal" + code + "B" + bw, fmt(get(r0, "methods", m, "brier", bi), 4))
+    for key, code in (("XP_minus_shipped_global", "DiffGlobal"), ("XP_minus_shipped_perpair", "DiffPerPair"),
+                      ("shipped_perpair_minus_shipped_global", "PerPairVsGlobal"),
+                      ("XP_perpair_minus_shipped_perpair", "XpPerPairVsPerPair")):
+        paired_macros("XpReal" + code, get(r0, "paired", key))
+        sig_neg = sum(1 for r in runs if get(r, "paired", key, "ci_hi") is not None and get(r, "paired", key, "ci_hi") < 0)
+        sig_pos = sum(1 for r in runs if get(r, "paired", key, "ci_lo") is not None and get(r, "paired", key, "ci_lo") > 0)
+        mac("XpReal" + code + "NSigNeg", fmt_int(sig_neg) if runs else MISSING)
+        mac("XpReal" + code + "NSigPos", fmt_int(sig_pos) if runs else MISSING)
+        means = [get(r, "paired", key, "mean") for r in runs]
+        means = [float(x) for x in means if x is not None]
+        mac("XpReal" + code + "SeedMin", fmt(min(means), 4, sign=True) if means else MISSING)
+        mac("XpReal" + code + "SeedMax", fmt(max(means), 4, sign=True) if means else MISSING)
+    rule_a = get(confs["A"], "paired", "XP_minus_S0", "alc", "ci_hi")
+    rule_a = None if rule_a is None else bool(rule_a < 0)
+    rule_b = get(r0, "paired", "XP_minus_shipped_global", "ci_lo")
+    rule_b = None if rule_b is None else bool(not rule_b > 0)
+    rule_c = None
+    if all(confs[c] is not None for c in ("B", "C", "D")):
+        rule_c = all(not (get(confs[c], "paired", "XP_minus_S0", "alc", "ci_lo") > 0) for c in ("B", "C", "D"))
+    mac("XpRuleA", MISSING if rule_a is None else ("holds" if rule_a else "fails"))
+    mac("XpRuleB", MISSING if rule_b is None else ("holds" if rule_b else "fails"))
+    mac("XpRuleC", MISSING if rule_c is None else ("holds" if rule_c else "fails"))
+    # acquisition
+    cluster_macros("XpAcq", get(acq, "fresh_minus_random", "alc"))
+    for bw in ("Fifteen", "ThirtyOne", "One", "Three", "Seven"):
+        d = get(acq, "fresh_minus_random", "brier", R4_BUDGET_IDX[bw])
+        mac("XpAcqB" + bw + "Mean", fmt(get(d, "mean"), 4, sign=True))
+        mac("XpAcqB" + bw + "Lo", fmt(get(d, "ci_lo"), 4, sign=True))
+        mac("XpAcqB" + bw + "Hi", fmt(get(d, "ci_hi"), 4, sign=True))
+    mac("XpAcqRandomAlc", fmt(get(acq, "xp_random", "alc", "mean")))
+    mac("XpAcqFreshAlc", fmt(get(acq, "xp_fresh", "alc", "mean")))
+    mac("XpAcqSkips", fmt_int(get(acq, "n_skips_fresh")))
+    cluster_macros("XpAcqSZero", get(acq, "S0_fresh_minus_random", "alc"))
+    rruns = get(realacq, "runs") or []
+    ra0 = rruns[0] if rruns else None
+    paired_macros("XpRealAcq", get(ra0, "fresh_minus_first"))
+    mac("XpRealAcqNSigNeg", fmt_int(sum(1 for r in rruns if get(r, "fresh_minus_first", "ci_hi") < 0)) if rruns else MISSING)
+    mac("XpRealAcqNSigPos", fmt_int(sum(1 for r in rruns if get(r, "fresh_minus_first", "ci_lo") > 0)) if rruns else MISSING)
+    means = [float(get(r, "fresh_minus_first", "mean")) for r in rruns]
+    mac("XpRealAcqSeedMean", fmt(sum(means) / len(means), 4, sign=True) if means else MISSING)
+    acq_ship = None
+    if acq is not None and ra0 is not None:
+        acq_ship = bool(get(acq, "fresh_minus_random", "alc", "ci_hi") < 0 and not get(ra0, "fresh_minus_first", "ci_lo") > 0)
+    mac("XpAcqShip", MISSING if acq_ship is None else ("shipped" if acq_ship else "not shipped"))
+    # runtime
+    sizes = {int(r["n_pairs"]): r for r in (get(runtime, "sizes") or [])}
+    for n, word in ((10, "Ten"), (100, "Hundred"), (1000, "Thousand"), (2000, "TwoThousand"), (4000, "FourThousand")):
+        r = sizes.get(n)
+        mac("XpRt" + word + "Labels", fmt_int(get(r, "n_labels")))
+        mac("XpRt" + word + "Fit", fmt(get(r, "first_call_s"), 2))
+        mac("XpRt" + word + "Ms", fmt(get(r, "ms_per_call"), 3))
+        mac("XpRt" + word + "Ckpt", fmt(get(r, "checkpoint_s"), 1))
+        mac("XpRt" + word + "Targets", fmt_int(get(r, "n_targets")))
+    mac("XpSmokeXpCases", fmt_int(get(smoke_sub, "xp_cases")))
+    mac("XpSmokeBigFit", fmt(get(smoke_sub, "xp_big_first_call_s"), 2))
+    mac("XpSmokeBigMs", fmt(get(smoke_sub, "xp_big_ms_per_call"), 3))
+    mac("XpSmokeHookMode", MISSING if smoke_sub is None else str(get(smoke_sub, "acquisition_hook_mode")))
+    # shipped constants of the cross-pair model, read from model.py
+    import sys as _sys
+    _sys.path.insert(0, str(HERE))
+    import model as _model
+    taus = dict(_model.XP_TAUS)
+    mac("XpTauMu", f"{taus.get('mu', 0):g}")
+    mac("XpSweeps", fmt_int(_model.XP_SWEEPS))
+    mac("XpItemNewton", fmt_int(_model.XP_ITEM_NEWTON))
+    shipped_match = (t.get("bench") == taus.get("bench") and t.get("subj") == taus.get("subj") and t.get("pair") == taus.get("pair")
+                     and t.get("name") == taus.get("name") and t.get("namebench") == taus.get("namebench")
+                     and t.get("item") == _model.XP_TAU_ITEM and bool(t.get("probit")) == bool(_model.XP_PROBIT) and _model.XP_ENABLED)
+    mac("XpShippedMatches", "matches" if shipped_match else "DOES NOT MATCH")
+    pf = [r.get("diff") for r in (get(confs["A"], "per_fold") or []) if r.get("diff") is not None]
+    mac("XpCAFoldMin", fmt(min(pf), 4, sign=True) if pf else MISSING)
+    mac("XpCAFoldMax", fmt(max(pf), 4, sign=True) if pf else MISSING)
+    mac("XpCAFoldNNeg", fmt_int(sum(1 for v in pf if v < 0)) if pf else MISSING)
+    # tables
+    table_round4_configs(confs)
+    table_round4_components(confs)
+    table_round4_runtime(runtime)
+    table_round4_budget(confs, r0)
+
+
+def _cell(d, nd=4):
+    if d is None:
+        return MISSING
+    return f"{fmt(get(d, 'mean'), nd, sign=True)} [{fmt(get(d, 'ci_lo'), nd, sign=True)}, {fmt(get(d, 'ci_hi'), nd, sign=True)}]"
+
+
+def table_round4_configs(confs) -> None:
+    rows = [("A", "A: formative-like (primary)"), ("E", "E: distinct models"), ("B", "B: one benchmark, all pairs"),
+            ("C", "C: one fold, many benchmarks"), ("D", "D: A + eval-only small pairs")]
+    lines = []
+    for c, label in rows:
+        s = confs.get(c)
+        cells = [f"{fmt_int(get(s, 'n_units'))}/{fmt_int(get(s, 'n_benchmarks'))}",
+                 fmt(get(s, "methods", "S0", "alc", "mean")), fmt(get(s, "methods", "S1", "alc", "mean")),
+                 fmt(get(s, "methods", "XP", "alc", "mean")), fmt(get(s, "methods", "oracle_rate", "alc", "mean")),
+                 _cell(get(s, "paired", "XP_minus_S0", "alc")), _cell(get(s, "paired", "XP_minus_S1", "alc"))]
+        lines.append(f"{label} & " + " & ".join(cells) + r" \\")
+    (PAPER / "results_table_xp_configs.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def table_round4_components(confs) -> None:
+    rows = [("XP", "shipped setting (all effects)"), ("minus_bench", "$-$ benchmark effect"), ("minus_subj", "$-$ subject effect"),
+            ("minus_pair", "$-$ subject--benchmark effect"), ("minus_item", "$-$ exact-item effect"),
+            ("minus_probit", "$-$ probit integration"), ("bench_and_pair", "benchmark + pair effects only"),
+            ("name_subj_and_pair", "name/subject + pair effects only"), ("pair_and_item", "pair + item effects only"),
+            ("only_pair", "pair effect only")]
+    ref = {"A": "XP_allfold", "E": "XPrb_allfold"}
+    lines = []
+    for key, label in rows:
+        cells = []
+        for c in ("A", "E"):
+            s = confs.get(c)
+            if key == "XP":
+                cells += [fmt(get(s, "methods", ref[c], "alc", "mean")), "--"]
+            else:
+                cells += [fmt(get(s, "methods", key, "alc", "mean")), _cell(get(s, "paired", f"{key}_minus_{ref[c]}", "alc"))]
+        lines.append(f"{label} & " + " & ".join(cells) + r" \\")
+    (PAPER / "results_table_xp_components.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def table_round4_runtime(runtime) -> None:
+    lines = []
+    for r in get(runtime, "sizes") or []:
+        lines.append(f"{fmt_int(r['n_pairs'])} & {fmt_int(r['n_labels'])} & {fmt_int(r['n_targets'])} & {fmt(r['first_call_s'], 2)} & "
+                     f"{fmt(r['ms_per_call'], 3)} & {fmt(r['checkpoint_s'], 1)} \\\\")
+    (PAPER / "results_table_xp_runtime.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def table_round4_budget(confs, r0) -> None:
+    """Brier by budget: configs A and E (S0, S1, XP, oracle) and the paired XP - S0 difference with its CI."""
+    lines = []
+    for c in ("A", "E"):
+        s = confs.get(c)
+        for m, label in (("S0", "S0 (rounds 1--3, as deployed)"), ("S1", "S1 (own pair's labels only)"),
+                         ("XP", "XP (cross-pair, shipped)"), ("oracle_rate", "oracle: pair rate")):
+            cells = [fmt(get(s, "methods", m, "brier", i)) for i in range(6)] + [fmt(get(s, "methods", m, "alc", "mean"))]
+            lines.append(f"{c} & {label} & " + " & ".join(cells) + r" \\")
+        diffs = ["--"] + [f"{fmt(get(s, 'paired', 'XP_minus_S0', 'brier', i, 'mean'), 4, sign=True)}" for i in range(1, 6)]
+        diffs.append(fmt(get(s, "paired", "XP_minus_S0", "alc", "mean"), 4, sign=True))
+        lines.append(f"{c} & XP $-$ S0 & " + " & ".join(diffs) + r" \\")
+        cis = ["--"] + [f"[{fmt(get(s, 'paired', 'XP_minus_S0', 'brier', i, 'ci_lo'), 4, sign=True)}, "
+                        f"{fmt(get(s, 'paired', 'XP_minus_S0', 'brier', i, 'ci_hi'), 4, sign=True)}]" for i in range(1, 6)]
+        cis.append(f"[{fmt(get(s, 'paired', 'XP_minus_S0', 'alc', 'ci_lo'), 4, sign=True)}, "
+                   f"{fmt(get(s, 'paired', 'XP_minus_S0', 'alc', 'ci_hi'), 4, sign=True)}]")
+        lines.append(r" & \quad 95\% CI & " + " & ".join("{\\scriptsize " + x + "}" for x in cis) + r" \\")
+        if c == "A":
+            lines.append(r"\midrule")
+    (PAPER / "results_table_xp_budget.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def main() -> None:
     syn, real = load("synthetic_main.json"), load("real_testbed_main.json")
     mac("NBoot", fmt_int(get(syn, "methods", "full", "alc", "n_boot") or get(real, "methods", "full", "alc", "n_boot")))
@@ -891,6 +1176,10 @@ def main() -> None:
     addendum_ok = bool(exp3 and add.exists() and hashlib.sha256(add.read_bytes()).hexdigest() == exp3.get("addendum_sha256"))
     round3_extra_macros(cv3, exp3, load("round3/text_prior_runtime.json"), load("round3/shipped_equivalence.json"), addendum_ok)
     table_textprior(cv3, exp3)
+    round4_macros(load("round4/xpair_cv.json"), load("round4/xpair_addendum1.json"), load("round4/xpair_real_testbed.json"),
+                  load("round4/xpair_acq.json"), load("round4/xpair_real_acq.json"), load("round4/xpair_runtime.json"),
+                  load("round4/xpair_equivalence.json"), load("round4/xpair_perpair.json"), load("round4/xpair_frame_stats.json"),
+                  load("round4/official_loop_check.json"), load("round4/smoke_test_submission.json"))
     model_constant_macros()
     vpath = RESULTS / "validator_output.txt"
     zip_macros(load("submission_zip_info.json"), vpath.read_text(encoding="utf-8") if vpath.exists() else None)

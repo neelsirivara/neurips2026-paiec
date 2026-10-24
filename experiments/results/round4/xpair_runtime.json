@@ -1,0 +1,94 @@
+{
+ "prereg_sha256": "b9e95a5b47e9742094fa2052bd6b278e12a890aa7e61c12259f6f6e1d38655b8",
+ "xp_taus": {
+  "mu": 0.5,
+  "bench": 1.5,
+  "name": 0.0,
+  "subj": 0.5,
+  "namebench": 0.0,
+  "pair": 0.6
+ },
+ "xp_tau_item": 2.25,
+ "sizes": [
+  {
+   "n_pairs": 10,
+   "n_labels": 310,
+   "n_targets": 500,
+   "first_call_s": 0.008651299998746254,
+   "ms_per_call": 0.10230861725411629,
+   "fingerprint_ms": 0.0805000017862767,
+   "checkpoint_s": 0.0598056086258044,
+   "n_groups": {
+    "mu": 1,
+    "bench": 10,
+    "subj": 10,
+    "pair": 10
+   }
+  },
+  {
+   "n_pairs": 100,
+   "n_labels": 3100,
+   "n_targets": 5000,
+   "first_call_s": 0.06882359999872278,
+   "ms_per_call": 0.09353512702505569,
+   "fingerprint_ms": 0.0813000078778714,
+   "checkpoint_s": 0.5364992351240012,
+   "n_groups": {
+    "mu": 1,
+    "bench": 40,
+    "subj": 100,
+    "pair": 100
+   }
+  },
+  {
+   "n_pairs": 1000,
+   "n_labels": 31000,
+   "n_targets": 50000,
+   "first_call_s": 0.5599974000069778,
+   "ms_per_call": 0.09844712000049184,
+   "fingerprint_ms": 0.0720999960321933,
+   "checkpoint_s": 5.48235340003157,
+   "n_groups": {
+    "mu": 1,
+    "bench": 40,
+    "subj": 1000,
+    "pair": 1000
+   }
+  },
+  {
+   "n_pairs": 2000,
+   "n_labels": 62000,
+   "n_targets": 100000,
+   "first_call_s": 1.6843330999981845,
+   "ms_per_call": 0.1160185199987609,
+   "fingerprint_ms": 0.06579999171663076,
+   "checkpoint_s": 13.286185099874274,
+   "n_groups": {
+    "mu": 1,
+    "bench": 40,
+    "subj": 1200,
+    "pair": 1200
+   }
+  },
+  {
+   "n_pairs": 4000,
+   "n_labels": 124000,
+   "n_targets": 200000,
+   "first_call_s": 3.682772800006205,
+   "ms_per_call": 0.1278628200001549,
+   "fingerprint_ms": 0.07529999129474163,
+   "checkpoint_s": 29.255336800037185,
+   "n_groups": {
+    "mu": 1,
+    "bench": 40,
+    "subj": 1200,
+    "pair": 1200
+   }
+  }
+ ],
+ "machine": {
+  "python": "3.14.5",
+  "processor": "Intel64 Family 6 Model 189 Stepping 1, GenuineIntel",
+  "system": "Windows"
+ }
+}

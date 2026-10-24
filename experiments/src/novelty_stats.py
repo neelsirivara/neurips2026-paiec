@@ -35,9 +35,9 @@ def replay(raw_pairs: list, seed: int) -> dict:
         if pair is None:
             continue
         labeling.POLICY = "first"
-        first = harness.run_acquisition(pair, labeling.acquisition_function, pair["order"], needs_prediction=False)
+        first = harness.run_acquisition(pair, labeling.acquisition_policy, pair["order"], needs_prediction=False)
         labeling.POLICY = "novelty"
-        nov = harness.run_acquisition(pair, labeling.acquisition_function, pair["order"], needs_prediction=False)
+        nov = harness.run_acquisition(pair, labeling.acquisition_policy, pair["order"], needs_prediction=False)
         considered = pair["order"][: max(len(first), pair["order"].index(nov[-1]) + 1 if nov else 0)]
         skipped = [i for i in considered if i not in nov]
         max_sim = 0.0

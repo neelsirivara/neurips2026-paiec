@@ -1,20 +1,20 @@
 # PAIEC (NeurIPS 2026 Predictive AI Evaluation Competition) -- status
 
-Last updated: 2026-10-23 (round 3, see the last section). Deadline: **2026-10-30 23:59 AoE** (codebase + report via
+Last updated: 2026-10-23 21:40 PDT (round 4, see the last section). Deadline: **2026-10-30 23:59 AoE** (codebase + report via
 OpenReview with the Codabench submission ID). Codabench competition 17828.
 
 ## What was built (all under `neurips_challenges/paiec/`)
 
 | Deliverable | Path | State |
 |---|---|---|
-| Submission ZIP | `submission/paiec_submission.zip` (11.7 kB; `model.py`, `labeling.py`, `README.md` at root) | **unchanged in round 3** (SHA-256 `3f0d15c8...`, same bytes as iteration 2); **passes the official validator** (re-run 2026-10-23, `experiments/results/validator_output.txt`: `OK ... valid submission ZIP`, exit 0); `build_submission.py` now only re-validates an existing ZIP unless `--force` |
-| Predictor | shipped: `submission/model.py` (= ZIP member); development: `experiments/src/model.py` = shipped file + round-3 item-text-prior hooks that are inactive without `text_prior.json` (5,544/5,544 bit-identical predictions, `results/round3/shipped_equivalence.json`) | shipped file: stdlib only (`math`, `re`); deterministic; never raises; 1,010 predict calls/s at budget 31 with 300-word items (`smoke_test.json`, run on `submission/`, 42 cases) |
-| Acquisition policy | `experiments/src/labeling.py` | streaming `acquisition_function(input, prediction=None, labeled=None, context=None) -> bool`; novelty (near-duplicate) filter, otherwise stream order; never raises |
+| Submission ZIP | `submission/paiec_submission.zip` (19.8 kB; `model.py`, `labeling.py`, `README.md` at root) | **REBUILT in round 4** (SHA-256 `c76331d084f1...`; cross-pair model + fresh-first acquisition); **passes the official validator** (`experiments/results/validator_output.txt`: `OK ... valid submission ZIP`, exit 0); ZIP members are byte-identical to `experiments/src/model.py` / `labeling.py` |
+| Predictor | `experiments/src/model.py` (= `submission/model.py` = ZIP member) | round 4: cross-pair random-effects model on the evaluator's global `labeled` list (`XP_ENABLED = True`), fallback = rounds 1-3 per-pair predictor (also budget 0); stdlib only; deterministic; never raises; 62,000-label fit 1.7 s, 0.12 ms per cached call |
+| Acquisition policy | `experiments/src/labeling.py` | round 4: `acquisition_function(input, labeled=None, context=None) -> bool` (no `prediction` parameter, so the client never calls predict per candidate); POLICY `fresh` (skip items already labelled for another subject while labels_remaining < items_remaining); `acquisition_policy(input, prediction, labeled, context)` keeps the old full call shape for the rounds 1-3 experiments |
 | Local evaluation harness | `experiments/src/{harness,simulate,real_testbed,run_experiments,run_extras,embed_cache}.py` | reproduces pairs, 50/50 pools, random stream, budgets 0..31, Brier ALC, ECE, bootstrap CIs, paired tests, oracle rows |
 | Real testbed | `experiments/results/real_testbed/*.jsonl` (+ frozen `real_testbed_external/`) | 17 pairs, 3,800 labelled items, 4 Ollama models x {GSM8K, SVAMP, BBH-mix} x 2 harnesses (7B completed on all three benchmarks on 2026-10-22) |
 | Results | `experiments/results/*.json` (26 files) | all generated with the shipped constants; plus `prior_fit*.json` (training-release fit, not shipped), `prior_sensitivity.json`, `novelty_filter_stats.json`, `measurement_db_listing.json` |
-| Report | `paper/main.pdf` (15 pages; main text ends at the bottom of page 8; refs + 7 appendix sections) | 0 `??`, 0 undefined refs, 0 overfull boxes; every number is a macro (`paper/results_macros.tex` from `make_macros.py`, 1,675 macros, duplicate-name guard) |
-| Audit / review / bib | `paper/AUDIT.md` (86 claims re-derived from JSON, 0 failing), `paper/review/REVIEW_1.md` (3 passes), `paper/bib_verification_log.json` (13 entries verified) | done |
+| Report | `paper/main.pdf` (20 pages; main text ends on page 7; round-4 paper, rounds 1-3 in Appendices B-D) | 0 `??`, 0 undefined refs, 0 overfull boxes; every number is a macro (`paper/results_macros.tex` from `make_macros.py`, 2,566 macros) |
+| Audit / review / bib | `paper/AUDIT.md` (133 claims re-derived from JSON, 0 failing), `paper/review/REVIEW_1.md` (4 passes), `paper/bib_verification_log.json` (20 entries verified) | done |
 | User instructions | `submission/README.md` | registration, Codabench upload, OpenReview upload |
 
 Rebuild everything: `cd experiments/src && python run_experiments.py --suite all --workers 4 && python run_extras.py && python prior_sensitivity.py --suite all --workers 4 && python novelty_stats.py && bash build_paper.sh && python build_submission.py` (the training-release fit: `python -I fit_prior_from_measurement_db.py all`, needs an HF login; round 3: `python -I text_prior.py build|cv|final|check|testbeds|explore|runtime|equivalence`, needs the downloaded payload).
@@ -297,3 +297,158 @@ fit: penalty 10, W -0.20, B +0.14, cap 1.5, lambda 0.
   split, penalties 1 and 0.03; scratch only) ran before the CV and already showed held-out MSE above the constant --
   the pre-registration was not changed; CV folds 10:45-10:58 (first run, stuck in a slow duplicate diagnostic, killed
   and rerun identically 11:07-11:20); addendum 11:08 (after the first run's folds, before any CV summary).
+
+## Round 4 (2026-10-23 evening, autonomous; 4 laptop threads; Mac not used)
+
+**Discovery driving the round (verified by the coordinator and re-read here).** The official client
+(`tools/streaming_ingestion.py`, `run_streaming`, `evaluate` branch) passes ONE global `labeled` list
+(`event["labeled"]`: all labels acquired so far for ALL sampled pairs) to every predict() call of a checkpoint; the
+page says `labeled` holds "entries across sampled subject-benchmark pairs" and that a formative evaluation is capped at
+1,000 subject-item pairs. Our rounds 1-3 predictor used only same-benchmark + same-`normalized_name` entries (so as
+deployed it also pooled other subjects with the same name, e.g. other harnesses / test conditions).
+
+**Pre-registration.** `experiments/results/round4/PREREG.md` written 20:45 PDT before any outcome (SHA-256 in every
+round-4 JSON; audit-checked). One amendment before any outcome (20:50: the acquisition skip threshold 0.5 would never
+skip with 50-item pools; replaced by `labels_remaining < items_remaining`). `PREREG_ADDENDUM_1.md` (20:58, after the
+primary result, before anything else): config E (distinct models) + extended grid (tau_bench to 3, tau_item to 4),
+"robust pick" on A+E. It returned the same setting as the pre-registered pick.
+
+**Simulator design** (`experiments/src/xpair_sim.py`; frame outside the repo in `_downloads/measurement_db_payload/round4_cache/`,
+built in 3 min): 16,718 (subject, test condition) pairs from 144 benchmarks, 3,118,742 item labels, 165,764 items; each pair keeps
+its 200 answered items with the lowest benchmark-level hash rank (so subjects share items); item identity = items-table
+`content_hash`. Folds = the 5 benchmark folds of round 2. A test set shares ONE global list. Per pair: fixed 50/50 split,
+random acquisition order (official random policy = uniform subset in stream order), budget b = first b labels; at budget b
+every prediction in the test set gets the union of all its pairs' first-b labels. Configs: A (primary; 1-3 benchmarks, 10
+pairs, 100 items/pair <= 1,000 subject-items; 300 test sets/fold), E (A with distinct model names), B (all pairs of one
+benchmark, <= 300, 200 items), C (one fold, <= 2,000 pairs in one list), D (A + up to 2 eval-only pairs with 20-79 items).
+Units = (test set, pair); 95% CIs = cluster bootstrap over benchmarks (2,000). Baselines: S0 = rounds 1-3 predictor as the
+evaluator runs it (closed form: prior + beta-binomial, name-based filter on the global list, fallback to all entries);
+S1 = same with the target pair's own labels (= the local harness).
+
+**Cross-pair predictor (XP, shipped).** `model.py`: logit p = o(s,i) + mu + v_bench + u_subject + w_(subject,bench)
+(+ optional name and name-bench effects, switched off by selection), Gaussian priors, MAP by backfitting (one Newton step per
+effect type per sweep, <= 25 sweeps); exact-item effect from other subjects' labels on the same benchmark_id + text (conditional
+scale, 4 Newton steps); probit integration of the posterior variance; subject identity = full attribute dict; fit cached per
+checkpoint by a fingerprint, atomic under a lock; any failure -> rounds 1-3 per-pair path. Grid 864 settings (pre-registered),
+nested selection by fold; shipped (all-fold, = addendum robust pick): **tau_mu 0.5, tau_bench 1.5, tau_name 0, tau_subj 0.5,
+tau_namebench 0, tau_pair 0.6, tau_item 2.25, probit on** (`xp|bench1.5|name0|subj0.5|namebench0|pair0.6|item2.25|probit1`). Extended grid: tau_item and
+tau_bench optima interior (best A ALC per tau_item 0/0.75/1.5/2.25/3/4: 0.2013, 0.1989, 0.1969, 0.1965, 0.1968, 0.1980).
+
+### Results (Brier ALC; lower is better)
+
+| Config | units / benchmarks | S0 | S1 | XP | pair-rate oracle | XP - S0 [95% CI] | XP - S1 [95% CI] |
+|---|---|---|---|---|---|---|---|
+| A formative-like (primary) | 13,460 / 135 | 0.2095 | 0.2074 | 0.1966 | 0.1731 | -0.0129 [-0.0151, -0.0109] | -0.0108 [-0.0134, -0.0084] |
+| E distinct models (addendum) | 8,673 / 135 | 0.2078 | 0.2074 | 0.1953 | 0.1730 | -0.0125 [-0.0148, -0.0100] | -0.0121 [-0.0146, -0.0095] |
+| B one benchmark, all pairs | 6,772 / 135 | 0.2131 | 0.2087 | 0.1842 | 0.1793 | -0.0289 [-0.0342, -0.0239] | -0.0245 [-0.0312, -0.0181] |
+| C one fold in one list | 9,577 / 125 | 0.2190 | 0.2084 | 0.1797 | 0.1780 | -0.0393 [-0.0521, -0.0280] | -0.0287 [-0.0384, -0.0191] |
+| D A + eval-only small pairs | 14,293 / 135 | 0.2097 | 0.2096 | 0.1969 | 0.1706 | -0.0128 [-0.0150, -0.0108] | -0.0127 [-0.0160, -0.0094] |
+
+Per budget (B0, B1, B3, B7, B15, B31, ALC; XP - S0 with cluster CIs):
+
+| Config | Method | B0 | B1 | B3 | B7 | B15 | B31 | ALC |
+|---|---|---|---|---|---|---|---|---|
+| A | S0 | 0.2475 | 0.2221 | 0.2098 | 0.2000 | 0.1956 | 0.1924 | 0.2095 |
+| A | XP | 0.2475 | 0.2126 | 0.1992 | 0.1868 | 0.1776 | 0.1663 | 0.1966 |
+| A | XP - S0 | -- | -0.0096 [-0.0131, -0.0063] | -0.0106 [-0.0133, -0.0082] | -0.0132 [-0.0156, -0.0109] | -0.0180 [-0.0211, -0.0151] | -0.0261 [-0.0301, -0.0224] | -0.0129 [-0.0151, -0.0109] |
+| E | S0 | 0.2487 | 0.2282 | 0.2104 | 0.1958 | 0.1886 | 0.1831 | 0.2078 |
+| E | XP | 0.2487 | 0.2135 | 0.1976 | 0.1846 | 0.1751 | 0.1628 | 0.1953 |
+| E | XP - S0 | -- | -0.0147 [-0.0207, -0.0087] | -0.0128 [-0.0161, -0.0094] | -0.0111 [-0.0135, -0.0085] | -0.0135 [-0.0167, -0.0102] | -0.0203 [-0.0250, -0.0154] | -0.0125 [-0.0148, -0.0100] |
+
+Per outer fold (A, XP - S0): -0.0136, -0.0074, -0.0167, -0.0128, -0.0137 (all negative).
+Config D eval-only pairs: -0.0120 [-0.0217, -0.0036].
+S1 - S0 (name pooling): A -0.0021 [-0.0050, +0.0009] (n.s.), C -0.0106 [-0.0168, -0.0025].
+
+Components (difference to the shipped setting; positive = removing hurts):
+
+| Variant | A | E |
+|---|---|---|
+| - benchmark effect | +0.0048 [+0.0032, +0.0064] | +0.0050 [+0.0032, +0.0070] |
+| - exact-item effect | +0.0048 [+0.0038, +0.0059] | +0.0053 [+0.0038, +0.0068] |
+| - subject-benchmark effect | +0.0010 [+0.0004, +0.0017] | +0.0006 [-0.0000, +0.0014] |
+| - subject effect | +0.0004 [+0.0001, +0.0008] | +0.0002 [-0.0002, +0.0006] |
+| - probit | +0.0005 [+0.0000, +0.0009] | +0.0006 [-0.0000, +0.0011] |
+| benchmark + pair only | +0.0053 [+0.0043, +0.0063] | +0.0056 [+0.0041, +0.0071] |
+| name/subject + pair only | +0.0130 [+0.0105, +0.0157] | +0.0143 [+0.0114, +0.0173] |
+| item + pair only | +0.0135 [+0.0099, +0.0174] | +0.0144 [+0.0100, +0.0189] |
+| pair only | +0.0202 [+0.0163, +0.0243] | +0.0216 [+0.0171, +0.0264] |
+
+-> benchmark difficulty and exact-item difficulty contribute about equally (~0.005 each); subject, pair and probit
+components small; benchmark + pair alone recover more than half of the gain; name/subject + pair or item + pair alone recover none.
+
+**Real Ollama testbed, ONE global list over 17 pairs** (`xpair_real_testbed.json`; shipped-global = rounds 1-3 predictor
+with the deployed name filter, per-pair = local harness numbers, reproduced exactly at seed 0: 0.2224):
+- seed 0: XP 0.2222, shipped-global 0.2295, per-pair 0.2224; XP - shipped-global -0.0074 [-0.0203, +0.0032]; XP - per-pair -0.0002 [-0.0072, +0.0074]
+- seed 1: XP 0.2223, shipped-global 0.2315, per-pair 0.2240; XP - shipped-global -0.0092 [-0.0164, -0.0019]; XP - per-pair -0.0018 [-0.0053, +0.0020]
+- seed 2: XP 0.2094, shipped-global 0.2232, per-pair 0.2141; XP - shipped-global -0.0138 [-0.0224, -0.0068]; XP - per-pair -0.0047 [-0.0111, +0.0013]
+- seed 3: XP 0.2094, shipped-global 0.2184, per-pair 0.2127; XP - shipped-global -0.0089 [-0.0158, -0.0018]; XP - per-pair -0.0033 [-0.0078, +0.0014]
+- seed 4: XP 0.2175, shipped-global 0.2296, per-pair 0.2221; XP - shipped-global -0.0121 [-0.0238, -0.0023]; XP - per-pair -0.0046 [-0.0075, -0.0016]
+- XP with per-pair lists vs per-pair shipped (if the evaluator were per-pair), seed 0: +0.0060 [+0.0022, +0.0099] (worse);
+  on the release (configs-A pairs alone): -0.0016 [-0.0028, -0.0005] (better).
+- XP is worse than the deployed predictor at n = 1 on this testbed (B1 0.2549 vs 0.2468).
+
+**Acquisition (fresh-first vs random, XP, config A):** -0.00053 [-0.00087, -0.00021] (gain at B15 -0.0017 [-0.0024, -0.0011],
+B31 -0.0017 [-0.0025, -0.0010]; 154,939 skips); S0 unaffected +0.00008 [-0.00013, +0.00032].
+Real testbed (global list, stage-wise round robin, fresh vs in-order):
+- seed 0: +0.0001 [-0.0010, +0.0011] (skips 608)
+- seed 1: -0.0012 [-0.0038, +0.0013] (skips 557)
+- seed 2: -0.0027 [-0.0058, -0.0002] (skips 519)
+- seed 3: +0.0007 [+0.0001, +0.0013] (skips 553)
+- seed 4: -0.0065 [-0.0126, -0.0017] (skips 529)
+Pre-registered rule (A CI < 0 and real seed 0 not significantly worse) holds -> **fresh-first shipped** (seed 3 is
+significantly worse, +0.0007; seeds 2 and 4 significantly better; reported in the paper).
+
+**Runtime (stdlib model.py, one laptop core; synthetic lists of 250-word items):**
+
+| pairs | labels | fit (s) | ms / call | checkpoint (s) |
+|---|---|---|---|---|
+| 10 | 310 | 0.01 | 0.102 | 0.1 |
+| 100 | 3,100 | 0.07 | 0.094 | 0.5 |
+| 1,000 | 31,000 | 0.56 | 0.098 | 5.5 |
+| 2,000 | 62,000 | 1.68 | 0.116 | 13.3 |
+| 4,000 | 124,000 | 3.68 | 0.128 | 29.3 |
+
+**Checks.** stdlib model.py vs numpy simulator: 56,750 predictions on 24 config-A test sets, max |diff|
+1.35e-05 (pre-registered < 1e-3). Official client (`official_loop_check.py`, mock coordinator, real testbed, shipped
+files): mode `stream`, 0 predict calls during 1,135 acquisition decisions,
+ALC 0.2179 == simulator (True). Smoke test on `submission/`
+(`results/round4/smoke_test_submission.json`): 44 base + 220 cross-pair cases OK (unseen subject/benchmark, malformed entries,
+determinism, 4 threads, forced fit failure -> fallback, 62,000-label list: fit 1.7 s, 0.12 ms/call).
+
+**Ship decision:** rule (a) holds (A: -0.0129 [-0.0151, -0.0109]), (b) holds (real seed 0
+-0.0074 [-0.0203, +0.0032], not significantly positive), (c) holds (B, C, D all significantly better),
+(d) holds -> **XP shipped** (`XP_ENABLED = True`), **fresh-first shipped** (`POLICY = "fresh"`).
+ZIP rebuilt with `build_submission.py --force`: 19,818 bytes, SHA-256 `c76331d084f175fbf8ce272b00d0a2360d80e440dacf6ede380f3f9eba5172e1`.
+**Validator** (`python -I validator/check_submission_zip.py`): `OK: ...paiec_submission.zip looks like a valid submission ZIP.` exit 0.
+
+### Literature check (verified, cited in the paper; `paper/bib_verification_log.json`)
+Rodriguez et al. 2021 (ACL, IRT leaderboards), Hofmann et al. 2025 (Fluid Benchmarking, COLM; arXiv:2509.11106), Kipnis et al.
+2025 (metabench, ICLR; arXiv:2407.12844), Ye et al. 2023 (BIG-bench predictability, Findings EMNLP; arXiv:2305.14947), Zhuang
+et al. 2025 (adaptive testing position paper, ICML; arXiv:2306.10512), Breslow & Clayton 1993 (GLMM / PQL, JASA), MacKay 1992
+(probit approximation, Neural Computation); plus tinyBenchmarks and observational scaling laws already cited. Used to justify:
+Rasch structure with random effects learned at test time (new benchmarks), coverage-only acquisition (stream allows only
+accept/skip; uncertainty sampling did not help in round 1), probit integration.
+
+### Code / files changed
+- New: `experiments/src/xpair_sim.py` (build, explore, grid, cv, addendum, recheck, acq, realtest, realacq, perpair, runtime,
+  equivalence), `experiments/src/official_loop_check.py`, `experiments/results/round4/*` (PREREG, addendum, 11 JSONs, logs,
+  smoke test of the shipped files).
+- `model.py`: cross-pair section (`xp_build`, `_xp_predict_keys`, `_xp_state`, `predict_cross_pair`, `xp_clear_cache`,
+  `XP_*` constants); `predict` tries it first when `labeled` is non-empty. Per-pair code unchanged.
+- `labeling.py`: evaluator entry point without `prediction`; `acquisition_policy` for experiments; own-pair novelty filter by
+  full subject key (never the whole list); `fresh` policy (shipped).
+- `run_experiments.py`, `novelty_stats.py`: use `acquisition_policy`; `run_experiments.py`, `text_prior.py` set
+  `XP_ENABLED = False` (rounds 1-3 experiments keep evaluating the per-pair predictor).
+- `smoke_test.py` (+ `round4_checks`), `build_submission.py` (ZIP README describes the cross-pair model), `make_macros.py`
+  (+ round-4 macros and 4 tables), `make_figures.py` (+ `xp_budget`), `make_audit.py` (+ 47 round-4 claims).
+- Paper restructured: new title/abstract/intro/related work; Sections 2-5 are round 4; rounds 1-3 moved to Appendices B-D.
+- `submission/README.md`: new ZIP hash, round-4 description and commands.
+
+### Not done / notes
+- The Mac was not needed (all fits are vectorised; the grid took 3.5 min on 4 cores).
+- The rounds 1-3 experiment suite was not re-run (its JSONs are unchanged; the per-pair predictor code is unchanged).
+- Test-set composition of the hidden pool is unknown; configs A-E bracket it. If the formative feedback looks worse than
+  expected, the first knobs are `XP_TAU_ITEM` (2.25) and `XP_TAUS["bench"]` (1.5); `XP_ENABLED = False` restores the
+  rounds 1-3 predictor exactly.
+- User actions unchanged except: **upload the rebuilt ZIP (SHA-256 `c76331d0...`)**, then fill the author block, rebuild the
+  paper, OpenReview.

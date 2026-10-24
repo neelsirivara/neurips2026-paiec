@@ -1,0 +1,8 @@
+21:10:42 robust pick per fold: xp|bench1.5|name0|subj0.5|namebench0|pair0.6|item2.25|probit1; xp|bench1.5|name0|subj0.5|namebench0|pair0.6|item2.25|probit1; xp|bench1.5|name0|subj0.5|namebench0|pair0.6|item2.25|probit1; xp|bench1.5|name0|subj0.5|namebench0|pair0.6|item2.25|probit1; xp|bench1.5|name0|subj0.5|namebench0|pair0.6|item2.25|probit1; all folds: xp|bench1.5|name0|subj0.5|namebench0|pair0.6|item2.25|probit1
+21:11:28 config A: XP_minus_S0 -0.0129 [-0.0151, -0.0109]
+21:11:28 config A: XPrb_minus_S0 -0.0130 [-0.0151, -0.0110]
+21:11:28 config A: XPrb_minus_XP -0.0001 [-0.0002, +0.0000]
+21:12:08 config E: XP_minus_S0 -0.0125 [-0.0148, -0.0100]
+21:12:08 config E: XPrb_minus_S0 -0.0125 [-0.0149, -0.0101]
+21:12:08 config E: XPrb_minus_XP -0.0001 [-0.0002, +0.0000]
+21:12:08 decision: ship xp|bench1.5|name0|subj0.5|namebench0|pair0.6|item2.25|probit1 (robust pick (addendum 1))

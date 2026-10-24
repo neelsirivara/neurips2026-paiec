@@ -11,8 +11,8 @@ was unreachable (connection refused) for the whole of 2026-10-21, so assume it m
 
 | File | Purpose |
 |---|---|
-| `paiec_submission.zip` | The Codabench upload. Root contains `model.py`, `labeling.py`, `README.md` (about 11 kB). Size and SHA-256 in `../experiments/results/submission_zip_info.json`. |
-| `model.py`, `labeling.py`, `ZIP_README.md` | Unzipped copies of the same files for inspection. `labeling.py` is byte-identical to `../experiments/src/labeling.py`; `../experiments/src/model.py` additionally carries the round-3 item-text-prior hooks, which are inactive without a `text_prior.json` weight file (the text prior was evaluated and NOT shipped) and give bit-identical predictions on 5,544 test cases (`../experiments/results/round3/shipped_equivalence.json`). The ZIP is unchanged since 2026-10-23 (SHA-256 `3f0d15c8...`). |
+| `paiec_submission.zip` | The Codabench upload. Root contains `model.py`, `labeling.py`, `README.md` (19.8 kB). Size and SHA-256 in `../experiments/results/submission_zip_info.json`. **Rebuilt in round 4 (2026-10-23 evening): SHA-256 `c76331d084f1...`** -- upload this one, not an older copy. |
+| `model.py`, `labeling.py`, `ZIP_README.md` | Unzipped copies of the same files for inspection; byte-identical to `../experiments/src/model.py` and `labeling.py`. Round 4: `model.py` now fits a cross-pair random-effects model to the evaluator's global label list (falls back to the rounds 1-3 per-pair predictor), and `labeling.py` uses the fresh-first rule and no longer takes a `prediction` argument. The round-3 item-text-prior hooks stay inactive (no `text_prior.json` is shipped). |
 | `../experiments/results/validator_output.txt` | Output of the organisers' `check_submission_zip.py` on the ZIP (`OK`, exit code 0). |
 | `../paper/main.pdf` | The technical report (NeurIPS 2026 template, non-anonymous). |
 
@@ -30,13 +30,14 @@ and a Hugging Face account; create both yourself if you do not have them.
 2. In "My Submissions", upload `paiec_submission.zip` as is (do not re-zip the folder: `model.py`
    must stay at the ZIP root, which the validator already confirmed).
 3. Wait for the run to finish (the organisers allow 8 h per run; this predictor needs minutes:
-   about 455 predict calls per second on one core).
+   one fit per budget checkpoint (about 2 s for 62,000 labels) and about 0.1 ms per predict call).
    Open *Logs -> Scoring output* for the formative feedback (Brier ALC and ECE on a freshly
    sampled subset capped at 1,000 subject-item pairs; it is private to you and the organisers).
 4. Note the **submission ID** shown by Codabench; the OpenReview form asks for it.
 5. You may submit several times during development; the final OpenReview form names the one
    submission that counts. If the formative score is clearly worse than the empirical-mean
-   baseline's (unlikely: locally we beat it by 0.04-0.06 ALC), tell the agent before resubmitting.
+   baseline's (unlikely: locally we beat it by 0.04-0.06 ALC, and the round-4 cross-pair model improves on our earlier
+   predictor by about 0.013 ALC in formative-sized simulations), tell the agent before resubmitting.
 
 ## Step 3: fill in the report and upload it to OpenReview
 
@@ -62,6 +63,10 @@ python run_extras.py --workers 4                       # TF-IDF representation a
 bash build_paper.sh                                    # macros, figures, audit, PDF
 python build_submission.py                             # validator on the ZIP (rebuilds only with --force, see below)
 python -I text_prior.py build && python -I text_prior.py cv  # round 3: item-text prior (needs the training payload)
+python -I xpair_sim.py build && python -I xpair_sim.py grid && python -I xpair_sim.py cv --save-units   # round 4 (payload)
+python -I xpair_sim.py grid --config A --grid ext && python -I xpair_sim.py grid --config E --grid ext && python -I xpair_sim.py addendum
+python -I xpair_sim.py acq && python xpair_sim.py realtest && python xpair_sim.py realacq && python -I xpair_sim.py runtime
+python -I xpair_sim.py equivalence && python -I xpair_sim.py perpair && python official_loop_check.py --dir ../../submission
 ```
 
 The real Ollama testbed (`../experiments/results/real_testbed/*.jsonl`, plus the frozen copy of

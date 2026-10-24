@@ -1,0 +1,6 @@
+21:14:13 real testbed seed 0: XP 0.2222, shipped global 0.2295, shipped per-pair 0.2224; XP - shipped global -0.0074 [-0.0203, +0.0032] (5s)
+21:14:18 real testbed seed 1: XP 0.2223, shipped global 0.2315, shipped per-pair 0.2240; XP - shipped global -0.0092 [-0.0164, -0.0019] (5s)
+21:14:23 real testbed seed 2: XP 0.2094, shipped global 0.2232, shipped per-pair 0.2141; XP - shipped global -0.0138 [-0.0224, -0.0068] (5s)
+21:14:28 real testbed seed 3: XP 0.2094, shipped global 0.2184, shipped per-pair 0.2127; XP - shipped global -0.0089 [-0.0158, -0.0018] (5s)
+21:14:33 real testbed seed 4: XP 0.2175, shipped global 0.2296, shipped per-pair 0.2221; XP - shipped global -0.0121 [-0.0238, -0.0023] (5s)
+21:14:33 wrote C:\Users\neels\Downloads\gen_papers_2\neurips_challenges\paiec\experiments\results\round4\xpair_real_testbed.json

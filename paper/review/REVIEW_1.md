@@ -156,3 +156,61 @@ re-derived from JSON, 0 failing).
   testbeds not significant; exploratory variants not better; ship decision consistent with files) is an
   audit claim that HOLDS.
 - Official validator on the unchanged ZIP: OK, exit 0.
+
+## Review pass 4 (round 4, 2026-10-23 evening: cross-pair evidence)
+
+Reviewer stance: PAIEC technical-report reviewer (clarity, soundness, reproducibility, significance), reading the
+rebuilt `main.pdf` (20 pages; main text ends on page 7) against `experiments/results/round4/*.json` and the code.
+
+### What changed in the report
+- New title, abstract, introduction (with a short related-work paragraph: IRT for LLM evaluation, adaptive testing,
+  cross-model prediction, GLMMs), Section 2 now states the evaluator's global-label-list protocol with the code
+  reference (`streaming_ingestion.py`, `run_streaming`, `evaluate` branch) and the page quote; Section 3 is the
+  cross-pair random-effects model (equation, backfitting, probit, exact-item stage, cache) with the per-pair
+  predictor as fallback; Section 4 the round-4 frame, simulator (configs A-E), pre-registration, nested selection;
+  Section 5 the round-4 results (Tables 1-4, Figure 1) plus a one-paragraph summary of rounds 1-3.
+- Rounds 1-3 material moved to Appendices B (per-pair predictor), C (data/testbeds/release), D (results) with
+  historical wording ("shipped in rounds 1-3"); Appendix A holds round-4 details (selection, amendment, addendum,
+  configuration sizes, checks).
+- Seven new verified references (bib log updated).
+
+### Scores (1-5), updated
+| Criterion | Score | Change and reason |
+|---|---|---|
+| Clarity | 4 | The main idea (the list is global; pool across pairs with random effects) is stated in the abstract, Section 2 and one equation. Stage 2 (conditional-scale item effect) is dense but complete. |
+| Soundness | 4 | Pre-registered design, grid, nested selection and ship rule; cluster bootstrap over benchmarks; a stdlib-vs-numpy equivalence check; the shipped files reproduce the simulator inside the organisers' own client. Weaknesses stated: test-set composition unknown (bracketed by A-E), release dominated by test-condition variants (config E added by an addendum written after the primary result), real testbed small and not significant against a correct per-pair filter, XP worse at n = 1 there. |
+| Reproducibility | 4 | `xpair_sim.py` sub-commands regenerate every round-4 number from the payload in about 20 minutes on four cores; PREREG/addendum hashes are checked by the audit. |
+| Significance | 4 (up from 3) | A protocol fact that other teams may have missed, a principled way to exploit it, and a large, well-bracketed gain (about 0.013 ALC on formative-sized sets, 0.03-0.04 on larger lists). |
+| Overall | 4 | |
+
+### Must-fixes found and applied in this pass
+- M19 (overclaim): the abstract's real-testbed sentence read as if the improvement were significant; the
+  pre-registered trajectory is not (-0.0074 [-0.0203, +0.0032]). Now says so and gives the 4-of-5 count separately.
+- M20 (sign wording): "name pooling costs -0.0106" and "the name filter costs -0.0071" printed a negative cost.
+  Rephrased as differences (S1 - S0) with CIs and significance words.
+- M21: "all of the acquisition gain at n = 15 and 31" -> "essentially all" (n = 1-7 contribute small, non-significant amounts).
+- M22: Section 2 implied the organisers' baseline filters by model name; it filters by the full subject dictionary.
+  Reworded: both use only the target pair's labels; ours selected them by benchmark and name.
+- M23: the fallback paragraph said item-level components start at 5 labels; the ridge starts at 7. Now uses the
+  constants' macros.
+- M24 (stale facts in moved text): "model.py imports only math and re", per-pair timings presented as the shipped
+  ones, "no coefficient in the submission derives from the release", "the submission ZIP is unchanged" (round 3),
+  "the shipped novelty filter", "the shipped shrinkage rule". All rewritten as historical or updated to the shipped
+  files (import list, smoke-test timings with the cross-pair model enabled).
+- M25 (components paragraph): a first draft said that name/subject + pair or item + pair "give back most of the
+  gain"; the JSON shows they give back none of it (ALC 0.2095 and 0.2101 vs S0 0.2095), while benchmark + pair
+  recovers more than half. Corrected and added as an audit claim.
+- M26 (layout): three overfull boxes (equation (2), Tables 1-3) fixed (priors moved to text; tables resized).
+
+### Checks performed
+- `make_audit.py`: 133 claims, 0 failing, including 47 round-4 claims (rules (a)-(d), every configuration, per-budget
+  significance, components, interior optimum of the extended grid, real testbed counts, acquisition rule, runtime,
+  equivalence, official-client check, shipped constants equal the selected setting, ZIP members equal the dev files).
+- PREREG.md hash identical in all eight round-4 result files; addendum hash consistent.
+- Validator on the rebuilt ZIP: OK, exit 0. Smoke test on `submission/`: 44 base cases + 220 cross-pair cases, OK.
+- Build: 0 undefined references, 0 overfull boxes, 0 `??`, main text 7 pages.
+
+### Minor (not applied)
+- Table 2's CI row is small after resizing; a reader may prefer the figure plus the appendix numbers.
+- A per-benchmark breakdown (which benchmarks gain most) would help readers judge the test-set dependence; it is in
+  the per-unit arrays (`round4_cache/units_A.npz`) but not in the report.

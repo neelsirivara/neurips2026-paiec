@@ -10,31 +10,31 @@
    "subject": "OpenAI GPT-4o",
    "benchmark_id": true,
    "budget": 1,
-   "prediction": 0.6707721417968944
+   "prediction": 0.6997101905782611
   },
   {
    "subject": "OpenAI GPT-4o",
    "benchmark_id": true,
    "budget": 3,
-   "prediction": 0.6252220902155499
+   "prediction": 0.6208458343683404
   },
   {
    "subject": "OpenAI GPT-4o",
    "benchmark_id": true,
    "budget": 7,
-   "prediction": 0.41906589598881977
+   "prediction": 0.38635997533855143
   },
   {
    "subject": "OpenAI GPT-4o",
    "benchmark_id": true,
    "budget": 15,
-   "prediction": 0.5688265419445935
+   "prediction": 0.5597147974791649
   },
   {
    "subject": "OpenAI GPT-4o",
    "benchmark_id": true,
    "budget": 31,
-   "prediction": 0.6347860063540463
+   "prediction": 0.6299618580563076
   },
   {
    "subject": "OpenAI GPT-4o",
@@ -46,31 +46,31 @@
    "subject": "OpenAI GPT-4o",
    "benchmark_id": false,
    "budget": 1,
-   "prediction": 0.4648665298924477
+   "prediction": 0.3754357412361948
   },
   {
    "subject": "OpenAI GPT-4o",
    "benchmark_id": false,
    "budget": 3,
-   "prediction": 0.6302116339744008
+   "prediction": 0.6274195936659669
   },
   {
    "subject": "OpenAI GPT-4o",
    "benchmark_id": false,
    "budget": 7,
-   "prediction": 0.6804777414701166
+   "prediction": 0.6797277347504479
   },
   {
    "subject": "OpenAI GPT-4o",
    "benchmark_id": false,
    "budget": 15,
-   "prediction": 0.35859825775790544
+   "prediction": 0.3408798525367808
   },
   {
    "subject": "OpenAI GPT-4o",
    "benchmark_id": false,
    "budget": 31,
-   "prediction": 0.6071334975170297
+   "prediction": 0.6019772449949193
   },
   {
    "subject": "sample-model",
@@ -82,31 +82,31 @@
    "subject": "sample-model",
    "benchmark_id": true,
    "budget": 1,
-   "prediction": 0.6016777388300986
+   "prediction": 0.4591424567665453
   },
   {
    "subject": "sample-model",
    "benchmark_id": true,
    "budget": 3,
-   "prediction": 0.717108785533838
+   "prediction": 0.6669347027037976
   },
   {
    "subject": "sample-model",
    "benchmark_id": true,
    "budget": 7,
-   "prediction": 0.7401958086022411
+   "prediction": 0.7070161133673355
   },
   {
    "subject": "sample-model",
    "benchmark_id": true,
    "budget": 15,
-   "prediction": 0.5416922124741594
+   "prediction": 0.5092659280119622
   },
   {
    "subject": "sample-model",
    "benchmark_id": true,
    "budget": 31,
-   "prediction": 0.5397046296831857
+   "prediction": 0.5219992913283288
   },
   {
    "subject": "sample-model",
@@ -118,35 +118,35 @@
    "subject": "sample-model",
    "benchmark_id": false,
    "budget": 1,
-   "prediction": 0.5980533932186745
+   "prediction": 0.4554386776468475
   },
   {
    "subject": "sample-model",
    "benchmark_id": false,
    "budget": 3,
-   "prediction": 0.8484949886029507
+   "prediction": 0.8250836968655518
   },
   {
    "subject": "sample-model",
    "benchmark_id": false,
    "budget": 7,
-   "prediction": 0.6462755154827254
+   "prediction": 0.6014334987591405
   },
   {
    "subject": "sample-model",
    "benchmark_id": false,
    "budget": 15,
-   "prediction": 0.6013307608136987
+   "prediction": 0.5715679044797005
   },
   {
    "subject": "sample-model",
    "benchmark_id": false,
    "budget": 31,
-   "prediction": 0.5417610705476293
+   "prediction": 0.524037877655493
   },
   {
    "case": "labels_as_strings",
-   "prediction": 0.5540554415770399
+   "prediction": 0.5021134119670905
   },
   {
    "case": "labels_none",
@@ -154,7 +154,7 @@
   },
   {
    "case": "labels_float",
-   "prediction": 0.6648665298924478
+   "prediction": 0.7620387859870439
   },
   {
    "case": "entries_broken",
@@ -166,7 +166,7 @@
   },
   {
    "case": "labeled_tuple",
-   "prediction": 0.6648665298924478
+   "prediction": 0.7620387859870439
   },
   {
    "case": "empty_dicts",
@@ -190,7 +190,7 @@
   },
   {
    "case": "json_multimedia_budget7",
-   "prediction": 0.4193759720502643
+   "prediction": 0.3877175593537543
   },
   {
    "case": "json_messages_budget0",
@@ -198,7 +198,7 @@
   },
   {
    "case": "json_messages_budget7",
-   "prediction": 0.5950789992130283
+   "prediction": 0.5851687645384297
   },
   {
    "case": "json_truncated_budget0",
@@ -206,7 +206,7 @@
   },
   {
    "case": "json_truncated_budget7",
-   "prediction": 0.3162296069737748
+   "prediction": 0.273439362132463
   },
   {
    "case": "json_list_budget0",
@@ -214,16 +214,43 @@
   },
   {
    "case": "json_list_budget7",
-   "prediction": 0.5010819739922893
+   "prediction": 0.4785289294915344
+  },
+  {
+   "case": "malformed_text_spec_budget0",
+   "prediction": 0.5810831623655597
+  },
+  {
+   "case": "malformed_text_spec_budget7",
+   "prediction": 0.5870807587107956
   }
  ],
  "ok": true,
  "text_prior_loaded": false,
- "tested_dir": "C:\\Users\\neels\\Downloads\\gen_papers_2\\neurips_challenges\\paiec\\submission",
- "mean_ms_short": 1.9238708331007122,
- "mean_ms_long_budget31": 0.9903480001594289,
- "max_ms_long_budget31": 27.021699999750126,
- "calls_per_second_long_budget31": 1009.7460688960015,
+ "tested_dir": "C:\\Users\\neels\\Downloads\\gen_papers_2\\neurips_challenges\\paiec\\experiments\\src",
+ "xp_enabled": true,
+ "xp_cases": 220,
+ "xp_big_entries": 62000,
+ "xp_big_first_call_s": 1.7052854000066873,
+ "xp_big_ms_per_call": 0.11530566666624509,
+ "xp_big_targets": 100000,
+ "xp_big_checkpoint_estimate_s": 13.235852066631196,
+ "acquisition_hook_mode": "stream",
+ "acquisition_hook_keywords": [
+  "labeled",
+  "context"
+ ],
+ "acquisition_needs_prediction": false,
+ "acquisition_fresh_checks": {
+  "stale_item": false,
+  "fresh_item": true,
+  "stale_but_urgent": true,
+  "no_context": true
+ },
+ "mean_ms_short": 0.3210041662290071,
+ "mean_ms_long_budget31": 0.06079249986214563,
+ "max_ms_long_budget31": 0.7349999941652641,
+ "calls_per_second_long_budget31": 16449.397578116073,
  "acquisition_decisions": [
   true,
   true,

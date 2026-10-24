@@ -1,0 +1,6 @@
+20:53:35 selected per fold: xp|bench1.5|name0|subj0|namebench0|pair0.9|item2.25|probit1; xp|bench1.5|name0|subj0|namebench0|pair0.9|item2.25|probit1; xp|bench1.5|name0|subj0.5|namebench0|pair0.6|item2.25|probit1; xp|bench1.5|name0|subj0.5|namebench0|pair0.6|item2.25|probit1; xp|bench1.5|name0|subj0.5|namebench0|pair0.6|item2.25|probit1; all folds: xp|bench1.5|name0|subj0.5|namebench0|pair0.6|item2.25|probit1
+20:54:21 config A: 13460 units, XP-S0 ALC -0.0129 [-0.0151, -0.0109]; S0 0.2095, S1 0.2074, XP 0.1966 (46s)
+20:54:34 config B: 6772 units, XP-S0 ALC -0.0289 [-0.0342, -0.0239]; S0 0.2131, S1 0.2087, XP 0.1842 (13s)
+20:54:49 config C: 9577 units, XP-S0 ALC -0.0393 [-0.0521, -0.0280]; S0 0.2190, S1 0.2084, XP 0.1797 (15s)
+20:55:11 config D: 14293 units, XP-S0 ALC -0.0128 [-0.0150, -0.0108]; S0 0.2097, S1 0.2096, XP 0.1969 (22s)
+20:55:11 wrote C:\Users\neels\Downloads\gen_papers_2\neurips_challenges\paiec\experiments\results\round4\xpair_cv.json

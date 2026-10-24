@@ -1,0 +1,25 @@
+{
+ "revision": "54074453da7b9911be0f48e4c560be547bc84d21",
+ "n_pairs": 16718,
+ "n_pairs_80": 16303,
+ "n_rows": 3118742,
+ "n_items": 165764,
+ "n_benchmarks": 144,
+ "n_subject_keys": 16378,
+ "n_names": 647,
+ "max_items_per_pair": 200,
+ "pairs_per_benchmark_median": 17.5,
+ "pairs_per_benchmark_max": 4278,
+ "names_per_benchmark_median": 3.0,
+ "names_on_2plus_benchmarks": 342,
+ "subject_keys_on_2plus_benchmarks": 211,
+ "frac_pairs_sharing_name_and_benchmark": 0.9272042110300275,
+ "frac_rows_on_item_answered_by_2plus_pairs": 0.9849057729045878,
+ "folds_n_benchmarks": [
+  29,
+  29,
+  29,
+  29,
+  28
+ ]
+}

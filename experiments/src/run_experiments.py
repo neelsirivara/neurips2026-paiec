@@ -22,6 +22,7 @@ sys.path.insert(0, str(HERE))
 import harness  # noqa: E402
 import labeling  # noqa: E402
 import model  # noqa: E402
+model.XP_ENABLED = False  # rounds 1-3 experiments evaluate the per-pair predictor (round 4: xpair_sim.py)
 import simulate  # noqa: E402
 
 RESULTS = HERE.parent / "results"
@@ -67,7 +68,7 @@ def eval_one_pair(args) -> dict:
     else:
         labeling.POLICY = policy_name
         needs = policy_name in ("ble", "novelty_unc")
-        acquired = harness.run_acquisition(pair, labeling.acquisition_function, pair["order"],
+        acquired = harness.run_acquisition(pair, labeling.acquisition_policy, pair["order"],
                                            predictor=model.predict, needs_prediction=needs)
     methods = dict(harness.DEFAULT_METHODS)
     res = harness.evaluate_pair(pair, acquired, methods)

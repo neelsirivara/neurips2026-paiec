@@ -38,6 +38,7 @@ if str(HERE) not in sys.path:
 import fit_prior_from_measurement_db as F  # noqa: E402
 import harness  # noqa: E402
 import model  # noqa: E402
+model.XP_ENABLED = False  # rounds 1-3 experiments evaluate the per-pair predictor (round 4: xpair_sim.py)
 
 RESULTS = HERE.parent / "results"
 R3 = RESULTS / "round3"

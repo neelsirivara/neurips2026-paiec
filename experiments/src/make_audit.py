@@ -285,6 +285,166 @@ def main() -> None:
         claim("[round 3] the shipped model.py and the development model.py (dormant hooks, no weights) give bit-identical predictions",
               "shipped_equivalence.json", f"{eq['n_bit_identical']}/{eq['n_cases']}", eq["n_bit_identical"] == eq["n_cases"] > 0)
 
+    # ------------------------------------------------------------------ round 4: cross-pair evidence
+    import hashlib as _hl
+    import sys as _sys
+    _sys.path.insert(0, str(HERE))
+    cv4, add4 = load("round4/xpair_cv.json"), load("round4/xpair_addendum1.json")
+    real4, acq4, racq4 = load("round4/xpair_real_testbed.json"), load("round4/xpair_acq.json"), load("round4/xpair_real_acq.json")
+    rt4, eq4, pp4 = load("round4/xpair_runtime.json"), load("round4/xpair_equivalence.json"), load("round4/xpair_perpair.json")
+    loop4, smoke4 = load("round4/official_loop_check.json"), load("round4/smoke_test_submission.json")
+    pre4 = RESULTS / "round4" / "PREREG.md"
+    sha4 = _hl.sha256(pre4.read_bytes()).hexdigest() if pre4.exists() else None
+    files4 = {"xpair_cv": cv4, "xpair_addendum1": add4, "xpair_real_testbed": real4, "xpair_acq": acq4, "xpair_real_acq": racq4,
+              "xpair_runtime": rt4, "xpair_equivalence": eq4, "xpair_perpair": pp4}
+    claim("[round 4] PREREG.md hash recorded in every round-4 result file equals the file on disk", "round4/*.json",
+          ", ".join(f"{k}: {'ok' if (v and v.get('prereg_sha256') == sha4) else 'MISMATCH'}" for k, v in files4.items()),
+          bool(sha4) and all(v and v.get("prereg_sha256") == sha4 for v in files4.values()))
+
+    def cb(d):
+        return f"{d['mean']:+.4f} [{d['ci_lo']:+.4f}, {d['ci_hi']:+.4f}]" if d else "missing"
+
+    confs = {c: g(cv4, "configs", c) for c in ("A", "B", "C", "D")}
+    confs["E"] = g(add4, "configs", "E")
+    dA = g(confs["A"], "paired", "XP_minus_S0", "alc")
+    claim("[round 4, rule (a)] config A: XP - S0 ALC CI entirely below 0 (primary)", "xpair_cv.json configs.A.paired.XP_minus_S0",
+          cb(dA), bool(dA and dA["ci_hi"] < 0))
+    for c in ("B", "C", "D", "E"):
+        d = g(confs[c], "paired", "XP_minus_S0", "alc")
+        claim(f"[round 4] config {c}: XP better than S0 with CI below 0 (rule (c) for B-D; addendum E)",
+              f"{'xpair_addendum1' if c == 'E' else 'xpair_cv'}.json configs.{c}.paired.XP_minus_S0", cb(d), bool(d and d["ci_hi"] < 0))
+    for c in ("A", "B", "C", "D", "E"):
+        d = g(confs[c], "paired", "XP_minus_S1", "alc")
+        claim(f"[round 4] config {c}: XP better than S1 (correct per-pair filter), CI below 0", f"configs.{c}.paired.XP_minus_S1",
+              cb(d), bool(d and d["ci_hi"] < 0))
+    d = g(confs["A"], "paired", "S1_minus_S0", "alc")
+    claim("[round 4] config A: S1 vs S0 (name pooling) not significant", "xpair_cv.json configs.A.paired.S1_minus_S0", cb(d),
+          bool(d and not d["significant"]))
+    d = g(confs["C"], "paired", "S1_minus_S0", "alc")
+    claim("[round 4] config C: name pooling costs (S1 - S0 CI below 0)", "xpair_cv.json configs.C.paired.S1_minus_S0", cb(d),
+          bool(d and d["ci_hi"] < 0))
+    d = g(confs["D"], "paired", "XP_minus_S0_evalonly_pairs", "alc")
+    claim("[round 4] config D: evaluation-only pairs gain (CI below 0)", "xpair_cv.json configs.D.paired.XP_minus_S0_evalonly_pairs", cb(d),
+          bool(d and d["ci_hi"] < 0))
+    for c in ("A", "E"):
+        br = g(confs[c], "paired", "XP_minus_S0", "brier") or []
+        ok = len(br) == 6 and all(b["ci_hi"] < 0 for b in br[1:])
+        largest = len(br) == 6 and min(range(1, 6), key=lambda i: br[i]["mean"]) == 5
+        claim(f"[round 4] config {c}: XP - S0 significant at every budget from n=1, largest at n=31", f"configs.{c}.paired.XP_minus_S0.brier",
+              ", ".join(f"{b['mean']:+.4f}" for b in br), bool(ok and largest))
+        xb = g(confs[c], "methods", "XP", "brier")
+        ob = g(confs[c], "methods", "oracle_rate", "brier")
+        claim(f"[round 4] config {c}: XP at n=31 below the pair-rate oracle", f"configs.{c}.methods", f"XP B31 {xb[5]:.4f} vs oracle {ob[5]:.4f}"
+              if xb and ob else "missing", bool(xb and ob and xb[5] < ob[5]))
+    for c, ref in (("A", "XP_allfold"), ("E", "XPrb_allfold")):
+        s = confs[c]
+        db = g(s, "paired", f"minus_bench_minus_{ref}", "alc")
+        di = g(s, "paired", f"minus_item_minus_{ref}", "alc")
+        claim(f"[round 4] config {c}: removing the benchmark effect and removing the item effect both hurt significantly",
+              f"configs.{c}.paired.minus_*", f"bench {cb(db)}; item {cb(di)}", bool(db and di and db["ci_lo"] > 0 and di["ci_lo"] > 0))
+        claim(f"[round 4] config {c}: benchmark and item contributions are about equal (ratio within 2/3..3/2)", f"configs.{c}.paired.minus_*",
+              f"ratio {db['mean'] / di['mean']:.2f}" if db and di else "missing", bool(db and di and 2 / 3 <= db["mean"] / di["mean"] <= 1.5))
+        small = [g(s, "paired", f"minus_{k}_minus_{ref}", "alc") for k in ("subj", "pair", "probit")]
+        claim(f"[round 4] config {c}: subject, pair and probit components are small (|effect| < 0.002)", f"configs.{c}.paired",
+              ", ".join(cb(x) for x in small), all(x and abs(x["mean"]) < 0.002 for x in small))
+    a = confs["A"]
+    s0 = g(a, "methods", "S0", "alc", "mean")
+    bp = g(a, "methods", "bench_and_pair", "alc", "mean")
+    xpm = g(a, "methods", "XP_allfold", "alc", "mean")
+    nsp = g(a, "methods", "name_subj_and_pair", "alc", "mean")
+    pit = g(a, "methods", "pair_and_item", "alc", "mean")
+    if None not in (s0, bp, xpm, nsp, pit):
+        claim("[round 4] config A: benchmark+pair recovers more than half of the gain; name/subject+pair and item+pair recover none",
+              "xpair_cv.json configs.A.methods", f"S0 {s0:.4f}, XP {xpm:.4f}, bench+pair {bp:.4f}, name/subj+pair {nsp:.4f}, item+pair {pit:.4f}",
+              (s0 - bp) / (s0 - xpm) > 0.5 and nsp >= s0 - 1e-4 and pit >= s0 - 1e-4)
+    rob = g(add4, "selection_robust") or {}
+    prof = rob.get("tau_item_profile", {})
+    if prof:
+        best = min(prof, key=lambda k: prof[k]["best_A"])
+        claim("[round 4] extended grid: the best tau_item on A is interior (2.25, not 0 or 4)", "xpair_addendum1.json tau_item_profile",
+              ", ".join(f"{k}: {v['best_A']:.4f}" for k, v in prof.items()), best == "2.25")
+    profb = rob.get("tau_bench_profile", {})
+    if profb:
+        bestb = min(profb, key=lambda k: profb[k]["best_A"])
+        claim("[round 4] extended grid: the best tau_bench on A is interior (1.5)", "xpair_addendum1.json tau_bench_profile",
+              ", ".join(f"{k}: {v['best_A']:.4f}" for k, v in profb.items()), bestb == "1.5")
+    claim("[round 4] addendum robust pick equals the pre-registered all-fold pick", "xpair_addendum1.json",
+          f"{g(add4, 'selection_robust', 'all', 'label')} vs {g(cv4, 'selection', 'all', 'label')}",
+          bool(add4 and cv4 and g(add4, "selection_robust", "all", "label") == g(cv4, "selection", "all", "label")))
+    pf = [r["diff"] for r in (g(confs["A"], "per_fold") or [])]
+    claim("[round 4] config A: XP - S0 negative in every outer fold", "xpair_cv.json configs.A.per_fold", ", ".join(f"{v:+.4f}" for v in pf),
+          bool(pf) and all(v < 0 for v in pf))
+    runs = g(real4, "runs") or []
+    r0 = runs[0] if runs else None
+    d = g(r0, "paired", "XP_minus_shipped_global")
+    claim("[round 4, rule (b)] real testbed seed 0: XP - shipped (global list) not significantly positive", "xpair_real_testbed.json runs[0]",
+          cb(d), bool(d and not d["ci_lo"] > 0))
+    nneg = sum(1 for r in runs if g(r, "paired", "XP_minus_shipped_global", "ci_hi") < 0)
+    claim("[round 4] real testbed: XP - shipped global significantly negative in 4 of 5 trajectories (the abstract's count)",
+          "xpair_real_testbed.json runs", f"{nneg} of {len(runs)}", nneg == 4 and len(runs) == 5)
+    d = g(r0, "paired", "XP_minus_shipped_perpair")
+    claim("[round 4] real testbed seed 0: XP vs per-pair shipped predictor not significant", "xpair_real_testbed.json runs[0]", cb(d),
+          bool(d and not d["significant"]))
+    d = g(r0, "paired", "XP_perpair_minus_shipped_perpair")
+    claim("[round 4] real testbed seed 0: XP with per-pair lists is significantly worse than the per-pair predictor (limitation)",
+          "xpair_real_testbed.json runs[0]", cb(d), bool(d and d["ci_lo"] > 0))
+    xb, sb = g(r0, "methods", "XP", "brier"), g(r0, "methods", "shipped_global", "brier")
+    claim("[round 4] real testbed seed 0: XP is worse at n=1 than the deployed per-pair predictor", "xpair_real_testbed.json runs[0].methods",
+          f"XP B1 {xb[1]:.4f} vs {sb[1]:.4f}" if xb and sb else "missing", bool(xb and sb and xb[1] > sb[1]))
+    d = g(pp4, "summary", "paired", "XP_minus_S1", "alc")
+    claim("[round 4] release, per-pair lists: XP better than S1 (CI below 0)", "xpair_perpair.json", cb(d), bool(d and d["ci_hi"] < 0))
+    d = g(acq4, "fresh_minus_random", "alc")
+    claim("[round 4] config A: fresh-first better than random under XP (CI below 0)", "xpair_acq.json fresh_minus_random", cb(d),
+          bool(d and d["ci_hi"] < 0))
+    br = g(acq4, "fresh_minus_random", "brier") or []
+    claim("[round 4] fresh-first: the gain is at n=15 and n=31 (significant there, not at n=1..7)", "xpair_acq.json fresh_minus_random.brier",
+          ", ".join(f"{b['mean']:+.5f}" for b in br),
+          len(br) == 6 and br[4]["ci_hi"] < 0 and br[5]["ci_hi"] < 0 and not any(b["significant"] for b in br[1:4]))
+    d = g(acq4, "S0_fresh_minus_random", "alc")
+    claim("[round 4] fresh-first does not affect S0 significantly", "xpair_acq.json S0_fresh_minus_random", cb(d), bool(d and not d["significant"]))
+    rr = g(racq4, "runs") or []
+    d = g(rr[0] if rr else None, "fresh_minus_first")
+    claim("[round 4] real testbed seed 0: fresh-first not significantly worse (acquisition ship rule)", "xpair_real_acq.json runs[0]", cb(d),
+          bool(d and not d["ci_lo"] > 0))
+    claim("[round 4] equivalence: stdlib model.py vs numpy simulator max |diff| < 1e-3", "xpair_equivalence.json",
+          f"{g(eq4, 'max_abs_diff')} over {g(eq4, 'n_predictions')}", bool(eq4 and eq4["max_abs_diff"] < 1e-3))
+    claim("[round 4] official client: stream mode, no predict calls during acquisition, ALC equals the simulator", "official_loop_check.json",
+          f"mode {g(loop4, 'acquisition_mode')}, acq predict calls {g(loop4, 'acquisition_prediction_calls')}, match {g(loop4, 'matches_xpair_sim')}",
+          bool(loop4 and loop4["acquisition_mode"] == "stream" and loop4["acquisition_prediction_calls"] == 0 and loop4.get("matches_xpair_sim")))
+    sz = {r["n_pairs"]: r for r in (g(rt4, "sizes") or [])}
+    claim("[round 4, rule (d)] 62,000-label checkpoint within 60 s; cache-hit calls <= 5 ms", "xpair_runtime.json sizes[2000]",
+          f"checkpoint {sz[2000]['checkpoint_s']:.1f} s, {sz[2000]['ms_per_call']:.3f} ms" if 2000 in sz else "missing",
+          bool(2000 in sz and sz[2000]["checkpoint_s"] <= 60 and sz[2000]["ms_per_call"] <= 5))
+    claim("[round 4] 4,000 pairs per checkpoint well under a minute", "xpair_runtime.json sizes[4000]",
+          f"{sz[4000]['checkpoint_s']:.1f} s" if 4000 in sz else "missing", bool(4000 in sz and sz[4000]["checkpoint_s"] < 60))
+    claim("[round 4] smoke test of the shipped files passed with cross-pair cases", "round4/smoke_test_submission.json",
+          f"ok={g(smoke4, 'ok')}, xp cases {g(smoke4, 'xp_cases')}, hook {g(smoke4, 'acquisition_hook_mode')}",
+          bool(smoke4 and smoke4.get("ok") and smoke4.get("xp_cases", 0) > 0 and smoke4.get("acquisition_hook_mode") == "stream"))
+    import model as _m
+    import labeling as _l
+    lbl = g(add4, "decision", "ship_label") or ""
+    want = {}
+    for part in lbl.split("|")[1:]:
+        for key in ("namebench", "bench", "name", "subj", "pair", "item", "probit"):
+            if part.startswith(key):
+                want[key] = float(part[len(key):])
+                break
+    taus = dict(_m.XP_TAUS)
+    match = (_m.XP_ENABLED and all(taus.get(k) == want.get(k) for k in ("bench", "name", "subj", "namebench", "pair"))
+             and _m.XP_TAU_ITEM == want.get("item") and bool(_m.XP_PROBIT) == bool(want.get("probit")))
+    claim("[round 4] shipped model.py constants equal the selected setting and XP is enabled", "experiments/src/model.py vs xpair_addendum1.json",
+          f"{lbl}; XP_TAUS={taus}, item={_m.XP_TAU_ITEM}, probit={_m.XP_PROBIT}, enabled={_m.XP_ENABLED}", bool(match))
+    acq_rule = bool(acq4 and rr and g(acq4, "fresh_minus_random", "alc", "ci_hi") < 0 and not g(rr[0], "fresh_minus_first", "ci_lo") > 0)
+    claim("[round 4] labeling.POLICY is 'fresh' iff the acquisition ship rule holds", "experiments/src/labeling.py",
+          f"POLICY={_l.POLICY}; rule holds={acq_rule}", (_l.POLICY == "fresh") == acq_rule)
+    import zipfile as _zf
+    zp = HERE.parents[1] / "submission" / "paiec_submission.zip"
+    same = False
+    if zp.exists():
+        with _zf.ZipFile(zp) as z:
+            same = (z.read("model.py") == (HERE / "model.py").read_bytes() and z.read("labeling.py") == (HERE / "labeling.py").read_bytes())
+    claim("[round 4] the ZIP members equal the development model.py and labeling.py", "submission/paiec_submission.zip", f"identical={same}", same)
+
     n_fail = sum(1 for r in rows if not r[3])
     lines = ["# Claim audit (generated by experiments/src/make_audit.py)", "",
              "Every directional claim in paper/main.tex, re-derived from the result files. `HOLDS` means the",
