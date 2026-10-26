@@ -1,0 +1,27 @@
+{
+ "zip": "C:\\Users\\neels\\Downloads\\gen_papers_2\\neurips_challenges\\paiec\\submission\\candidates\\probe_A.zip",
+ "bytes": 22669,
+ "sha256": "68678c6c114d9575aef270a0a2e297f4db37334ae7dbbbb5d05431015c163bdb",
+ "members": [
+  "README.md",
+  "labeling.py",
+  "model.py",
+  "models.txt"
+ ],
+ "base": "xp_level_m050",
+ "base_zip_sha256": "cda9fe9cae49b68997d831f1de8dfe3d53a14ad3d1ac15281b22bd8326c7a715",
+ "models_txt": "Qwen/Qwen3-VL-4B-Instruct",
+ "mode": "A",
+ "validator_exit": 0,
+ "smoke_exit": 0,
+ "official_loop_exit": 0,
+ "official_loop_alc": 0.217909212732859,
+ "functional_test": {
+  "exit": 0,
+  "stdout_tail": [
+   "PAIEC_PROBE {\"accelerate\": \"1.13.0\", \"class\": \"nocuda\", \"cuda\": false, \"env_hf\": {\"HF_HOME\": false, \"HF_HUB_CACHE\": false, \"HF_HUB_OFFLINE\": false, \"TRANSFORMERS_CACHE\": false}, \"lock\": \"acquired\", \"pid\": 20260, \"probe\": \"A\", \"python\": \"3.14.5\", \"torch\": \"2.12.0+cpu\", \"transformers\": \"5.13.0\"}",
+   "{\"first\": 0.4650570548417855, \"first_is_nan\": false, \"second\": 0.4650570548417855}"
+  ],
+  "lock_file_created": true
+ }
+}

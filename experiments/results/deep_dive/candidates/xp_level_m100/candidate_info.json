@@ -1,0 +1,21 @@
+{
+ "zip": "C:\\Users\\neels\\Downloads\\gen_papers_2\\neurips_challenges\\paiec\\submission\\candidates\\xp_level_m100.zip",
+ "bytes": 20044,
+ "sha256": "77af39751d9f2b6f8aabe0fadb5f4622a15f03064a370989b84e1ff7c10eef80",
+ "members": [
+  "README.md",
+  "labeling.py",
+  "model.py"
+ ],
+ "model_sha256": "7fa9d7ece74b3d396bcaaf91f5f51ff6ee6006b443199769a85189d67717acdc",
+ "labeling_identical_to_shipped": true,
+ "constants": {
+  "SUBJECT_SHRINK": 0.0,
+  "PRIOR_INTERCEPT": -1.0,
+  "XP_TAUS.mu": 2.0
+ },
+ "validator_exit": 0,
+ "smoke_exit": 0,
+ "official_loop_exit": 0,
+ "shipped_zip_sha256_after": "c76331d084f175fbf8ce272b00d0a2360d80e440dacf6ede380f3f9eba5172e1"
+}

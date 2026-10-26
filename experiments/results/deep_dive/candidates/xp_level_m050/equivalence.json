@@ -1,0 +1,18 @@
+{
+ "candidate": "xp_level_m050",
+ "taus": {
+  "mu": 2.0,
+  "bench": 1.5,
+  "name": 0.0,
+  "subj": 0.5,
+  "namebench": 0.0,
+  "pair": 0.6
+ },
+ "SUBJECT_SHRINK": 0.0,
+ "PRIOR_INTERCEPT": -0.5,
+ "n_testsets": 24,
+ "n_predictions": 56750,
+ "max_abs_diff": 1.1411497810587257e-05,
+ "passes_1e-3": true,
+ "seconds": 4.653532981872559
+}

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 from pathlib import Path
 
@@ -1139,6 +1140,510 @@ def table_round4_budget(confs, r0) -> None:
     (PAPER / "results_table_xp_budget.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+# ----------------------------------------------------------------------------- selected submission (2026-10-26)
+# Formative runs on Codabench (organiser-scored), the three-constant candidates built in the deep dive and the
+# simulator scenarios behind the choice.  Sources: results/deep_dive/formative_runs.json (the single source for
+# the real-run numbers, written by deep_dive/formative_summary.py), results/deep_dive/{proto_level3, ece_check,
+# decision_stat, population, diagnose_A, proto_oracle, grid_inv}.json, results/deep_dive/candidates/*/ and the
+# submission ZIPs themselves (constants are parsed from the ZIP members, never typed).
+SUBMISSION = HERE.parents[1] / "submission"
+RUN_CODES = {"shipped": "Ship", "xp_nosubj_mu2": "Nosubj", "xp_level_m050": "Sel", "xp_level_m100": "Mhund"}
+RUN_ZIPS = {"shipped": SUBMISSION / "paiec_submission.zip", "xp_nosubj_mu2": SUBMISSION / "candidates" / "xp_nosubj_mu2.zip",
+            "xp_level_m050": SUBMISSION / "candidates" / "xp_level_m050.zip",
+            "xp_level_m100": SUBMISSION / "candidates" / "xp_level_m100.zip"}
+SCEN_CODES = {"A": "A", "Y25": "Y", "INV": "Inv", "INV25": "InvY", "MID": "Mid", "HARD": "Hard", "SHIFT": "Shift"}
+SCEN_LABELS = {"A": "A (release-like)", "Y25": "Y25 (2025+ subjects)",
+               "INV": "INV (inventory)", "INV25": "INV25 (INV, 2025+)",
+               "MID": "MID (rate $\\le$ 0.5)", "HARD": "HARD (rate $\\le$ 0.4)",
+               "SHIFT": "SHIFT (A, prior +1)"}
+SIM_KEYS = {"xp_nosubj_mu2": "nosubj_d0_mu2", "xp_level_m050": "nosubj_d-0.5_mu2", "xp_level_m100": "nosubj_d-1_mu2"}
+MATCH_KEYS = {"xp_nosubj_mu2_minus_shipped": "NosubjShip", "xp_level_m050_minus_shipped": "SelShip",
+              "xp_level_m100_minus_shipped": "MhundShip", "xp_level_m050_minus_xp_nosubj_mu2": "SelNosubj",
+              "xp_level_m100_minus_xp_nosubj_mu2": "MhundNosubj", "xp_level_m100_minus_xp_level_m050": "MhundSel"}
+BUD_IDX = [("0", "Zero"), ("1", "One"), ("3", "Three"), ("7", "Seven"), ("15", "Fifteen"), ("31", "ThirtyOne")]
+
+
+def _zip_constants(path: Path) -> dict:
+    """Literal top-level constants of model.py inside a submission ZIP (parsed with ast, not executed)."""
+    import ast
+    import zipfile
+    out = {}
+    if not path.exists():
+        return out
+    with zipfile.ZipFile(path) as z:
+        src = z.read("model.py").decode("utf-8")
+        out["_model_src"] = src
+        out["_labeling"] = z.read("labeling.py")
+        out["_members"] = sorted(z.namelist())
+    for node in ast.parse(src).body:
+        if isinstance(node, (ast.Assign, ast.AnnAssign)):
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            for t in targets:
+                if isinstance(t, ast.Name):
+                    try:
+                        out[t.id] = ast.literal_eval(node.value)
+                    except Exception:
+                        pass
+    out["_sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
+    out["_bytes"] = path.stat().st_size
+    return out
+
+
+def _num(v):
+    if v is None:
+        return MISSING
+    v = float(v)
+    s = f"{v:g}"
+    return s.replace("-", "\\ensuremath{-}") if v < 0 else s
+
+
+def selected_constants_macros() -> dict:
+    consts = {name: _zip_constants(p) for name, p in RUN_ZIPS.items()}
+    for name, c in consts.items():
+        code = RUN_CODES[name]
+        taus = dict(c.get("XP_TAUS") or ())
+        mac(code + "SubjectShrink", _num(c.get("SUBJECT_SHRINK")))
+        mac(code + "Intercept", _num(c.get("PRIOR_INTERCEPT")))
+        mac(code + "TauMu", _num(taus.get("mu")))
+        mac(code + "ZipSha", MISSING if not c else c["_sha256"])
+        mac(code + "ZipShaShort", MISSING if not c else c["_sha256"][:12])
+        mac(code + "ZipKB", MISSING if not c else f"{c['_bytes'] / 1000:.1f}")
+    ship, sel = consts.get("shipped") or {}, consts.get("xp_level_m050") or {}
+    # plain-text values for the command line in the rerun instructions (alltt)
+    mac("SelInterceptRaw", MISSING if not sel else f"{float(sel['PRIOR_INTERCEPT']):g}")
+    mac("SelSubjectShrinkRaw", MISSING if not sel else f"{float(sel['SUBJECT_SHRINK']):g}")
+    mac("SelTauMuRaw", MISSING if not sel else f"{float(dict(sel['XP_TAUS'])['mu']):g}")
+    # exactly which lines differ between the shipped and the selected model.py, and is labeling.py identical?
+    import difflib
+    if ship and sel:
+        a, b = ship["_model_src"].splitlines(), sel["_model_src"].splitlines()
+        changed = [ln for ln in difflib.unified_diff(a, b, lineterm="", n=0) if ln.startswith("+") and not ln.startswith("+++")]
+        mac("SelNChangedLines", fmt_int(len(changed)))
+        mac("SelLabelingIdentical", "byte-identical" if ship["_labeling"] == sel["_labeling"] else "DIFFERENT")
+        same_other = all(ship.get(k) == sel.get(k) for k in ship if not k.startswith("_")
+                         and k not in ("SUBJECT_SHRINK", "PRIOR_INTERCEPT", "XP_TAUS"))
+        mac("SelOtherConstantsSame", "unchanged" if same_other else "CHANGED")
+        mac("SelMembers", ", ".join(f"\\texttt{{{m}}}" for m in sel["_members"]))
+        # budget-0 prior of an item without cues (600 characters): sigma(intercept); shipped value for comparison
+        mac("SelPZeroNoCue", f"{1 / (1 + math.exp(-float(sel['PRIOR_INTERCEPT']))):.2f}")
+    else:
+        for n in ("SelNChangedLines", "SelLabelingIdentical", "SelOtherConstantsSame", "SelMembers", "SelPZeroNoCue"):
+            mac(n, MISSING)
+    fr = load("deep_dive/formative_runs.json")
+    want = get(fr, "selected_submission", "sha256")
+    mac("SelId", MISSING if fr is None else str(get(fr, "selected_submission", "id")))
+    mac("SelShaVerified", "verified" if sel and want == sel["_sha256"] else "MISMATCH")
+    # constants table (results_table_constants.tex)
+    lines = []
+    rows = (("\\texttt{SUBJECT\\_SHRINK}", "weight of the hand-set subject terms", lambda c: c.get("SUBJECT_SHRINK")),
+            ("\\texttt{PRIOR\\_INTERCEPT}", "shift of the prior logit", lambda c: c.get("PRIOR_INTERCEPT")),
+            ("$\\tau_\\mu$ (\\texttt{XP\\_TAUS})", "prior sd of the global level $\\mu$", lambda c: dict(c.get("XP_TAUS") or ()).get("mu")))
+    for label, role, f in rows:
+        cells = [_num(f(consts[n])) if consts.get(n) else MISSING for n in ("shipped", "xp_nosubj_mu2", "xp_level_m050", "xp_level_m100")]
+        cells[2] = "\\textbf{" + cells[2] + "}"
+        lines.append(f"{label} & {role} & " + " & ".join(cells) + r" \\")
+    (PAPER / "results_table_constants.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return consts
+
+
+def _t_crit(df: int, alpha: float = 0.05) -> float:
+    """Two-sided critical value of Student's t (stdlib: Simpson integration of the density + bisection)."""
+    c = math.exp(math.lgamma((df + 1) / 2) - math.lgamma(df / 2)) / math.sqrt(df * math.pi)
+
+    def tail(x, n=2000):  # P(T > x) = 0.5 - integral_0^x density
+        h = x / n
+        s = sum((1 if i in (0, n) else (4 if i % 2 else 2)) * c * (1 + (i * h) ** 2 / df) ** (-(df + 1) / 2) for i in range(n + 1))
+        return 0.5 - s * h / 3
+
+    lo, hi = 0.0, 50.0
+    for _ in range(60):
+        mid = (lo + hi) / 2
+        lo, hi = (mid, hi) if 2 * tail(mid) > alpha else (lo, mid)
+    return (lo + hi) / 2
+
+
+def formative_macros(fr) -> None:
+    runs = get(fr, "runs") or {}
+    alcs = []
+    for name, code in RUN_CODES.items():
+        r = runs.get(name)
+        p = "Fm" + code
+        mac(p + "Id", MISSING if r is None else str(r.get("submission_id")))
+        mac(p + "Alc", fmt(get(r, "alc_mean")))
+        mac(p + "Ece", fmt(get(r, "ece_summary_mean")))
+        mac(p + "D", fmt(get(r, "D_B0_minus_B31")))
+        mac(p + "NPairs", fmt_int(get(r, "n_pairs")))
+        mac(p + "NBench", fmt_int(get(r, "n_benchmark_ids")))
+        mac(p + "NItems", fmt_int(get(r, "n_eval_subject_items")))
+        for b, w in BUD_IDX:
+            mac(p + "B" + w, fmt(get(r, "brier_by_budget", b)))
+            mac(p + "EceB" + w, fmt(get(r, "ece_by_budget", b), 3))
+        if get(r, "alc_mean") is not None:
+            alcs.append(float(r["alc_mean"]))
+        # consistency: organiser ALC rows vs our ALC recomputed from the per-budget means
+        a, b2 = get(r, "alc_mean"), get(r, "alc_from_budget_means")
+        mac(p + "AlcConsistent", MISSING if None in (a, b2) else ("consistent" if abs(a - b2) < 1e-4 else "INCONSISTENT"))
+    import statistics as st
+    mac("FmNRuns", fmt_int(len(alcs)))
+    mac("FmAlcMin", fmt(min(alcs)) if alcs else MISSING)
+    mac("FmAlcMax", fmt(max(alcs)) if alcs else MISSING)
+    mac("FmAlcRange", fmt(max(alcs) - min(alcs)) if alcs else MISSING)
+    mac("FmAlcSd", fmt(st.stdev(alcs), 3) if len(alcs) > 1 else MISSING)
+    npairs = [int(get(runs, n, "n_pairs")) for n in RUN_CODES if get(runs, n, "n_pairs") is not None]
+    mac("FmNPairsMin", fmt_int(min(npairs)) if npairs else MISSING)
+    mac("FmNPairsMax", fmt_int(max(npairs)) if npairs else MISSING)
+    nit = [int(get(runs, n, "n_eval_subject_items")) for n in RUN_CODES if get(runs, n, "n_eval_subject_items") is not None]
+    mac("FmNItemsMin", fmt_int(min(nit)) if nit else MISSING)
+    mac("FmNItemsMax", fmt_int(max(nit)) if nit else MISSING)
+    sp, si = get(runs, "xp_level_m050", "n_pairs"), get(runs, "xp_level_m050", "n_eval_subject_items")
+    mac("FmSelItemsPerPair", fmt_int(si / sp) if sp and si else MISSING)
+    mac("FmNBenchAll", fmt_int(get(fr, "distinct_benchmark_ids_all_runs")))
+    mac("FmNSubjAll", fmt_int(get(fr, "distinct_subject_ids_all_runs")))
+    ov = get(fr, "overlap") or {}
+    mac("FmSharedPairsMax", fmt_int(max((v.get("shared_pairs", 0) for v in ov.values()), default=None)) if ov else MISSING)
+    mac("FmSharedBenchMin", fmt_int(min((v.get("shared_benchmark_ids", 0) for v in ov.values()), default=None)) if ov else MISSING)
+    # how many runs predict budget 0 worse than the constant 0.5 (Brier 0.25 on every draw)
+    nb0 = sum(1 for n in RUN_CODES if get(runs, n, "brier_by_budget", "0") is not None and runs[n]["brier_by_budget"]["0"] > 0.25)
+    mac("FmNBZeroAboveConst", fmt_int(nb0) if runs else MISSING)
+    cand_b0 = [runs[n]["brier_by_budget"]["0"] for n in ("xp_nosubj_mu2", "xp_level_m050", "xp_level_m100") if n in runs]
+    mac("FmCandBZeroMax", fmt(max(cand_b0)) if cand_b0 else MISSING)
+    mac("FmCandBZeroMin", fmt(min(cand_b0)) if cand_b0 else MISSING)
+    # raw (unmatched) run-to-run difference at budgets 1..31, selected minus shipped, averaged over the five budgets
+    a, b = get(runs, "xp_level_m050", "brier_by_budget"), get(runs, "shipped", "brier_by_budget")
+    later = [a[k] - b[k] for k in ("1", "3", "7", "15", "31")] if a and b else []
+    mac("FmSelMinusShipLaterMean", fmt(sum(later) / len(later), 3, sign=True) if later else MISSING)
+    mac("FmSelMinusShipBZeroRaw", fmt(a["0"] - b["0"], 3, sign=True) if a and b else MISSING)
+    mac("FmSelMinusShipAlcRaw", fmt(get(runs, "xp_level_m050", "alc_mean") - get(runs, "shipped", "alc_mean"), 4, sign=True)
+        if get(runs, "xp_level_m050", "alc_mean") is not None and get(runs, "shipped", "alc_mean") is not None else MISSING)
+    # benchmark-matched differences (equal weight per shared benchmark; mean, sd, se over benchmarks)
+    bm = get(fr, "benchmark_matched") or {}
+    tmax, ses = 0.0, []
+    for key, code in MATCH_KEYS.items():
+        for sec, w in [("ALC", "Alc")] + [(b, "B" + ww) for b, ww in BUD_IDX]:
+            d = get(bm, key, sec)
+            p = "FmMatch" + code + w
+            mac(p + "Mean", fmt(get(d, "mean_diff"), 4, sign=True))
+            mac(p + "Se", fmt(get(d, "se"), 4))
+            m, se = get(d, "mean_diff"), get(d, "se")
+            mac(p + "T", MISSING if None in (m, se) or not se else f"{m / se:+.2f}")
+            if sec == "ALC" and None not in (m, se) and se:
+                tmax = max(tmax, abs(m / se))
+                ses.append(se)
+        mac("FmMatch" + code + "N", fmt_int(get(bm, key, "ALC", "n_benchmarks")))
+    mac("FmMatchMaxAbsT", f"{tmax:.2f}" if ses else MISSING)
+    # all entries (6 run pairs x (ALC + 6 budgets)): how many reach 2 se, the largest |t|, and the t critical value
+    ts = []
+    for key in MATCH_KEYS:
+        for sec in ["ALC"] + [b for b, _ in BUD_IDX]:
+            m, se = get(bm, key, sec, "mean_diff"), get(bm, key, sec, "se")
+            if None not in (m, se) and se:
+                ts.append(abs(m / se))
+    mac("FmMatchNEntries", fmt_int(len(ts)) if ts else MISSING)
+    mac("FmMatchNAboveTwo", fmt_int(sum(1 for t in ts if t >= 2)) if ts else MISSING)
+    mac("FmMatchMaxAbsTAll", f"{max(ts):.2f}" if ts else MISSING)
+    nb = get(bm, "xp_level_m050_minus_shipped", "ALC", "n_benchmarks")
+    mac("FmMatchTCrit", f"{_t_crit(int(nb) - 1):.2f}" if nb else MISSING)
+    mac("FmMatchNAboveCrit", fmt_int(sum(1 for t in ts if nb and t >= _t_crit(int(nb) - 1))) if ts and nb else MISSING)
+    mac("FmMatchSeMin", fmt(min(ses), 3) if ses else MISSING)
+    mac("FmMatchSeMax", fmt(max(ses), 3) if ses else MISSING)
+    n_b = get(bm, "xp_level_m050_minus_shipped", "ALC", "n_benchmarks")
+    mac("FmMatchDf", fmt_int(n_b - 1) if n_b else MISSING)
+    # the pre-recorded rule for revising the choice: matched B0 of the selected run not worse than the shipped one
+    d = get(bm, "xp_level_m050_minus_shipped", "0", "mean_diff")
+    mac("FmSelRuleBZero", MISSING if d is None else ("better" if d < 0 else "worse"))
+    # tables
+    sid = {n: str(get(runs, n, "submission_id")) for n in RUN_CODES}
+    labels = {"shipped": f"{sid['shipped']} (round 4, as shipped)", "xp_nosubj_mu2": f"{sid['xp_nosubj_mu2']} (subject terms off)",
+              "xp_level_m050": f"\\textbf{{{sid['xp_level_m050']} (selected)}}", "xp_level_m100": f"{sid['xp_level_m100']} (stronger shift)"}
+    lines = []
+    for name in ("shipped", "xp_nosubj_mu2", "xp_level_m050", "xp_level_m100"):
+        r = runs.get(name)
+        cells = [fmt_int(get(r, "n_pairs"))] + [fmt(get(r, "brier_by_budget", b)) for b, _ in BUD_IDX] + \
+                [fmt(get(r, "alc_mean")), fmt(get(r, "ece_summary_mean"), 3), fmt(get(r, "ece_by_budget", "0"), 3)]
+        if name == "xp_level_m050":
+            cells = ["\\textbf{" + c + "}" for c in cells]
+        lines.append(f"{labels[name]} & " + " & ".join(cells) + r" \\")
+    lines.append(r"\midrule")
+    lines.append("constant 0.5 (any draw) & -- & " + " & ".join(["0.2500"] * 6) + r" & 0.2500 & -- & -- \\")
+    (PAPER / "results_table_formative.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    # learning-curve plot lines for pgfplots (x = log2(n+1))
+    styles = {"shipped": "black, mark=*", "xp_nosubj_mu2": "blue, mark=square*", "xp_level_m050": "red, thick, mark=triangle*",
+              "xp_level_m100": "teal, mark=diamond*"}
+    plot = []
+    for name in ("shipped", "xp_nosubj_mu2", "xp_level_m050", "xp_level_m100"):
+        r = runs.get(name)
+        if r is None:
+            continue
+        pts = " ".join(f"({i},{float(r['brier_by_budget'][b]):.4f})" for i, (b, _) in enumerate(BUD_IDX))
+        plot.append(f"\\addplot[{styles[name]}] coordinates {{{pts}}};")
+        plot.append(f"\\addlegendentry{{{r['submission_id']}}}")
+    plot.append("\\addplot[gray, dashed, domain=0:5] {0.25};")
+    plot.append("\\addlegendentry{constant 0.5}")
+    (PAPER / "results_fig_formative.tex").write_text("\n".join(plot) + "\n", encoding="utf-8")
+    # matched-difference table (appendix)
+    lines = []
+    i_ship, i_nos, i_sel, i_mh = (sid[n] for n in ("shipped", "xp_nosubj_mu2", "xp_level_m050", "xp_level_m100"))
+    lab = {"NosubjShip": f"{i_nos} $-$ {i_ship}", "SelShip": f"{i_sel} $-$ {i_ship}", "MhundShip": f"{i_mh} $-$ {i_ship}",
+           "SelNosubj": f"{i_sel} $-$ {i_nos}", "MhundNosubj": f"{i_mh} $-$ {i_nos}", "MhundSel": f"{i_mh} $-$ {i_sel}"}
+    for key, code in MATCH_KEYS.items():
+        cells = []
+        for sec, w in [(b, "B" + ww) for b, ww in BUD_IDX] + [("ALC", "Alc")]:
+            d = get(bm, key, sec)
+            cells.append(f"{fmt(get(d, 'mean_diff'), 3, sign=True)} ({fmt(get(d, 'se'), 3)})")
+        lines.append(f"{lab[code]} & " + " & ".join(cells) + r" \\")
+    (PAPER / "results_table_matched.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def scenario_macros(p3, ece, dec, fr) -> None:
+    scen = get(p3, "scenarios") or {}
+    for s, code in SCEN_CODES.items():
+        r = scen.get(s)
+        p = "Dd" + code
+        mac(p + "NUnits", fmt_int(get(r, "n_units")))
+        mac(p + "NBench", fmt_int(get(r, "n_bench")))
+        mac(p + "MedRate", fmt(get(r, "unit_rate_median"), 2))
+        mac(p + "Oracle", fmt(get(r, "oracle")))
+        mac(p + "ShipAlc", fmt(get(r, "methods", "shipped", "alc")))
+        for i, (_, w) in enumerate(BUD_IDX):
+            mac(p + "ShipB" + w, fmt(get(r, "methods", "shipped", "brier", i)))
+        for name, key in SIM_KEYS.items():
+            m = get(r, "methods", key)
+            q = p + RUN_CODES[name]
+            mac(q + "Alc", fmt(get(m, "alc")))
+            mac(q + "BZero", fmt(get(m, "brier", 0)))
+            d = get(m, "minus_shipped")
+            mac(q + "Mean", fmt(get(d, "mean"), 4, sign=True))
+            mac(q + "Lo", fmt(get(d, "ci_lo"), 4, sign=True))
+            mac(q + "Hi", fmt(get(d, "ci_hi"), 4, sign=True))
+            mac(q + "Sig", sig_word(d))
+            b1s, b1m = get(r, "methods", "shipped", "brier", 1), get(m, "brier", 1)
+            mac(q + "DeltaBOne", MISSING if None in (b1s, b1m) else fmt(b1m - b1s, 4, sign=True))
+    # cross-check: the deep-dive summary copies the same scenario numbers
+    sc = get(fr, "simulator_scenarios") or {}
+    ok = bool(sc) and all(abs(get(sc, s, "xp_level_m050", "minus_shipped", "mean") -
+                              get(scen, s, "methods", "nosubj_d-0.5_mu2", "minus_shipped", "mean")) < 1e-12 for s in sc)
+    mac("DdScenConsistent", "consistent" if ok else "INCONSISTENT")
+    # summary ranges of the selected change: hidden-pool-like scenarios (INV, INV25, MID, HARD, SHIFT) vs release-like (A, Y25)
+    def rng(keys, name="xp_level_m050"):
+        vals = [get(scen, s, "methods", SIM_KEYS[name], "minus_shipped", "mean") for s in keys]
+        vals = [v for v in vals if v is not None]
+        return (min(vals), max(vals)) if vals else (None, None)
+    lo, hi = rng(("INV", "INV25", "MID", "HARD", "SHIFT"))
+    mac("DdSelGainBest", fmt(lo, 4, sign=True))
+    mac("DdSelGainWorstHidden", fmt(hi, 4, sign=True))
+    lo, hi = rng(("A", "Y25"))
+    mac("DdSelCostMin", fmt(lo, 4, sign=True))
+    mac("DdSelCostMax", fmt(hi, 4, sign=True))
+    lo, hi = rng(("INV", "INV25", "MID", "HARD", "SHIFT"), "xp_nosubj_mu2")
+    mac("DdNosubjGainBest", fmt(lo, 4, sign=True))
+    mac("DdNosubjGainWorst", fmt(hi, 4, sign=True))
+    extra = [get(scen, s, "methods", SIM_KEYS["xp_level_m100"], "alc") - get(scen, s, "methods", SIM_KEYS["xp_level_m050"], "alc")
+             for s in ("INV", "INV25", "MID", "HARD", "SHIFT") if s in scen]
+    mac("DdMhundMinusSelBest", fmt(min(extra), 4, sign=True) if extra else MISSING)
+    mac("DdMhundMinusSelWorst", fmt(max(extra), 4, sign=True) if extra else MISSING)
+    nsig = sum(1 for s in ("INV", "INV25", "MID", "HARD", "SHIFT")
+               if get(scen, s, "methods", SIM_KEYS["xp_level_m050"], "minus_shipped", "ci_hi") is not None
+               and scen[s]["methods"][SIM_KEYS["xp_level_m050"]]["minus_shipped"]["ci_hi"] < 0)
+    mac("DdSelNSigGain", fmt_int(nsig))
+    # largest |change| of B1..B31 between the selected setting and the shipped one in any scenario (level matters at B0)
+    mx = 0.0
+    for s in scen:
+        a, b = get(scen, s, "methods", "shipped", "brier"), get(scen, s, "methods", SIM_KEYS["xp_level_m050"], "brier")
+        if a and b:
+            mx = max(mx, max(abs(b[i] - a[i]) for i in range(1, 6)))
+    mac("DdSelMaxDeltaLater", fmt(mx, 4) if scen else MISSING)
+    lines = []
+    for s, code in SCEN_CODES.items():
+        r = scen.get(s)
+        cells = [fmt_int(get(r, "n_bench")), fmt(get(r, "unit_rate_median"), 2), fmt(get(r, "methods", "shipped", "alc")),
+                 fmt(get(r, "methods", "shipped", "brier", 0), 3) + r"$\to$" + fmt(get(r, "methods", SIM_KEYS["xp_level_m050"], "brier", 0), 3)]
+        for name in ("xp_nosubj_mu2", "xp_level_m050", "xp_level_m100"):
+            d = get(r, "methods", SIM_KEYS[name], "minus_shipped")
+            # full CI for the selected variant; mean and a significance star for the other two (CIs in the appendix)
+            c = _cell(d) if name == "xp_level_m050" else fmt(get(d, "mean"), 4, sign=True)
+            if d is not None and d.get("significant"):
+                c = c.replace(" [", "$^{*}$ [", 1) if name == "xp_level_m050" else c + "$^{*}$"
+            cells.append(c)
+        lines.append(f"{SCEN_LABELS[s]} & " + " & ".join(cells) + r" \\")
+    (PAPER / "results_table_scenarios.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    # appendix version: all three variants with CIs
+    lines = []
+    for s, code in SCEN_CODES.items():
+        r = scen.get(s)
+        cells = [fmt(get(r, "oracle")), fmt(get(r, "methods", "shipped", "alc"))]
+        for name in ("xp_nosubj_mu2", "xp_level_m050", "xp_level_m100"):
+            m = get(r, "methods", SIM_KEYS[name])
+            cells.append(f"{fmt(get(m, 'alc'))} & {_cell(get(m, 'minus_shipped'))}")
+        lines.append(f"{s} & " + " & ".join(cells) + r" \\")
+    (PAPER / "results_table_scenarios_full.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    lines = []
+    for s, code in SCEN_CODES.items():
+        r = scen.get(s)
+        cells = [fmt_int(get(r, "n_bench")), fmt(get(r, "unit_rate_median"), 2), fmt(get(r, "methods", "shipped", "alc")),
+                 fmt(get(r, "methods", "shipped", "brier", 0), 3) + r"$\to$" + fmt(get(r, "methods", SIM_KEYS["xp_level_m050"], "brier", 0), 3)]
+        for name in ("xp_nosubj_mu2", "xp_level_m050", "xp_level_m100"):
+            d = get(r, "methods", SIM_KEYS[name], "minus_shipped")
+            c = _cell(d) if name == "xp_level_m050" else fmt(get(d, "mean"), 4, sign=True)
+            if d is not None and d.get("significant"):
+                c = c.replace(" [", "$^{*}$ [", 1) if name == "xp_level_m050" else c + "$^{*}$"
+            cells.append(c)
+        lines.append(f"{SCEN_LABELS[s]} & " + " & ".join(cells) + r" \\")
+    (PAPER / "results_table_scenarios.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    # budget-0 ECE by simulated population (ece_check.json) and the D = B0 - B31 statistic (decision_stat.json)
+    for s, code in (("A", "A"), ("INV", "Inv"), ("HARD", "Hard"), ("SHIFT", "Shift")):
+        mac("DdEceBZeroShip" + code, fmt(get(ece, s, "ece_by_budget", 0), 3))
+        mac("DdEceAlcShip" + code, fmt(get(ece, s, "ece_alc"), 3))
+        mac("DdTestsetAlcSd" + code, fmt(get(ece, s, "testset_alc_sd"), 3))
+    for s, code in (("A", "A"), ("INV", "Inv"), ("HARD", "Hard")):
+        mac("DdEceBZeroSel" + code, fmt(get(ece, f"{s}_nosubj_d-0.5_mu2", "ece_by_budget", 0), 3))
+    vals = [get(ece, s, "ece_by_budget", 0) for s in ("A", "INV", "HARD", "SHIFT")]
+    vals = [v for v in vals if v is not None]
+    mac("DdEceBZeroShipMax", fmt(max(vals), 3) if vals else MISSING)
+    mac("DdEceBZeroShipMin", fmt(min(vals), 3) if vals else MISSING)
+    vals = [get(ece, f"{s}_nosubj_d-0.5_mu2", "ece_by_budget", 0) for s in ("A", "INV", "HARD")]
+    vals = [v for v in vals if v is not None]
+    mac("DdEceBZeroSelMax", fmt(max(vals), 3) if vals else MISSING)
+    for s, code in (("A", "A"), ("INV", "Inv"), ("MID", "Mid"), ("HARD", "Hard")):
+        mac("DdD" + code, fmt(get(dec, s, "D_mean"), 3))
+        mac("DdDSd" + code, fmt(get(dec, s, "D_sd_single_draw"), 3))
+    sds = [get(dec, s, "D_sd_single_draw") for s in ("A", "INV", "MID", "HARD")]
+    sds = [v for v in sds if v is not None]
+    mac("DdDSdMin", fmt(min(sds), 3) if sds else MISSING)
+    mac("DdDSdMax", fmt(max(sds), 3) if sds else MISSING)
+
+
+def deep_dive_extra_macros(pop, diag, orc, ginv) -> None:
+    gi = get(pop, "groups") or {}
+    mac("DdPopNInvBench", fmt_int(get(pop, "n_inventory_benchmarks")))
+    mac("DdPopNBench", fmt_int(get(pop, "n_benchmarks")))
+    for g, code in (("inventory_benchmarks", "Inv"), ("non_inventory_benchmarks", "NonInv"), ("inventory_x_2025plus", "InvY"),
+                    ("all", "All"), ("release_2025plus", "Y")):
+        mac("DdPop" + code + "Pairs", fmt_int(get(gi, g, "pairs")))
+        mac("DdPop" + code + "Rate", fmt(get(gi, g, "mean_rate"), 3))
+        mac("DdPop" + code + "BZero", fmt(get(gi, g, "B0_prior_approx"), 4))
+        mac("DdPop" + code + "PZero", fmt(get(gi, g, "mean_prior_p0"), 3))
+    mac("DdPopEmptyName", _pct(get(pop, "empty_name_share")))
+    at = get(pop, "ability_transfer") or {}
+    r2 = [v.get("r2_best_slope") for v in at.values() if v.get("r2_best_slope") is not None]
+    mac("DdAbilityRsqMax", fmt(max(r2), 3) if r2 else MISSING)
+    cs = [v.get("corr") for v in at.values() if v.get("corr") is not None]
+    mac("DdAbilityCorrMin", fmt(min(cs), 2, sign=True) if cs else MISSING)
+    mac("DdAbilityCorrMax", fmt(max(cs), 2, sign=True) if cs else MISSING)
+    # diagnosis of the shipped predictor in config A: weighted gap to the pair-rate oracle by budget
+    gap = get(diag, "weighted_gap_to_oracle_by_budget") or []
+    for i, (_, w) in enumerate(BUD_IDX):
+        mac("DdGapB" + w, fmt(gap[i] if i < len(gap) else None, 4, sign=True))
+    mac("DdGapTotal", fmt(sum(gap), 4) if gap else MISSING)
+    mac("DdGapShareLow", _pct(sum(gap[:3]) / sum(gap)) if gap else MISSING)
+    mac("DdDiagAlc", fmt(get(diag, "xp_shipped", "alc")))
+    mac("DdDiagOracle", fmt(get(diag, "xp_shipped", "oracle_rate")))
+    mac("DdDiagNTestsets", fmt_int(get(diag, "n_testsets")))
+    mac("DdDiagTestsetSd", fmt(get(diag, "testset_alc", "sd"), 3))
+    bins = get(diag, "by_rate_bin") or []
+    for b, code in ((0, "Low"), (len(bins) - 1, "High")):
+        r = bins[b] if bins else None
+        mac("DdBin" + code + "Alc", fmt(get(r, "alc"), 3))
+        mac("DdBin" + code + "Oracle", fmt(get(r, "oracle"), 3))
+        mac("DdBin" + code + "BiasBZero", fmt(get(r, "bias", 0), 2, sign=True))
+    # ceilings for side information inside the cross-pair model (proto_oracle.json)
+    lines = []
+    for s, code in (("A", "A"), ("HARD", "Hard")):
+        r = get(orc, "scenarios", s)
+        for m, mc in (("bench_oracle", "Bench"), ("item_oracle_0.5", "ItemHalf"), ("item_oracle_1", "Item"), ("both_1", "Both")):
+            d = get(r, "methods", m)
+            mac("DdOrc" + code + mc + "Alc", fmt(get(d, "alc")))
+            cluster_macros("DdOrc" + code + mc, get(d, "minus_shipped"))
+        mac("DdOrc" + code + "ShipAlc", fmt(get(r, "methods", "shipped", "alc")))
+    lab = {"bench_oracle": "benchmark mean logit (with test pairs)", "item_oracle_0.5": "item effect from other subjects, $\\times0.5$",
+           "item_oracle_1": "item effect from other subjects, $\\times1$", "both_1": "benchmark mean + item effect"}
+    for m in ("bench_oracle", "item_oracle_0.5", "item_oracle_1", "both_1"):
+        cells = []
+        for s in ("A", "HARD"):
+            d = get(orc, "scenarios", s, "methods", m)
+            cells += [fmt(get(d, "alc")), _cell(get(d, "minus_shipped"))]
+        lines.append(f"{lab[m]} & " + " & ".join(cells) + r" \\")
+    (PAPER / "results_table_oracle.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    cluster_macros("DdGridInv", get(ginv, "scenarios", "INV", "nested_minus_shipped"))
+    cluster_macros("DdGridInvOnA", get(ginv, "scenarios", "A", "minus_shipped"))
+    g = get(ginv, "grid") or {}
+    n = 1
+    for v in g.values():
+        n *= len(v)
+    mac("DdGridN", fmt_int(n) if g else MISSING)
+
+
+def candidate_check_macros() -> None:
+    base = RESULTS / "deep_dive" / "candidates"
+    for name, code in (("xp_level_m050", "Sel"), ("xp_level_m100", "Mhund"), ("xp_nosubj_mu2", "Nosubj")):
+        info, eq = load(f"deep_dive/candidates/{name}/candidate_info.json"), load(f"deep_dive/candidates/{name}/equivalence.json")
+        loop, smoke = load(f"deep_dive/candidates/{name}/official_loop_check.json"), load(f"deep_dive/candidates/{name}/smoke_test.json")
+        vpath = base / name / "validator_output.txt"
+        vtxt = vpath.read_text(encoding="utf-8") if vpath.exists() else None
+        p = "Ck" + code
+        mac(p + "Validator", MISSING if vtxt is None else ("passes" if "OK:" in vtxt and "[exit code 0]" in vtxt else "FAILS"))
+        mac(p + "EquivMaxDiff", _sci(get(eq, "max_abs_diff")))
+        mac(p + "EquivN", fmt_int(get(eq, "n_predictions")))
+        mac(p + "EquivNTestsets", fmt_int(get(eq, "n_testsets")))
+        mac(p + "LoopAlc", fmt(get(loop, "alc_mean")))
+        mac(p + "LoopMode", MISSING if loop is None else str(loop.get("acquisition_mode")))
+        mac(p + "LoopAcqPredCalls", fmt_int(get(loop, "acquisition_prediction_calls")))
+        mac(p + "LoopNPairs", fmt_int(get(loop, "n_pairs")))
+        lpp = get(loop, "labels_per_pair") or []
+        mac(p + "LoopLabels", fmt_int(min(lpp)) if lpp and min(lpp) == max(lpp) else MISSING)
+        ref = get(loop, "alc_xpair_sim_same_policy")
+        mac(p + "LoopMinusShip", MISSING if None in (ref, get(loop, "alc_mean")) else fmt(loop["alc_mean"] - ref, 5, sign=True))
+        mac(p + "SmokeCases", fmt_int(len(get(smoke, "cases") or [])) if smoke else MISSING)
+        mac(p + "SmokeXpCases", fmt_int(get(smoke, "xp_cases")))
+        mac(p + "SmokeOk", MISSING if smoke is None else ("passes" if smoke.get("ok") else "FAILS"))
+        mac(p + "BigFit", fmt(get(smoke, "xp_big_first_call_s"), 2))
+        mac(p + "BigMs", fmt(get(smoke, "xp_big_ms_per_call"), 3))
+        mac(p + "BigEntries", fmt_int(get(smoke, "xp_big_entries")))
+        mac(p + "LabelingSame", MISSING if info is None else ("yes" if info.get("labeling_identical_to_shipped") else "NO"))
+        mac(p + "ShipZipUnchanged", MISSING if info is None else
+            ("unchanged" if info.get("shipped_zip_sha256_after") == _zip_constants(RUN_ZIPS["shipped"]).get("_sha256") else "CHANGED"))
+    ship_loop = load("round4/official_loop_check.json")
+    mac("CkShipLoopAlc", fmt(get(ship_loop, "alc_mean")))
+
+
+def leaderboard_macros() -> None:
+    """Public Codabench leaderboard of the PAIEC competition phase (29785): best draw per user.
+
+    Derived from the raw API dumps in ../../leaderboards when present (cached to results/leaderboard_context.json,
+    which is what the released repository ships); only scores are kept, no participant names except the
+    organisers' own baseline entry."""
+    import datetime
+    import statistics as st
+    src_dir = HERE.parents[2] / "leaderboards"
+    files = [src_dir / "cb_phase_29785_now.json", src_dir / "cb_phase_29785_p2.json"]
+    cache = RESULTS / "leaderboard_context.json"
+    if all(f.exists() for f in files):
+        subs = []
+        for f in files:
+            subs += json.loads(f.read_text(encoding="utf-8")).get("submissions", [])
+        scores = sorted(float(next(x["score"] for x in s["scores"] if x["column_key"] == "brier")) for s in subs)
+        aims = [float(next(x["score"] for x in s["scores"] if x["column_key"] == "brier")) for s in subs
+                if s.get("owner") == "AIMS Foundations"]
+        snap = datetime.datetime.fromtimestamp(files[0].stat().st_mtime).strftime("%Y-%m-%d")
+        rec = {"phase": 29785, "source": [f.name for f in files], "snapshot_date": snap, "n_entries": len(scores),
+               "n_unique_ids": len({s["id"] for s in subs}), "scores_sorted": scores,
+               "organiser_baseline_aims_foundations": aims[0] if aims else None,
+               "note": "public leaderboard: each user's best formative draw (Brier ALC); scores only"}
+        cache.write_text(json.dumps(rec, indent=1), encoding="utf-8")
+    lb = load("leaderboard_context.json")
+    sc = get(lb, "scores_sorted") or []
+    mac("LbN", fmt_int(len(sc)) if sc else MISSING)
+    mac("LbDate", MISSING if lb is None else str(lb.get("snapshot_date")))
+    for k, w in ((1, "First"), (5, "Fifth"), (10, "Tenth"), (20, "Twentieth")):
+        mac("Lb" + w, fmt(sc[k - 1]) if len(sc) >= k else MISSING)
+    mac("LbMedian", fmt(st.median(sc)) if sc else MISSING)
+    mac("LbAims", fmt(get(lb, "organiser_baseline_aims_foundations")))
+    mac("LbNConst", fmt_int(sum(1 for v in sc if abs(v - 0.25) < 1e-9)) if sc else MISSING)
+    fr = load("deep_dive/formative_runs.json")
+    for name, code in RUN_CODES.items():
+        a = get(fr, "runs", name, "alc_mean")
+        mac("LbRank" + code, MISSING if a is None or not sc else fmt_int(1 + sum(1 for v in sc if v < a)))
+
+
 def main() -> None:
     syn, real = load("synthetic_main.json"), load("real_testbed_main.json")
     mac("NBoot", fmt_int(get(syn, "methods", "full", "alc", "n_boot") or get(real, "methods", "full", "alc", "n_boot")))
@@ -1181,6 +1686,15 @@ def main() -> None:
                   load("round4/xpair_equivalence.json"), load("round4/xpair_perpair.json"), load("round4/xpair_frame_stats.json"),
                   load("round4/official_loop_check.json"), load("round4/smoke_test_submission.json"))
     model_constant_macros()
+    # selected submission 1010717 and the formative runs (2026-10-26)
+    selected_constants_macros()
+    fr = load("deep_dive/formative_runs.json")
+    formative_macros(fr)
+    scenario_macros(load("deep_dive/proto_level3.json"), load("deep_dive/ece_check.json"), load("deep_dive/decision_stat.json"), fr)
+    deep_dive_extra_macros(load("deep_dive/population.json"), load("deep_dive/diagnose_A.json"), load("deep_dive/proto_oracle.json"),
+                           load("deep_dive/grid_inv.json"))
+    candidate_check_macros()
+    leaderboard_macros()
     vpath = RESULTS / "validator_output.txt"
     zip_macros(load("submission_zip_info.json"), vpath.read_text(encoding="utf-8") if vpath.exists() else None)
     text = "% generated by experiments/src/make_macros.py -- do not edit\n" + "\n".join(macros) + "\n"

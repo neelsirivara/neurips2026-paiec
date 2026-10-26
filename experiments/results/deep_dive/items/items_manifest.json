@@ -1,0 +1,365 @@
+{
+ "prereg_sha256": "06d9e784369b70968d316be99ee476895a8f5d0a4d09483c31f751e71fe33146",
+ "inv_dirs": [
+  "algotune",
+  "averimatec",
+  "babilong",
+  "bertaqa",
+  "brace",
+  "cellverse",
+  "clasheval",
+  "cruxeval",
+  "dave",
+  "devbench",
+  "editbench",
+  "engdesign",
+  "erbench",
+  "jailbreakbench",
+  "kernelbench",
+  "liveaopsbench",
+  "llm_uncertainty_bench",
+  "mj_bench",
+  "mmlupro",
+  "multi_swebench",
+  "nyu_ctf_bench",
+  "os_harm",
+  "researchcodebench",
+  "risebench",
+  "statqa",
+  "subjective_qa",
+  "swe_rebench",
+  "swebench_live",
+  "tau2_bench",
+  "tensortrust",
+  "visual_riddles",
+  "workarena",
+  "worldcentralbanks"
+ ],
+ "as_dirs_seeded_order": [
+  "wikihow_agent",
+  "appworld",
+  "afrimedqa",
+  "ceval",
+  "software_world_models",
+  "benger",
+  "alignment_faking",
+  "safeagentbench",
+  "medhelm_medhallu",
+  "crow",
+  "prox",
+  "medhelm_med_mcqa",
+  "naturebench",
+  "interchangeable_token_embeddings",
+  "helm_thaiexam",
+  "vl_rewardbench",
+  "sugarcrepe",
+  "agentic_review_perturbation",
+  "medhelm_medbullets",
+  "egoschema",
+  "visualwebarena",
+  "sgrades",
+  "bridging_gap",
+  "real_webagents",
+  "medhelm_medec"
+ ],
+ "n_needed": {
+  "INV": 15082,
+  "AS": 9117
+ },
+ "n_needed_all": 24199,
+ "n_written": 24199,
+ "n_empty_content": 0,
+ "checks": {
+  "afrimedqa": {
+   "n_items_frame": 2195,
+   "n_items_replay": 2195,
+   "zi_match": true
+  },
+  "agentic_review_perturbation": {
+   "n_items_frame": 6,
+   "n_items_replay": 6,
+   "zi_match": true
+  },
+  "algotune": {
+   "n_items_frame": 154,
+   "n_items_replay": 154,
+   "zi_match": true
+  },
+  "alignment_faking": {
+   "n_items_frame": 959,
+   "n_items_replay": 959,
+   "zi_match": true
+  },
+  "appworld": {
+   "n_items_frame": 192,
+   "n_items_replay": 192,
+   "zi_match": true
+  },
+  "averimatec": {
+   "n_items_frame": 152,
+   "n_items_replay": 152,
+   "zi_match": true
+  },
+  "babilong": {
+   "n_items_frame": 1259,
+   "n_items_replay": 1259,
+   "zi_match": true
+  },
+  "benger": {
+   "n_items_frame": 400,
+   "n_items_replay": 400,
+   "zi_match": true
+  },
+  "bertaqa": {
+   "n_items_frame": 1111,
+   "n_items_replay": 1111,
+   "zi_match": true
+  },
+  "brace": {
+   "n_items_frame": 400,
+   "n_items_replay": 400,
+   "zi_match": true
+  },
+  "bridging_gap": {
+   "n_items_frame": 6267,
+   "n_items_replay": 6267,
+   "zi_match": true
+  },
+  "cellverse": {
+   "n_items_frame": 200,
+   "n_items_replay": 200,
+   "zi_match": true
+  },
+  "ceval": {
+   "n_items_frame": 200,
+   "n_items_replay": 200,
+   "zi_match": true
+  },
+  "clasheval": {
+   "n_items_frame": 200,
+   "n_items_replay": 200,
+   "zi_match": true
+  },
+  "crow": {
+   "n_items_frame": 1389,
+   "n_items_replay": 1389,
+   "zi_match": true
+  },
+  "cruxeval": {
+   "n_items_frame": 1000,
+   "n_items_replay": 1000,
+   "zi_match": true
+  },
+  "dave": {
+   "n_items_frame": 592,
+   "n_items_replay": 592,
+   "zi_match": true
+  },
+  "devbench": {
+   "n_items_frame": 271,
+   "n_items_replay": 271,
+   "zi_match": true
+  },
+  "editbench": {
+   "n_items_frame": 275,
+   "n_items_replay": 275,
+   "zi_match": true
+  },
+  "egoschema": {
+   "n_items_frame": 1800,
+   "n_items_replay": 1800,
+   "zi_match": true
+  },
+  "engdesign": {
+   "n_items_frame": 101,
+   "n_items_replay": 101,
+   "zi_match": true
+  },
+  "erbench": {
+   "n_items_frame": 1956,
+   "n_items_replay": 1956,
+   "zi_match": true
+  },
+  "helm_thaiexam": {
+   "n_items_frame": 200,
+   "n_items_replay": 200,
+   "zi_match": true
+  },
+  "interchangeable_token_embeddings": {
+   "n_items_frame": 400,
+   "n_items_replay": 400,
+   "zi_match": true
+  },
+  "jailbreakbench": {
+   "n_items_frame": 1093,
+   "n_items_replay": 1093,
+   "zi_match": true
+  },
+  "kernelbench": {
+   "n_items_frame": 250,
+   "n_items_replay": 250,
+   "zi_match": true
+  },
+  "liveaopsbench": {
+   "n_items_frame": 200,
+   "n_items_replay": 200,
+   "zi_match": true
+  },
+  "llm_uncertainty_bench": {
+   "n_items_frame": 3000,
+   "n_items_replay": 3000,
+   "zi_match": true
+  },
+  "medhelm_med_mcqa": {
+   "n_items_frame": 200,
+   "n_items_replay": 200,
+   "zi_match": true
+  },
+  "medhelm_medbullets": {
+   "n_items_frame": 200,
+   "n_items_replay": 200,
+   "zi_match": true
+  },
+  "medhelm_medec": {
+   "n_items_frame": 200,
+   "n_items_replay": 200,
+   "zi_match": true
+  },
+  "medhelm_medhallu": {
+   "n_items_frame": 400,
+   "n_items_replay": 400,
+   "zi_match": true
+  },
+  "mj_bench": {
+   "n_items_frame": 2836,
+   "n_items_replay": 2836,
+   "zi_match": true
+  },
+  "mmlupro": {
+   "n_items_frame": 291,
+   "n_items_replay": 291,
+   "zi_match": true
+  },
+  "multi_swebench": {
+   "n_items_frame": 1367,
+   "n_items_replay": 1367,
+   "zi_match": true
+  },
+  "naturebench": {
+   "n_items_frame": 91,
+   "n_items_replay": 91,
+   "zi_match": true
+  },
+  "nyu_ctf_bench": {
+   "n_items_frame": 200,
+   "n_items_replay": 200,
+   "zi_match": true
+  },
+  "os_harm": {
+   "n_items_frame": 243,
+   "n_items_replay": 243,
+   "zi_match": true
+  },
+  "prox": {
+   "n_items_frame": 200,
+   "n_items_replay": 200,
+   "zi_match": true
+  },
+  "real_webagents": {
+   "n_items_frame": 233,
+   "n_items_replay": 233,
+   "zi_match": true
+  },
+  "researchcodebench": {
+   "n_items_frame": 200,
+   "n_items_replay": 200,
+   "zi_match": true
+  },
+  "risebench": {
+   "n_items_frame": 445,
+   "n_items_replay": 445,
+   "zi_match": true
+  },
+  "safeagentbench": {
+   "n_items_frame": 200,
+   "n_items_replay": 200,
+   "zi_match": true
+  },
+  "sgrades": {
+   "n_items_frame": 819,
+   "n_items_replay": 819,
+   "zi_match": true
+  },
+  "software_world_models": {
+   "n_items_frame": 199,
+   "n_items_replay": 199,
+   "zi_match": true
+  },
+  "statqa": {
+   "n_items_frame": 200,
+   "n_items_replay": 200,
+   "zi_match": true
+  },
+  "subjective_qa": {
+   "n_items_frame": 685,
+   "n_items_replay": 685,
+   "zi_match": true
+  },
+  "sugarcrepe": {
+   "n_items_frame": 400,
+   "n_items_replay": 400,
+   "zi_match": true
+  },
+  "swe_rebench": {
+   "n_items_frame": 200,
+   "n_items_replay": 200,
+   "zi_match": true
+  },
+  "swebench_live": {
+   "n_items_frame": 1321,
+   "n_items_replay": 1321,
+   "zi_match": true
+  },
+  "tau2_bench": {
+   "n_items_frame": 696,
+   "n_items_replay": 696,
+   "zi_match": true
+  },
+  "tensortrust": {
+   "n_items_frame": 596,
+   "n_items_replay": 596,
+   "zi_match": true
+  },
+  "visual_riddles": {
+   "n_items_frame": 400,
+   "n_items_replay": 400,
+   "zi_match": true
+  },
+  "visualwebarena": {
+   "n_items_frame": 100,
+   "n_items_replay": 100,
+   "zi_match": true
+  },
+  "vl_rewardbench": {
+   "n_items_frame": 310,
+   "n_items_replay": 310,
+   "zi_match": true
+  },
+  "wikihow_agent": {
+   "n_items_frame": 200,
+   "n_items_replay": 200,
+   "zi_match": true
+  },
+  "workarena": {
+   "n_items_frame": 361,
+   "n_items_replay": 361,
+   "zi_match": true
+  },
+  "worldcentralbanks": {
+   "n_items_frame": 6405,
+   "n_items_replay": 6405,
+   "zi_match": true
+  }
+ },
+ "all_checks_ok": true
+}

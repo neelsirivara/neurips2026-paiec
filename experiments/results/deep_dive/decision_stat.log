@@ -1,0 +1,5 @@
+13:02:47 [A] D mean 0.0820 sd(1 draw) 0.0481 sd(3) 0.0275 sd(5) 0.0216; m050-shipped ALC +0.0020; P(D>0.10) single 0.31 pool3 0.25
+13:02:57 [INV] D mean 0.0948 sd(1 draw) 0.0604 sd(3) 0.0342 sd(5) 0.0272; m050-shipped ALC -0.0015; P(D>0.10) single 0.40 pool3 0.42
+13:03:05 [MID] D mean 0.0921 sd(1 draw) 0.0502 sd(3) 0.0291 sd(5) 0.0226; m050-shipped ALC -0.0038; P(D>0.10) single 0.41 pool3 0.37
+13:03:15 [HARD] D mean 0.1187 sd(1 draw) 0.0474 sd(3) 0.0278 sd(5) 0.0213; m050-shipped ALC -0.0069; P(D>0.10) single 0.64 pool3 0.74
+13:03:15 finished (38s)

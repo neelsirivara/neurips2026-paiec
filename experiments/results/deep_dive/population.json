@@ -1,0 +1,90 @@
+{
+ "n_pairs_eligible": 16303,
+ "n_benchmarks": 135,
+ "n_inventory_benchmarks": 33,
+ "groups": {
+  "all": {
+   "pairs": 16303,
+   "benchmarks": 135,
+   "mean_rate": 0.5386868900627121,
+   "median_rate": 0.565,
+   "mean_prior_p0": 0.509787475694653,
+   "V_mean_r1mr": 0.17988812422741196,
+   "B0_prior_approx": 0.24130901066309207,
+   "B0_const05_approx": 0.25
+  },
+  "no_release_date": {
+   "pairs": 11476,
+   "benchmarks": 79,
+   "mean_rate": 0.5793895868083143,
+   "median_rate": 0.595,
+   "mean_prior_p0": 0.5262114499702786,
+   "V_mean_r1mr": 0.1921549954433478,
+   "B0_prior_approx": 0.24089801369458713,
+   "B0_const05_approx": 0.25
+  },
+  "release_2025plus": {
+   "pairs": 921,
+   "benchmarks": 55,
+   "mean_rate": 0.5726366468260509,
+   "median_rate": 0.62,
+   "mean_prior_p0": 0.5631262461568728,
+   "V_mean_r1mr": 0.17748163684738427,
+   "B0_prior_approx": 0.24688104511721018,
+   "B0_const05_approx": 0.25
+  },
+  "inventory_benchmarks": {
+   "pairs": 1595,
+   "benchmarks": 33,
+   "mean_rate": 0.4658561993196064,
+   "median_rate": 0.445,
+   "mean_prior_p0": 0.4879267229533873,
+   "V_mean_r1mr": 0.18584822396693076,
+   "B0_prior_approx": 0.2596251745316176,
+   "B0_const05_approx": 0.25
+  },
+  "inventory_x_2025plus": {
+   "pairs": 250,
+   "benchmarks": 16,
+   "mean_rate": 0.4708401530825788,
+   "median_rate": 0.475,
+   "mean_prior_p0": 0.5297931232521403,
+   "V_mean_r1mr": 0.1819794101165046,
+   "B0_prior_approx": 0.2653274373088732,
+   "B0_const05_approx": 0.25
+  },
+  "non_inventory_benchmarks": {
+   "pairs": 14708,
+   "benchmarks": 102,
+   "mean_rate": 0.5465849694572765,
+   "median_rate": 0.58,
+   "mean_prior_p0": 0.5121581515596462,
+   "V_mean_r1mr": 0.17924178488252943,
+   "B0_prior_approx": 0.23932272555496736,
+   "B0_const05_approx": 0.25
+  }
+ },
+ "empty_name_share": 0.5779304422498927,
+ "ability_transfer": {
+  "k0_1_all": {
+   "n": 3998,
+   "corr": -0.02961437597706174,
+   "r2_best_slope": 0.010394360581030604
+  },
+  "k0_1_2025plus": {
+   "n": 756,
+   "corr": 0.09666162371560318,
+   "r2_best_slope": 0.013858552936183433
+  },
+  "k0_3_all": {
+   "n": 3998,
+   "corr": -0.058105317812347436,
+   "r2_best_slope": 0.018692828599505718
+  },
+  "k0_3_2025plus": {
+   "n": 756,
+   "corr": 0.08316537672945407,
+   "r2_best_slope": 0.01136336163549212
+  }
+ }
+}

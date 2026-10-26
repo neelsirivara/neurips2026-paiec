@@ -1,0 +1,18 @@
+{
+ "candidate": "xp_level_m100",
+ "taus": {
+  "mu": 2.0,
+  "bench": 1.5,
+  "name": 0.0,
+  "subj": 0.5,
+  "namebench": 0.0,
+  "pair": 0.6
+ },
+ "SUBJECT_SHRINK": 0.0,
+ "PRIOR_INTERCEPT": -1.0,
+ "n_testsets": 24,
+ "n_predictions": 56750,
+ "max_abs_diff": 1.0345691321134165e-05,
+ "passes_1e-3": true,
+ "seconds": 4.455965042114258
+}
