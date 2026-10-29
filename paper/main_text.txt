@@ -23,13 +23,19 @@
            0.2834 against 0.25). In benchmark-held-out simulations of the official protocol on
            the training release, the cross-pair model changes the Brier area under the learning
            curve (ALC) by -0.0129 [-0.0151, -0.0109] relative to a per-pair predictor, and the
-           new level changes it by -0.0069 to -0.0009 in harder, inventory-like populations and
-           by +0.0018 to +0.0046 in release-like ones. Four formative runs, each a fresh draw
-           of 8­9 subject­benchmark pairs on the same 7 hidden benchmarks, scored 0.1934
-          (1010370), 0.1646, 0.1628 (1010717) and 0.1913. Every recalibrated run predicted
-           budget 0 better than the constant, but the differences between runs are within draw
-           noise (largest benchmark-matched |t| = 1.75). The predictor is standard-library
-           Python. This work was done with an AI coding assistant (Claude).
+           new level changes it by -0.0069 to -0.0009 in harder, inventory-like populations
+           and by +0.0018 to +0.0046 in release-like ones. Each formative run scores a fresh
+           draw of 8­9 subject­benchmark pairs on the same 7 hidden benchmarks, and the
+           draw dominates. The selected predictor itself scored 0.1628, 0.1920 and 0.2143
+           on 3 draws (mean 0.1897, standard deviation 0.026); single draws of the previous
+           submission and two other variants scored 0.1934, 0.1646 and 0.1913. The gaps
+           of up to 0.0306 between our submissions' runs are draw noise: all variants have
+           about the same expected score, and we keep 1010717 because the simulator favours
+           it. Budget 0 improved on average (0.2432 over the selected predictor's draws,
+           against 0.2834), but one of its draws was still above 0.25. A pre-registered test
+           of LLM-rated item difficulty as an extra offset failed its gate and is reported as a
+           negative result. The predictor is standard-library Python. This work was done with
+           an AI coding assistant (Claude).
 
 1 Introduction
 
@@ -40,17 +46,17 @@ et al., 2025, Perlitz et al., 2024], adaptively per model [Hofmann et al., 2025,
 from other models' scores [Ruan et al., 2024, Ye et al., 2023], or from a few labelled instances of the
 new model [Pacchiardi et al., 2024]. PAIEC [Stanford AIMS Lab, 2026] makes this a forecasting task
 with a fixed interface: predict([subject, item], labeled) returns Pr(correct) for an item of
-a benchmark from the private test pool, where labeled holds the labels acquired so far, at budgets
+
+Technical report, Predictive AI Evaluation Competition (PAIEC), 40th Conference on Neural Information Processing Systems
+(NeurIPS 2026).
+a benchmark from the private test pool, where labeled holds the labels acquired so far, at budgets
 of n  {0, 1, 3, 7, 15, 31} labels per subject­benchmark pair.
 
 Our selected submission (1010717) has two parts. Cross-pair pooling (Section 3): the evaluator
 passes one list with the labels of all sampled pairs to every prediction, and a random-effects model
 fitted to that list learns benchmark difficulty from other subjects and item difficulty from other
 subjects' labels on the same item. A recalibrated budget-0 level (Section 4): at budget 0 the list is
-
-Technical report, Predictive AI Evaluation Competition (PAIEC), 40th Conference on Neural Information Processing Systems
-(NeurIPS 2026).
-empty and only a prior on visible attributes is available. Our earlier prior encoded "newer, larger,
+empty and only a prior on visible attributes is available. Our earlier prior encoded "newer, larger,
 reasoning-enabled systems do better" with hand-set coefficients. The formative feedback showed
 that on the hidden pool this made budget 0 worse than the constant 0.5, and the submission switches
 those terms off and lowers the level.
@@ -59,10 +65,12 @@ Contributions. (1) A cross-pair random-effects predictor for the evaluator's glo
 selected by pre-registered, benchmark-held-out simulation of the official protocol on the training
 release (Sections 3, 5.2). (2) A diagnosis of the budget-0 prior from formative feedback, and a
 three-constant fix chosen with simulated populations that bracket the hidden pool (Section 4). (3) An
-honest reading of four formative runs: what they show (budget 0) and what they cannot show (which
-of the variants is better), with run-to-run noise quantified (Section 5.1). (4) Exact rerun instructions
-and a generated, audited report: every number is produced from result files by a script (Section 7).
-Earlier rounds and negative results are in the appendices.
+honest reading of our formative runs, including three draws of the selected predictor: what they show
+(budget 0, on average) and what they cannot show (which of the variants is better), with draw noise
+measured directly (Section 5.1). (4) A pre-registered negative result: a local LLM's rating of item
+difficulty does not improve the predictor on held-out benchmarks (Section 5.3). (5) Exact rerun
+instructions and a generated, audited report: every number is produced from result files by a script
+(Section 8). Earlier rounds and their negative results are in the appendices.
 
 Related work. Item response models, with a subject ability and an item difficulty on a logit scale,
 are widely used for LLM benchmark data, to rank systems, find informative items and estimate
@@ -105,15 +113,8 @@ attribute dictionary, benchmark_id, item text) inside one run and keeps nothing 
 
 Data. Training release. The official aims-foundations/measurement-db (revision
 54074453da) gives 16,718 pairs of (subject, test condition) on 144 benchmarks with at least 20
+
 items (16,303 with 80), 3,118,742 item-level labels (mean over trials) and 165,764 distinct items.
-We use it only to simulate the protocol and to select a few constants; no regression coefficient of
-the submission is fitted to it. It differs from the hidden population in ways that matter for the prior:
-92.7% of pairs share (model name, benchmark) with another pair, 58% of eligible pairs have an
-empty normalized_name, and the 33 release benchmarks that are rows of the organisers' benchmark
-inventory are harder than the rest (mean pair success rate 0.466 vs. 0.547). The organisers' curation
-guidelines restrict competition-eligible base models to 2025­2026 releases [Stanford AIMS Lab,
-2026]. Hidden test pool. Our four formative runs (Section 5.1) each scored 8­9 pairs with 491­498
-evaluation subject­items, always on the same 7 benchmark IDs; across runs 35 distinct subject IDs
 
 2
 Table 1: The only differences between the previous submission and the selected one, read from
@@ -130,9 +131,18 @@ PRIOR_INTERCEPT shift of the prior logit        0        0    -0.5  -1
 
 µ (XP_TAUS)  prior sd of the global level µ     0.5      2    2     2
 
-appeared and no pair was repeated. Local testbed. 17 pairs of four small open models run locally
-on GSM8K, SVAMP and BIG-Bench-Hard (Appendix E) serve as an engineering check inside the
-organisers' client.
+We use it only to simulate the protocol and to select a few constants; no regression coefficient of
+the submission is fitted to it. It differs from the hidden population in ways that matter for the prior:
+92.7% of pairs share (model name, benchmark) with another pair, 58% of eligible pairs have an
+empty normalized_name, and the 33 release benchmarks that are rows of the organisers' benchmark
+inventory are harder than the rest (mean pair success rate 0.466 vs. 0.547). The organisers' curation
+guidelines restrict competition-eligible base models to 2025­2026 releases [Stanford AIMS Lab,
+2026]. Hidden test pool. Our four submission runs (Section 5.1) each scored 8­9 pairs with 491­498
+evaluation subject­items, always on the same 7 benchmark IDs; across them 35 distinct subject IDs
+appeared and no pair was repeated. Two probe uploads that return the selected predictor's predictions
+(Section 5.3) drew pairs on the same 7 benchmarks. Local testbed. 17 pairs of four small open models
+run locally on GSM8K, SVAMP and BIG-Bench-Hard (Appendix E) serve as an engineering check
+inside the organisers' client.
 
 3 The submitted predictor
 
@@ -174,16 +184,6 @@ random sample, as the default policy) but skips a candidate whose item is alread
 another subject while labels_remaining < items_remaining, so the budget is always spent. It takes
 no prediction argument, so the client does not call predict during acquisition.
 
-Implementation. model.py and labeling.py use only the Python standard library, need no
-data files, models or network, and are deterministic. Because labeled is identical for all calls of
-a checkpoint, the parsed list and the fit are cached at module level under a fingerprint and replaced
-
-atomically under a lock. For the selected files, a 62,000-label list is fitted in 1.79 s and a cached call
-
-takes 0.126 ms on one laptop core (Table 10 for other sizes). Any failure falls back to the per-pair
-
-predictor of our earlier rounds (Appendix D), then to the prior, then to 0.5.
-
                                              3
 Table 2: Simulated ALC change from the previous submission (1010370) for each variant; negative
 
@@ -210,22 +210,28 @@ HARD (rate  0.4)  41 0.20 0.1630 0.2480.190 -0.0019 -0.0069 [-0.0090, -0.0048] -
 
 SHIFT (A, prior +1) 135 0.52 0.2023 0.2970.258 -0.0006 -0.0042 [-0.0056, -0.0028] -0.0055
 
+Implementation. model.py and labeling.py use only the Python standard library, need no data
+files, models or network, and are deterministic. labeled is identical for all calls of a checkpoint, so
+the fit is cached under a fingerprint of the list. For the selected files, a 62,000-label list is fitted in
+1.79 s and a cached call takes 0.126 ms on one laptop core (Table 11 for other sizes). Any failure falls
+back to the per-pair predictor of our earlier rounds (Appendix D), then to the prior, then to 0.5.
+
 4 Why recalibrate the budget-0 level
 
-What the formative feedback showed. Codabench returns, per run, the Brier ALC, the ECE and
-the per-budget scores of every pair (anonymous IDs). We use only aggregates over pairs. For our
-previous submission 1010370, budget 0 scored B0 = 0.2834, above the constant's 0.25. Since 0.25
-is the constant's score on any draw, this is a comparison within one draw. The budget-0 ECE was
-0.340, above the 0.235­0.299 that the same predictor shows in all four simulated populations of
-Appendix A. From n = 1 on, the cross-pair model learns the level from the list, and the later budgets
-were in the range of the simulated inventory population (B1 = 0.2103 and B3 = 0.1909 against
-0.2048 and 0.1893). Two facts about the training release point the same way. On the 33 inventory
-benchmarks, the hand-set prior is already worse than the constant at budget 0 (B0  0.2596; 0.2653
-for subjects released in 2025 or later). And the release-year term raises the prior of every eligible test
-subject, since all are 2025­2026 releases, which is the wrong direction if the hidden benchmarks are
-harder than the release. A table of subject ability by model name, learned from the release, does not
-transfer to held-out benchmarks either (correlation -0.06 to +0.10, R2  0.019; Appendix B). So the
-subject terms are removed rather than re-fitted.
+What the formative feedback showed. Codabench returns per-pair scores under anonymous
+IDs; we use only aggregates over pairs. For our previous submission 1010370, budget 0 scored
+B0 = 0.2834, above the constant's 0.25. Since 0.25 is the constant's score on any draw, this is a
+comparison within one draw. The budget-0 ECE was 0.340, above the 0.235­0.299 that the same
+predictor shows in all four simulated populations of Appendix A. From n = 1 on, the cross-pair
+model learns the level from the list, and the later budgets were in the range of the simulated inventory
+population (B1 = 0.2103 and B3 = 0.1909 against 0.2048 and 0.1893). Two facts about the training
+release point the same way. On the 33 inventory benchmarks, the hand-set prior is already worse
+than the constant at budget 0 (B0  0.2596; 0.2653 for subjects released in 2025 or later). And
+the release-year term raises the prior of every eligible test subject, since all are 2025­2026 releases,
+which is the wrong direction if the hidden benchmarks are harder than the release. A table of subject
+ability by model name, learned from the release, does not transfer to held-out benchmarks either
+(correlation -0.06 to +0.10, R2  0.019; Appendix B). So the subject terms are removed rather than
+re-fitted.
 
 Simulated populations. We do not know the hidden pool's composition, so we compare the
 variants in seven populations built from the training release with the round-4 simulator (Section 5.2;
@@ -246,70 +252,74 @@ like the release, we chose 1010717: significant gains in 3 of the five non-relea
 significant loss in any of them, and a bounded cost if we are wrong. The choice was recorded in our
 deep-dive notes (DEEP_DIVE.md) while the candidates' formative runs were pending, together with a
 rule for revising it: switch only if the selected run looked release-like at budget 0 and its budget-0
-Brier, matched by benchmark, were worse than the previous submission's. It was better (-0.0446, se
-0.0644), so the choice stood.
 
                                                            4
 Table 3: Organiser-scored formative runs (Codabench Scoring output; means over pairs). Each run is
-a fresh draw of pairs on the same 7 hidden benchmarks, so rows are not paired comparisons. ECE:
+a fresh draw of pairs on the same 7 hidden benchmarks, so rows are not paired comparisons. 1010835
+and 1010837 are deployment probes whose predictions are those of 1010717 (Section 5.3): with
+1010717 they are 3 draws of the selected predictor, whose mean is the best estimate of its level. ECE:
 budget-weighted summary ECE; ECE0: at budget 0. The constant 0.5 scores 0.25 at every budget on
 any draw.
 
-Submission                        Pairs B0 B1 B3 B7 B15 B31 ALC ECE ECE0
+Submission                               Pairs B0 B1 B3 B7 B15 B31 ALC ECE ECE0
 
-1010370 (round 4, as shipped) 9 0.2834 0.2103 0.1909 0.1786 0.1641 0.1627 0.1934 0.169 0.340
+1010370 (round 4, as shipped)            9 0.2834 0.2103 0.1909 0.1786 0.1641 0.1627 0.1934 0.169 0.340
+1010715 (subject terms off)              9 0.2247 0.1732 0.1624 0.1532 0.1494 0.1449 0.1646 0.118 0.263
+1010717 (selected)                       8 0.2302 0.1832 0.1540 0.1433 0.1475 0.1416 0.1628 0.142 0.278
+1010735 (stronger shift)                 9 0.2458 0.1944 0.1971 0.1835 0.1740 0.1692 0.1913 0.117 0.219
 
-1010715 (subject terms off) 9 0.2247 0.1732 0.1624 0.1532 0.1494 0.1449 0.1646 0.118 0.263
+1010835 (probe: 1010717's predictions, 2nd draw) 8 0.2425 0.1915 0.1963 0.1885 0.1775 0.1701 0.1920 0.124 0.228
 
-1010717 (selected)                8 0.2302 0.1832 0.1540 0.1433 0.1475 0.1416 0.1628 0.142 0.278
+1010837 (probe: 1010717's predictions, 3rd draw) 9 0.2568 0.2438 0.2048 0.2039 0.1961 0.1893 0.2143 0.142 0.254
 
-1010735 (stronger shift)          9 0.2458 0.1944 0.1971 0.1835 0.1740 0.1692 0.1913 0.117 0.219
+1010717's predictor, mean of 3 draws     ­ 0.2432 0.2062 0.1850 0.1785 0.1737 0.1670 0.1897 0.136 0.253
 
-constant 0.5 (any draw)           ­ 0.2500 0.2500 0.2500 0.2500 0.2500 0.2500 0.2500 ­ ­
+constant 0.5 (any draw)                  ­ 0.2500 0.2500 0.2500 0.2500 0.2500 0.2500 0.2500 ­ ­
 
-            Brier score   0.3                                               1010370
-                         0.25                                               1010715
-                                                                            1010717
-                          0.2                                               1010735
-                                                                          constant 0.5
+                         0.3
 
-                         0.15
+            Brier score  0.25                                                   1010370
+                                                                                1010715
+                         0.2                                                    1010717
+                                                                                1010735
+                         0.15                                                 constant 0.5
+                                                                                1010835
+                                                                                1010837
 
-                               0  1  3  7  15                         31
+                               0      1  3  7  15                         31
 
-                                  label budget n (axis: log2(n + 1))
+                                      label budget n (axis: log2(n + 1))
 
-Figure 1: Formative learning curves of the four runs (Table 3). Only the budget-0 points can be
-compared with a fixed reference (the constant, dashed); the curves come from different draws of
-pairs.
+Figure 1: Formative learning curves (Table 3). Red: the selected predictor on three draws (solid:
+1010717; dashed: the probes 1010835 and 1010837). The spread of the red curves is draw noise.
+Only the budget-0 points can be compared with a fixed reference (the constant, grey dashed).
+
+Brier, matched by benchmark, were worse than the previous submission's. It was better (-0.0446, se
+0.0644), so the choice stood.
 
 5 Results
 
 5.1 Formative runs on the hidden pool
 
-Budget 0. Table 3, Figure 1. The previous submission was the only run whose budget-0 Brier
-exceeded the constant's 0.25; the three recalibrated variants scored 0.2247­0.2458, and their budget-0
-ECE was lower (0.278 for 1010717). This is the effect the change targets, and it is a within-draw
-comparison against a fixed reference. It is still one draw per variant.
+Budget 0. Table 3, Figure 1. The previous submission's budget-0 Brier (0.2834) exceeded the
+constant's 0.25. The recalibrated predictors scored 0.2247­0.2568 on 5 draws; 1 of them, a draw
+of the selected predictor, was also above 0.25, and the selected predictor's mean over its 3 draws
+is 0.2432. Every recalibrated draw had a lower budget-0 ECE (at most 0.278) than the previous
+submission's 0.340. The change moved budget 0 in the intended direction on average, but not far
+enough to beat the constant on every draw.
 
-The rest is within draw noise. The ALCs of the four runs span 0.1628­0.1934 (standard deviation
-0.017). The simulator expects the three constants to change the ALC by -0.0069 to +0.0046 and any
-budget n  1 by at most 0.0046; yet the raw difference 1010717 - 1010370 averages -0.027 over
-n  1. Those differences come from the draws, not from the constants. A fairer comparison matches
-runs by benchmark, which the anonymous IDs allow without identifying anything: averaged over
-the 7 shared benchmarks, 1010717 - 1010370 is -0.0293 ALC (se 0.0284). The standard errors of
-such differences are 0.024­0.041, and none of the six pairwise comparisons reaches two of them
-(largest |t| = 1.75 with 6 degrees of freedom; Appendix A). The four runs therefore do not show that
-1010717 has a lower expected ALC than 1010370 or than its siblings, and we do not claim it; they
-show only that the recalibrated prior beat the constant at budget 0 on each of its draws. The final
-ranking uses one common test subset for all teams, where only the expected score matters.
-
-Leaderboard context. The public board for this phase (snapshot 2026-10-26) has 58 entries: #1
-0.1172, #10 0.1483, median 0.1768; the entry of the organisers' account (AIMS Foundations) scores
-0.1801. Each entry is a user's best draw, and up to 50 uploads per day are allowed, so board positions
-mix skill and selection. Our selected run (0.1628) would sit at about place 22, our previous one
-(0.1934) at 46. Even our best draw is far from the leaders; in simulation, most of the remaining
-headroom is item-level difficulty (Appendix B).
+The gaps between runs are draw noise. The selected predictor scored 0.1628, 0.1920 and 0.2143
+on three draws: mean 0.1897, standard deviation 0.026, range 0.052. This is our most direct measure
+of draw noise, and it exceeds every gap between the four submission runs (range 0.0306). The gaps of
+that size between our runs are therefore draw noise, not differences between predictors. Likewise, the
+simulator expects the three constants to change the ALC by -0.0069 to +0.0046 and any budget n  1
+by at most 0.0046; yet the raw difference 1010717 - 1010370 averages -0.027 over n  1. Matching
+runs by benchmark gives the same picture: averaged over the 7 shared benchmarks, 1010717 -
+1010370 is -0.0293 ALC (se 0.0284), while two draws of the same predictor differ by up to +0.0230
+(se 0.0159). None of the six comparisons between submissions reaches two standard errors (largest
+|t| = 1.75 with 6 degrees of freedom; Appendix A). The runs therefore do not rank the variants: all
+have about the same expected score, and the choice of 1010717 rests on the simulator (Section 4).
+The best estimate of the selected predictor's formative level is the mean of its draws, 0.1897 (standard
 
                                                            5
 Table 4: Round-4 simulation on the training release: Brier ALC by test-set configuration, units (test
@@ -325,6 +335,18 @@ B: one benchmark, all pairs   6,772/135   0.2131 0.2087 0.1842 0.1793 -0.0289 [-
 C: one fold, many benchmarks  9,577/125   0.2190 0.2084 0.1797 0.1780 -0.0393 [-0.0521, -0.0280] -0.0287 [-0.0384, -0.0191]
 D: A + eval-only small pairs  14,293/135  0.2097 0.2096 0.1969 0.1706 -0.0128 [-0.0150, -0.0108] -0.0127 [-0.0160, -0.0094]
 
+error 0.015), not its best draw. The final ranking uses one common test subset for all teams, where
+only the expected score matters.
+
+Leaderboard context. The public board for this phase (snapshot 2026-10-26) has 58 entries: #1
+0.1172, #10 0.1483, median 0.1768; the entry of the organisers' account (AIMS Foundations) scores
+0.1801. Each entry is a user's best draw, and up to 50 uploads per day are allowed, so board positions
+mix skill and selection. The selected predictor's mean over its three draws (0.1897, standard deviation
+0.026) would sit at about place 46, its best draw (0.1628), which is what the board would show, at
+22, and the previous submission's single draw (0.1934) at 46. Even our best draw is far from the
+leaders; in simulation, most of the remaining headroom is item-level difficulty (Appendix B), which
+our attempt with an LLM rater did not capture (Section 5.3).
+
 5.2 Development evidence for the cross-pair model
 
 Protocol. The round-4 simulator rebuilds the official protocol on the training release with five
@@ -335,7 +357,7 @@ the test set receives the union of all its pairs' first n labels. The primary co
 mative runs), 300 test sets per fold. Configurations B­E vary the composition (Appendix C).
 The design, the grid of 864 prior settings, nested selection and a ship rule were pre-registered
 (experiments/results/round4/PREREG.md, SHA-256 prefix b9e95a5b47e9) before any out-
-come was computed. 95% CIs come from a cluster bootstrap over benchmarks (2,000 resamples).
+come was computed.
 
 Cross-pair gain. Table 4. In configuration A the cross-pair model reaches 0.1966 against 0.2095
 for the per-pair predictor (-0.0129 [-0.0151, -0.0109], lower on 73% of units), closing 35% of the gap
@@ -348,36 +370,80 @@ changes the ALC by -0.0005 [-0.0009, -0.0002], almost all at n  15.
 
 Inside the organisers' client. Driven by a mock coordinator on the local testbed, the organisers'
 run_streaming runs the selected files in stream acquisition mode with 0 predict calls during
-acquisition and 31 labels on each of the 17 pairs. The ALC is 0.2179 against 0.2179 for the previous
-files (+0.00003): the subjects there are small 2024 models, and the level change hardly matters.
-The selected model.py reproduces the vectorised simulator with the same constants to 1.1 × 10-5
-on 56,750 predictions. The organisers' check_submission_zip.py passes on the ZIP, and our
-smoke test (44 interface and robustness cases plus 220 cross-pair cases) passes. On the local testbed
-the cross-pair model's ALC difference to our earlier predictor is -0.0074 [-0.0203, +0.0032] (not
-significant; significant in 4 of 5 acquisition trajectories).
+acquisition and 31 labels on each of the 17 pairs; the ALC is 0.2179 against 0.2179 for the previous
+files (the testbed's small 2024 models hardly feel the level change). The selected model.py matches
+the vectorised simulator to 1.1 × 10-5, and the organisers' validator and our smoke test pass
+(Appendix A).
+
+5.3 A pre-registered negative result: LLM-rated item difficulty
+
+In simulation most of the remaining headroom is item difficulty (Appendix B), so we tested whether
+a small open LLM can supply it at scoring time. Pre-registration. PREREG_items.md (written
+2026-10-26 13:08 PDT, SHA-256 prefix 06d9e784369b) fixed the signal, items, offset model and
+gate before any item was rated. Three amendments followed, each before any rating was analysed:
+Amendment 1 (2026-10-26 13:18 PDT) let the rating model be chosen between two 4B models by
+
+                                                           6
+speed alone; Amendment 2 (2026-10-26 13:31 PDT) added an intercept-only control, after a dry run
+on stub ratings showed that the fitted intercept alone moves the ALC; Amendment 3 (2026-10-26
+14:08 PDT) registered an API rating route with the same analysis, which was built and never run.
+Signal. Qwen/Qwen3-VL-4B-Instruct (snapshot ebb281ec70b0), run locally, read each item and
+answered whether a state-of-the-art 2025­26 AI system would most likely complete it; the signal
+is s1 = log P (Yes) - log P (No) from one forward pass without generation. It rated all 24,199
+items (20,720 distinct prompts) of two populations: INV (33 inventory benchmarks, the proxy for
+the hidden pool) and AS (25 seeded non-inventory benchmarks, a release-like check). Gate. The
+candidate adds w z(s1) + b to the prior offset of 1010717, with w and b fitted leave-benchmark-out in
+each fold. It ships only if (a) on INV its ALC difference has a 95% cluster-bootstrap CI below 0 and
+(b) on AS it is not significantly worse, both against the base and against the intercept-only control.
+
+The gate fails (Table 8): (a) fails in both comparisons, (b) holds. Against the base the ALC changes
+by +0.0005 [-0.0015, +0.0024] on INV and -0.0023 [-0.0050, +0.0008] on AS; against the control
+by -0.0006 [-0.0014, +0.0002] on INV. The signal is real but weak. Its slope is positive in 5 of 5
+folds (0.15­0.19 per standard deviation), so unlike our round-3 text prior its sign transfers across
+benchmarks. But its within-benchmark correlation with the empirical item effect is only 0.089 on INV
+and 0.037 on AS (medians over benchmarks). The differences to the base are mostly the level effect
+of b at budget 0 (+0.0080 on INV, -0.0252 on AS), which the control isolates. 1010717 therefore stays
+the submission and contains no model. We still checked deployment, with three uploads that add the
+rating model to models.txt of the selected ZIP (1010835, 1010837, 1010865). Probes 1010835
+and 1010837 return the selected predictor's predictions, so their scores are the two extra draws in
+Table 3. Probe 1010837 finished with a valid score, which by its design means that the model loaded
+from the prefetched cache and ran a forward pass on the scoring GPU, unless the probe did not run at
+all. Probe 1010865 stopped with the platform's invalid-output error (PAIEC-PREDICT-002), which
+it returns only after a successful load on a GPU of at least 70 GB.
 
 6 Limitations
 
 The choice rests on simulation and one budget-0 observation. The hidden pool's composition is
 unknown. The seven populations bracket it, but they are all built from the training release, whose
-subjects (many test-condition variants of one model, many without names or release dates) differ from
-the 2025­2026 competition subjects. If the hidden pool were release-like, 1010717 would cost about
-+0.0018­+0.0046 ALC. Formative noise. Each formative run is one draw of 8­9 pairs; four runs
-cannot rank the variants (Section 5.1). We did not estimate how often the previous prior would exceed
-0.25 at budget 0 on a release-like draw. Choosing the level after seeing formative feedback is a mild
-form of tuning on the test pool; we changed three constants once, on the strength of one aggregate and
-the simulations. The level is global. One intercept cannot fix benchmark-specific difficulty at budget
-0. In simulation, knowing each test benchmark's mean difficulty would change the ALC by -0.0065
-(release-like) to -0.0114 (hard), and knowing item difficulty by -0.0417 to -0.0342 (Appendix B).
-Nothing in the submission estimates either before labels arrive. Cross-pair assumptions. The gain
-depends on how many pairs share a list; item identity is exact text match within a benchmark; pairs
-with fewer than 80 items are handled under one assumed rule (Appendix C). Local testbed. 17 pairs
+subjects (many test-condition variants of one model, many without names or release dates) differ
+from the 2025­2026 competition subjects. If the hidden pool were release-like, 1010717 would cost
+about +0.0018­+0.0046 ALC. Formative noise. Each formative run is one draw of 8­9 pairs, and the
+selected predictor's own draws span 0.1628­0.2143; our runs cannot rank the variants (Section 5.1),
+and three draws estimate the selected predictor's level only to a standard error of 0.015. We did
+not estimate how often the previous prior would exceed 0.25 at budget 0 on a release-like draw.
+Choosing the level after seeing formative feedback is a mild form of tuning on the test pool; we
+changed three constants once, on the strength of one aggregate and the simulations. The level is
+global. One intercept cannot fix benchmark-specific difficulty at budget 0. In simulation, knowing
+each test benchmark's mean difficulty would change the ALC by -0.0065 (release-like) to -0.0114
+(hard), and knowing item difficulty by -0.0417 to -0.0342 (Appendix B). Nothing in the submission
+estimates either before labels arrive, and our pre-registered attempt to estimate item difficulty with a
+local 4B LLM failed its gate (Section 5.3); a stronger rater might do better, but we did not test one.
+Cross-pair assumptions. The gain depends on how many pairs share a list; item identity is exact
+text match within a benchmark; pairs with fewer than 80 items are handled under one assumed rule
+(Appendix C). Local testbed. 17 pairs of small models on three benchmarks give wide CIs; it checks
+engineering, not accuracy on frontier systems.
 
-                                                           6
-of small models on three benchmarks give wide CIs; it checks engineering, not accuracy on frontier
-systems.
+7 Conclusion
 
-7 Reproducing the submission
+We submit 1010717: the round-4 cross-pair random-effects predictor with its budget-0 level recal-
+ibrated by three constants. Its formative level is best summarised by the mean of its three draws,
+0.1897 (standard deviation 0.026; draws 0.1628­0.2143), not by its best draw. Within this noise the
+variants we scored have about the same expected score; 1010717 is the one the simulator favours in
+harder, inventory-like populations. Most of the remaining headroom is item-level difficulty, which a
+pre-registered local-LLM rater did not capture.
+
+                                                           7
+8 Reproducing the submission
 
 Code, results and this report: https://github.com/neelsirivara/neurips2026-paiec. The
 submission is submission/candidates/xp_level_m050.zip (20.0 kB; members README.md,
@@ -392,11 +458,9 @@ Uploading it unchanged reproduces a formative run; scores vary between runs beca
 draws new pairs. The commands below run from experiments/src with Python 3 (standard library
 for the submission, numpy for the simulator; -I because the simulator reads downloaded data).
 
-# 1. Rebuild the selected ZIP from the round-4 ZIP (submission/paiec_submission.zip): replace the
+# 1. Rebuild the selected ZIP from submission/paiec_submission.zip (three constant lines), then run the
 
-# three constant lines, then run the organisers' validator (verbatim check_submission_zip.py,
-
-# commit cc88a959), our smoke test, and official_loop_check.py (organisers' run_streaming client).
+# organisers' validator (commit cc88a959), our smoke test and official_loop_check.py (run_streaming).
 
 python -I deep_dive/build_candidate.py xp_level_m050 --intercept -0.5 \
 
@@ -404,9 +468,7 @@ python -I deep_dive/build_candidate.py xp_level_m050 --intercept -0.5 \
 
 # The same checks with the organisers' starting kit (in the kit's directory):
 
-python tools/check_submission_zip.py xp_level_m050.zip
-
-python tools/run_smoke_test.py xp_level_m050/
+python tools/check_submission_zip.py xp_level_m050.zip; python tools/run_smoke_test.py xp_level_m050/
 
 # 2. Simulator: download the training release (Hugging Face login, dataset terms accepted),
 
@@ -420,42 +482,58 @@ python -I xpair_sim.py build --payload DIR # then: cv, addendum, acq, realtest, 
 
 python -I deep_dive/proto_level3.py       # Table 2; also ece_check, decision_stat,
 
-                                               # proto_oracle, grid_inv, candidate_equivalence
+                                          # proto_oracle, grid_inv, candidate_equivalence
+
+# Negative item study (Section 5.3): extract the items, rate them locally (GPU), test the gate.
+
+python -I deep_dive/items_extract.py
+
+python -I deep_dive/rate_items.py --items deep_dive_items.jsonl --out ratings.jsonl --backend hf \
+
+--model Qwen/Qwen3-VL-4B-Instruct
+
+python -I deep_dive/eval_items.py ratings.jsonl
 
 # 3. Formative aggregates from saved Codabench scoring logs (private to the submitter); the report.
 
 python -I deep_dive/formative_summary.py
 
-bash build_paper.sh                            # every number, table, figure and the claim audit
+bash build_paper.sh                       # every number, table, figure and the claim audit
 
 plan lists the current head of the dataset and records its revision; our results used revision
 54074453da, and a later revision may hold more benchmarks. The deep-dive scripts currently
 set absolute paths in deep_dive/dd_common.py, which must be edited on another machine. Seeds
 
-are fixed. Hardware: one laptop CPU (8 cores, 34 GB RAM, no GPU).
+are fixed. Hardware: one laptop CPU (8 cores, 34 GB RAM, no GPU); the item ratings ran on a Mac
 
-8 Disclosure
+GPU (MPS).
+
+9 Disclosure
 
 Training sources. aims-foundations/measurement-db, revision 54074453da (subjects,
 items and responses of the 163 competition-eligible directories, downloaded 2026-10-22 with
 the author's account), and the organisers' benchmark inventory, used only to mark which release
 benchmarks are inventory rows. They were used to simulate the protocol and to select the cross-pair
-prior standard deviations and the three level constants. Earlier rounds used the release to validate the
-per-pair rule and to fit two candidate priors that were not shipped. No other data source; the submitted
-files contain no data. Formative feedback. The aggregate scores of our four runs guided the level
-change, as the rules allow. We did not invert per-pair rows into success rates or try to identify subjects
-or benchmarks. Pretrained models. None in the selected submission (no models.txt, no network
+prior standard deviations and the three level constants; the item study rated its item texts. Earlier
+rounds also fitted two unshipped priors on it. No other data source; the submitted files contain
+no data. Formative feedback. The aggregate scores of our four runs guided the level change, as
+the rules allow. We did not invert per-pair rows into success rates or try to identify subjects or
+benchmarks. Pretrained models. None in the selected submission (no models.txt, no network
 calls). During development, Qwen2.5-Instruct 1.5B/3B/7B and Llama-3.2-3B-Instruct (via Ollama)
 were evaluation subjects of the local testbed, and all-MiniLM-L6-v2 was used in one unshipped
-ablation. Evaluation data. GSM8K, SVAMP and ten BIG-Bench-Hard subtasks, only to label the
+ablation. Qwen/Qwen3-VL-4B-Instruct rated the training-release items of the negative study
+(Section 5.3) and was listed in models.txt of the three deployment probes (1010835, 1010837,
+1010865); Qwen/Qwen3.5-4B was used only in the speed comparison of Amendment 1. A Claude-
+API rater (Message Batches, Amendment 3) was built but never run: no item was rated through
+an API. Evaluation data. GSM8K, SVAMP and ten BIG-Bench-Hard subtasks, only to label the
 local models. Reused code. Verbatim copies of the organisers' check_submission_zip.py and
 streaming_ingestion.py from their public baseline repository [Truong et al., 2026], for local
-checks only (licence in experiments/src/validator/). Compute. A CPU-only laptop. LLM
-coding assistant. This work was done with an AI coding assistant: Anthropic's Claude, through
-Claude Code, wrote the code, ran the experiments and drafted this report under the author's direction.
-The author is responsible for the submission and the report.
+checks only. Compute. A CPU-only laptop, except the item ratings, which took 3.2 h of model time
+on a Mac GPU (bf16, MPS backend). LLM coding assistant. This work was done with an AI coding
+assistant: Anthropic's Claude, through Claude Code, wrote the code, ran the experiments and drafted
+this report under the author's direction. The author is responsible for the submission and the report.
 
-                                                           7
+                                                 8
 References
 
 N. E. Breslow and D. G. Clayton. Approximate inference in generalized linear mixed models.
@@ -520,7 +598,7 @@ Sang Truong, Wale Salaudeen, Nhi Truong, Serena Wang, Angelina Wang, Luke Guerda
   Xiao, Xing Xie, Nick Haber, and Sanmi Koyejo. PAIEC predictor baselines. GitHub repository,
   2026. URL https://github.com/aims-foundations/paiec_baseline.
 
-                                                           8
+                                                           9
 Qinyuan Ye, Harvey Yiyun Fu, Xiang Ren, and Robin Jia. How predictable are large language
    model capabilities? A case study on BIG-bench. In Findings of the Association for Computational
   Linguistics: EMNLP 2023, 2023. arXiv:2305.14947.
@@ -544,7 +622,7 @@ errors (largest |t| = 1.75). Of all 42 entries, 1 reaches two standard errors (l
 reach the two-sided 5% critical value of t with 6 degrees of freedom (2.45), before any correction for
 the 42 comparisons.
 
-Runs                   B0      B1            B3       B7            B15       B31  ALC
+Runs  B0  B1  B3      B7  B15                          B31  ALC
 
 1010715 - 1010370 -0.064 (0.033) -0.054 (0.023) -0.035 (0.025) -0.041 (0.027) -0.030 (0.030) -0.033 (0.030) -0.042 (0.024)
 1010717 - 1010370 -0.045 (0.064) -0.028 (0.034) -0.032 (0.024) -0.036 (0.027) -0.017 (0.034) -0.023 (0.033) -0.029 (0.028)
@@ -552,6 +630,17 @@ Runs                   B0      B1            B3       B7            B15       B3
 1010717 - 1010715 +0.019 (0.033) +0.027 (0.041) +0.002 (0.043) +0.005 (0.042) +0.014 (0.049) +0.010 (0.044) +0.012 (0.040)
 1010735 - 1010715 +0.037 (0.059) +0.026 (0.042) +0.024 (0.040) +0.029 (0.043) +0.022 (0.044) +0.023 (0.045) +0.026 (0.041)
 1010735 - 1010717 +0.018 (0.063) -0.001 (0.022) +0.022 (0.020) +0.025 (0.026) +0.009 (0.031) +0.013 (0.031) +0.014 (0.028)
+
+Three draws of the selected predictor. The probe ZIPs' model.py begins
+with the selected model.py byte for byte and appends a wrapper that re-
+turns the selected predictor's prediction; labeling.py is identical (verified;
+experiments/results/deep_dive/selected_predictor_draws.json, parsed from the
+saved Scoring output with parse_feedback.py). Their draws used the same 7 benchmark IDs
+as 1010717 and shared at most 1 pair with it. Benchmark-matched ALC differences between the
+draws are +0.0123 (se 0.0183; 1010835 - 1010717), +0.0230 (se 0.0159; 1010837 - 1010717) and
++0.0107 (se 0.0145; 1010837 - 1010835). The largest of these differences between draws of one
+predictor exceeds 3 of the 6 ALC differences between submissions in Table 5, as expected if those
+are draw noise.
 
 Budget-0 calibration in simulation. Budget-0 ECE (mean over pairs) of the previous predictor in
 four simulated populations: A 0.235, INV 0.271, HARD 0.299, SHIFT 0.286. The formative run of
@@ -564,13 +653,21 @@ predictor are 0.082 (A), 0.095 (INV), 0.092 (MID) and 0.119 (HARD), with single-
 deviations 0.047­0.060; the formative value was 0.1207. Alone it separates the populations only
 weakly.
 
-Table 6: Simulated populations (Table 2) with all three variants: ALC and difference to the previous
+Checks on the three variants. For each variant ZIP (1010717, 1010735, 1010715): the organisers'
+validator passes, passes, passes; the smoke test passes, passes, passes (44, 44, 44 cases); the stdlib
+model.py matches the numpy simulator with the same constants (max. difference 1.1 × 10-5,
+1.0 × 10-5, 1.2 × 10-5 for 1010717, 1010735, 1010715), labeling.py is identical to the previous
+submission's, and the previous ZIP was unchanged by the build. Local-testbed ALC in the organisers'
+client: 0.2179 (1010717), 0.2180 (1010735), 0.2208 (1010715) and 0.2179 (1010370).
+
+                  10
+Table 6: Simulated populations (Table 2) with all three variants: ALC and difference to the previous
 
 predictor, mean [95% cluster-bootstrap CI over benchmarks]. Oracle: each pair's evaluation success
 rate as a constant. Source: experiments/results/deep_dive/proto_level3.json.
 
-Population Oracle 1010370 ALC  1010715           ALC  1010717            ALC       1010735
-                                   [95% CI]               [95% CI]                     [95% CI]
+Population Oracle 1010370 ALC  1010715       ALC  1010717            ALC  1010735
+                                   [95% CI]           [95% CI]                [95% CI]
 
 A      0.1731  0.1965  0.1968 +0.0002 [-0.0004, +0.0008] 0.1984 +0.0018 [+0.0005, +0.0032] 0.2022 +0.0057 [+0.0035, +0.0079]
 Y25    0.1640  0.1860  0.1867 +0.0007 [-0.0008, +0.0022] 0.1906 +0.0046 [+0.0015, +0.0076] 0.1964 +0.0104 [+0.0058, +0.0148]
@@ -579,15 +676,6 @@ INV25  0.1692  0.1898  0.1883 -0.0015 [-0.0038, +0.0010] 0.1889 -0.0009 [-0.0063
 MID    0.1664  0.1903  0.1892 -0.0011 [-0.0021, -0.0001] 0.1862 -0.0041 [-0.0057, -0.0025] 0.1861 -0.0042 [-0.0067, -0.0018]
 HARD   0.1388  0.1630  0.1610 -0.0019 [-0.0036, -0.0002] 0.1561 -0.0069 [-0.0090, -0.0048] 0.1542 -0.0087 [-0.0115, -0.0057]
 SHIFT  0.1731  0.2023  0.2017 -0.0006 [-0.0013, +0.0001] 0.1980 -0.0042 [-0.0056, -0.0028] 0.1968 -0.0055 [-0.0078, -0.0030]
-
-Checks on the three variants. For each variant ZIP (1010717, 1010735, 1010715): the organisers'
-validator passes, passes, passes; the smoke test passes, passes, passes (44, 44, 44 cases); the stdlib
-model.py matches the numpy simulator with the same constants (max. difference 1.1 × 10-5,
-1.0 × 10-5, 1.2 × 10-5 for 1010717, 1010735, 1010715), labeling.py is identical to the previous
-
-                                                           9
-submission's, and the previous ZIP was unchanged by the build. Local-testbed ALC in the organisers'
-client: 0.2179 (1010717), 0.2180 (1010735), 0.2208 (1010715) and 0.2179 (1010370).
 
 B Deep-dive analyses of the previous submission
 
@@ -616,8 +704,8 @@ Table 7: Simulated ALC with oracle side information inside the previous predicto
 HARD: mean rate  0.4); difference to the previous predictor (A: 0.1965, HARD: 0.1630) with 95%
 cluster-bootstrap CI.
 
-Oracle offset                                 ALC            A         ALC      HARD
-                                                             [95% CI]              [95% CI]
+Oracle offset                  ALC            A                 ALC       HARD
+                                              [95% CI]                       [95% CI]
 
 benchmark mean logit (with test pairs) 0.1900 -0.0065 [-0.0081, -0.0051] 0.1516 -0.0114 [-0.0148, -0.0079]
 
@@ -625,111 +713,144 @@ item effect from other subjects, ×0.5 0.1655 -0.0310 [-0.0348, -0.0272] 0.1364 -
 
 item effect from other subjects, ×1 0.1548 -0.0417 [-0.0475, -0.0360] 0.1287 -0.0342 [-0.0438, -0.0259]
 
-benchmark mean + item effect                  0.1494 -0.0471 [-0.0526, -0.0417] 0.1193 -0.0437 [-0.0530, -0.0353]
+benchmark mean + item effect   0.1494 -0.0471 [-0.0526, -0.0417] 0.1193 -0.0437 [-0.0530, -0.0353]
+
+LLM-rated item difficulty: details. Table 8 gives every comparison of the study in Section 5.3
+(source: experiments/results/deep_dive/items/eval_items_qwen3vl_4b.json, which
+records the hashes of the pre-registration and of Amendments 1 and 2, consistent with the files; ratings
+file SHA-256 prefix 390442e88612). Every needed item was rated (coverage 100% on INV and
+100% on AS; 0.56 s per prompt on average). The fitted maps per fold have slope w from 0.15 to 0.19
+and intercept b from 0.33 to 0.56, close to the intercept-only control's 0.32­0.53; on INV the rating
+changes B1­B31 by at most 0.0006. The within-benchmark correlation of s1 with the leave-pair-out
+empirical item effect has median 0.089 (mean 0.109, positive on 77% of 26 benchmarks) on INV and
+median 0.037 (mean 0.033, 67% of 21) on AS. The exploratory signal s3, the mean log-probability
+of the item text, and the combination s1 + s3 also have CIs that include 0 on INV. Amendment 3
+(SHA-256 prefix 63ca97b978f9) registered rating by the Claude API with a verbalised probability;
+the script exists, but no API rating was ever made, so that candidate has no result.
+
+                                                          11
+Table 8: Pre-registered item-difficulty study (Qwen/Qwen3-VL-4B-Instruct, s1 = log P (Yes) -
+log P (No)): ALC of each variant, its difference to the base (1010717; INV 0.1868, AS 0.1950) with
+95% cluster-bootstrap CI over benchmarks, and the budget-0 part of that difference. The last row
+is the Amendment-2 comparison against the intercept-only control. Gate: (a) INV CI below 0 fails
+against the base and fails against the control; (b) AS not significantly worse holds.
+
+                                                                  INV (33 inventory benchmarks)                    AS (25 release-like benchmarks)
+
+Comparison                                                   ALC               [95% CI]                   B0 ALC             [95% CI]                     B0
+
+s1 (pre-registered) - base                                0.1873 +0.0005 [-0.0015, +0.0024] +0.0080 0.1928 -0.0023 [-0.0050, +0.0008] -0.0252
+
+intercept only (control) - base 0.1879 +0.0011 [-0.0011, +0.0030] +0.0092 0.1928 -0.0022 [-0.0045, +0.0003] -0.0219
+
+s3 (exploratory) - base                                   0.1876 +0.0008 [-0.0016, +0.0030] +0.0081 0.1933 -0.0018 [-0.0044, +0.0011] -0.0212
+
+s1 + s3 (exploratory) - base 0.1871 +0.0003 [-0.0018, +0.0024] +0.0074 0.1932 -0.0018 [-0.0048, +0.0013] -0.0224
+
+s1 - intercept only                                          ­ -0.0006 [-0.0014, +0.0002] ­                        ­ -0.0000 [-0.0010, +0.0011] ­
 
 C Round 4: details
 
-Table 8: Brier score per budget and ALC (configurations A and E) and the paired difference XP - S0
+Table 9: Brier score per budget and ALC (configurations A and E) and the paired difference XP - S0
 with its 95% cluster-bootstrap CI (level constants of 1010370).
 
-Method               B0       B1                   B3       B7         B15      B31          ALC
+Method                                                 B0         B1                         B3           B7       B15                    B31             ALC
 
-A S0 (rounds 1­3, as deployed) 0.2475 0.2221       0.2098   0.2000     0.1956   0.1924       0.2095
+A S0 (rounds 1­3, as deployed) 0.2475 0.2221                                  0.2098                   0.2000      0.1956                 0.1924          0.2095
 
-A S1 (own pair's labels only) 0.2475 0.2284        0.2107   0.1957     0.1876   0.1819       0.2074
+A S1 (own pair's labels only) 0.2475 0.2284                                   0.2107                   0.1957      0.1876                 0.1819          0.2074
 
-A XP (cross-pair, shipped) 0.2475 0.2126           0.1992   0.1868     0.1776   0.1663       0.1966
+A XP (cross-pair, shipped) 0.2475 0.2126                                      0.1992                   0.1868      0.1776                 0.1663          0.1966
 
-A oracle: pair rate  0.1731 0.1731                 0.1731   0.1731     0.1731   0.1731       0.1731
+A oracle: pair rate                                    0.1731 0.1731          0.1731                   0.1731      0.1731                 0.1731          0.1731
 
-A XP - S0            ­        -0.0096              -0.0106  -0.0132    -0.0180  -0.0261      -0.0129
+A XP - S0                                                 ­       -0.0096     -0.0106                  -0.0132     -0.0180                -0.0261         -0.0129
 
-95% CI               ­ [-0.0131, -0.0063] [-0.0133, -0.0082] [-0.0156, -0.0109] [-0.0211, -0.0151] [-0.0301, -0.0224] [-0.0151, -0.0109]
+95% CI                                                    ­ [-0.0131, -0.0063] [-0.0133, -0.0082] [-0.0156, -0.0109] [-0.0211, -0.0151] [-0.0301, -0.0224] [-0.0151, -0.0109]
 
-E S0 (rounds 1­3, as deployed) 0.2487 0.2282       0.2104   0.1958     0.1886   0.1831       0.2078
+E S0 (rounds 1­3, as deployed) 0.2487 0.2282                                  0.2104                   0.1958      0.1886                 0.1831          0.2078
 
-E S1 (own pair's labels only) 0.2487 0.2294        0.2106   0.1950     0.1871   0.1812       0.2074
+E S1 (own pair's labels only) 0.2487 0.2294                                   0.2106                   0.1950      0.1871                 0.1812          0.2074
 
-E XP (cross-pair, shipped) 0.2487 0.2135           0.1976   0.1846     0.1751   0.1628       0.1953
+E XP (cross-pair, shipped) 0.2487 0.2135                                      0.1976                   0.1846      0.1751                 0.1628          0.1953
 
-E oracle: pair rate  0.1730 0.1730                 0.1730   0.1730     0.1730   0.1730       0.1730
+E oracle: pair rate                                    0.1730 0.1730          0.1730                   0.1730      0.1730                 0.1730          0.1730
 
-E XP - S0            ­        -0.0147              -0.0128  -0.0111    -0.0135  -0.0203      -0.0125
+E XP - S0                                                 ­       -0.0147     -0.0128                  -0.0111     -0.0135                -0.0203         -0.0125
 
-95% CI               ­ [-0.0207, -0.0087] [-0.0161, -0.0094] [-0.0135, -0.0085] [-0.0167, -0.0102] [-0.0250, -0.0154] [-0.0148, -0.0100]
+95% CI                                                    ­ [-0.0207, -0.0087] [-0.0161, -0.0094] [-0.0135, -0.0085] [-0.0167, -0.0102] [-0.0250, -0.0154] [-0.0148, -0.0100]
+
+        Brier score (lower is better)             (a) config A: formative-like, 13460 pairs            (b) config E: distinct models, 8673 pairs
+                                       0.250
+
+                                       0.225
+
+                                       0.200
+
+                                       0.175
+
+                                       0.150           1     3             7  15                 31    0        1  3        7             15          31
+                                                    0
+
+                                                       labels per pair n (axis: log2 (n + 1))                 labels per pair n (axis: log2 (n + 1))
+
+                                                          S0: rounds 1-3 predictor on the global list     XP: cross-pair model (shipped)
+                                                          S1: same, own pair's labels only                oracle: pair success rate
+
+Figure 2: Brier score per budget on the training release (benchmark-held-out). Bands: marginal 95%
+cluster-bootstrap CIs over benchmarks; the paired differences, which are much tighter, are in Table 9.
+XP falls below the pair-rate oracle at n = 31 because it learns item difficulty from other subjects.
 
 Configurations. A (primary, formative-like): 1­3 random benchmarks, 10 random pairs with at
 least 80 items split over them, 100 items per pair, 300 test sets per fold; E: as A but no two pairs
 share a model name, so cross-pair evidence comes only from different models; B: all pairs of one
 benchmark (up to 300, 200 items each); C: up to 2,000 pairs of a whole fold in one list; D: A plus up
+to two pairs with 20­79 items that are evaluated on all items and never acquired (the page does not
+say how such pairs are handled). Per-pair ALC; means over (test set, pair) units. Units, benchmarks,
+test sets and labels at budget 31: A 13,460/135/1,500/417,260; E 8,673/135/1,500/268,863; B
+6,772/135/135/209,932; C 9,577/125/5/296,887; D 14,293/135/1,500/417,260. In D the acquired
+pairs gain -0.0129 [-0.0151, -0.0109] and evaluation-only pairs -0.0120 [-0.0217, -0.0036]. Frame
 
-                                                          10
-         Brier score (lower is better)             (a) config A: formative-like, 13460 pairs                   (b) config E: distinct models, 8673 pairs
-                                        0.250
-
-                                        0.225
-
-                                        0.200
-
-                                        0.175
-
-                                        0.150                  1  3         7  15               31             0  1           3    7              15         31
-                                                     0
-
-                                                        labels per pair n (axis: log2 (n + 1))                    labels per pair n (axis: log2 (n + 1))
-
-                                                                  S0: rounds 1-3 predictor on the global list     XP: cross-pair model (shipped)
-                                                                  S1: same, own pair's labels only                oracle: pair success rate
-
-Figure 2: Brier score per budget on the training release (benchmark-held-out). Bands: marginal 95%
-cluster-bootstrap CIs over benchmarks; the paired differences, which are much tighter, are in Table 8.
-XP falls below the pair-rate oracle at n = 31 because it learns item difficulty from other subjects.
-
-Table 9: Components (all-fold setting; configurations A and E): ALC and paired difference to the
+                                                                                                 12
+Table 10: Components (all-fold setting; configurations A and E): ALC and paired difference to the
 shipped setting (positive: removing the component hurts).
 
-                                                                               A: formative-like                                   E: distinct models
+                                         A: formative-like                          E: distinct models
 
-Variant                                                              ALC                       [95% CI]                       ALC                  [95% CI]
+Variant                        ALC                      [95% CI]               ALC   [95% CI]
 
-shipped setting (all effects)                                     0.1965                        ­                    0.1952                               ­
+shipped setting (all effects)  0.1965                  ­          0.1952                       ­
 
-- benchmark effect                                                0.2013 +0.0048 [+0.0032, +0.0064] 0.2003 +0.0050 [+0.0032, +0.0070]
+- benchmark effect             0.2013 +0.0048 [+0.0032, +0.0064] 0.2003 +0.0050 [+0.0032, +0.0070]
 
-- subject effect                                                  0.1969 +0.0004 [+0.0001, +0.0008] 0.1954 +0.0002 [-0.0002, +0.0006]
+- subject effect               0.1969 +0.0004 [+0.0001, +0.0008] 0.1954 +0.0002 [-0.0002, +0.0006]
 
 - subject­benchmark effect 0.1975 +0.0010 [+0.0004, +0.0017] 0.1959 +0.0006 [-0.0000, +0.0014]
 
-- exact-item effect                                               0.2013 +0.0048 [+0.0038, +0.0059] 0.2005 +0.0053 [+0.0038, +0.0068]
+- exact-item effect            0.2013 +0.0048 [+0.0038, +0.0059] 0.2005 +0.0053 [+0.0038, +0.0068]
 
-- probit integration                                              0.1970 +0.0005 [+0.0000, +0.0009] 0.1958 +0.0006 [-0.0000, +0.0011]
+- probit integration           0.1970 +0.0005 [+0.0000, +0.0009] 0.1958 +0.0006 [-0.0000, +0.0011]
 
 benchmark + pair effects only 0.2018 +0.0053 [+0.0043, +0.0063] 0.2008 +0.0056 [+0.0041, +0.0071]
 
 name/subject + pair effects only 0.2095 +0.0130 [+0.0105, +0.0157] 0.2095 +0.0143 [+0.0114, +0.0173]
 
-pair + item effects only                                          0.2101 +0.0135 [+0.0099, +0.0174] 0.2096 +0.0144 [+0.0100, +0.0189]
+pair + item effects only       0.2101 +0.0135 [+0.0099, +0.0174] 0.2096 +0.0144 [+0.0100, +0.0189]
 
-pair effect only                                                  0.2167 +0.0202 [+0.0163, +0.0243] 0.2168 +0.0216 [+0.0171, +0.0264]
+pair effect only               0.2167 +0.0202 [+0.0163, +0.0243] 0.2168 +0.0216 [+0.0171, +0.0264]
 
-Table 10: Runtime of the round-4 model.py on one laptop core (synthetic global lists of 250-word
+Table 11: Runtime of the round-4 model.py on one laptop core (synthetic global lists of 250-word
 items, 31 labels and 50 evaluation items per pair): first call of a checkpoint (parse and fit), later calls,
 and the whole checkpoint. The selected file differs only in constants.
 
-                                                        Pairs      Labels   Predictions         Fit (s)        Per call (ms)  Checkpoint (s)
+                      Pairs     Labels   Predictions   Fit (s)  Per call (ms)  Checkpoint (s)
 
-                                                           10          310           500         0.01              0.102             0.1
-                                                          100        3,100        5,000          0.07              0.094             0.5
-                                                        1,000      31,000        50,000          0.56              0.098             5.5
-                                                        2,000      62,000      100,000           1.68              0.116            13.3
-                                                        4,000     124,000      200,000           3.68              0.128            29.3
+                         10         310           500   0.01        0.102             0.1
+                        100       3,100        5,000    0.07        0.094             0.5
+                      1,000     31,000        50,000    0.56        0.098             5.5
+                      2,000     62,000      100,000     1.68        0.116            13.3
+                      4,000    124,000      200,000     3.68        0.128            29.3
 
-                                                                                                11
-to two pairs with 20­79 items that are evaluated on all items and never acquired (the page does not
-say how such pairs are handled). Per-pair ALC; means over (test set, pair) units. Units, benchmarks,
-test sets and labels at budget 31: A 13,460/135/1,500/417,260; E 8,673/135/1,500/268,863; B
-6,772/135/135/209,932; C 9,577/125/5/296,887; D 14,293/135/1,500/417,260. In D the acquired
-pairs gain -0.0129 [-0.0151, -0.0109] and evaluation-only pairs -0.0120 [-0.0217, -0.0036]. Frame
 structure: median 17.5 pairs and 3 model names per benchmark (maximum 4,278 pairs), 342 names
 on two or more benchmarks; 98.5% of labels are on an item that at least two pairs answered. Each pair
 keeps its 200 answered items with the lowest benchmark-level hash rank, so subjects of a benchmark
@@ -747,11 +868,11 @@ boundary in b and d; an addendum written after the primary result (consistent) a
 E and an extended grid of 2,160 settings, selected on A and E jointly; it returned the same setting.
 The stdlib model.py and the vectorised simulator agree to 1.4 × 10-5 on 56,750 predictions.
 
-Results in more detail. Per budget (Table 8, Figure 2), budget 0 is unchanged (the list is empty);
-the difference is significant at every budget from n = 1 (-0.0096 [-0.0131, -0.0063] in A) and largest
-at n = 31 (-0.0261 [-0.0301, -0.0224]), where XP (0.1663) is below the pair-rate oracle (0.1731).
-Against S1, i.e. a correct per-pair filter, the gains are -0.0108 (A) to -0.0287 (C). Components
-(Table 9): the subject­benchmark effect (+0.0010), the subject effect (+0.0004) and probit integration
+Results in more detail. Per budget (Table 9, Figure 2), budget 0 is unchanged (the list is empty);
+the difference is significant at every budget from n = 1 (-0.0096 [-0.0131, -0.0063] in A) and
+largest at n = 31 (-0.0261 [-0.0301, -0.0224]), where XP (0.1663) is below the pair-rate oracle
+(0.1731). Against S1, i.e. a correct per-pair filter, the gains are -0.0108 (A) to -0.0287 (C). Components
+(Table 10): the subject­benchmark effect (+0.0010), the subject effect (+0.0004) and probit integration
 (+0.0005) are small; the subject effect rarely transfers because full attribute dictionaries rarely repeat
 across benchmarks (211 of 16,378 do). Benchmark and pair effects alone recover more than half of
 the gain (0.2018 against 0.2095 for S0), whereas item and pair effects alone recover none (0.2101):
@@ -760,7 +881,9 @@ labels on a common scale. The best ALC per d is 0.2013, 0.1969, 0.1965, 0.1968, 
 d = 0, 1.5, 2.25, 3, 4 (A). Real testbed (seed 0): XP 0.2222 against 0.2295 for the per-pair predictor
 as deployed; against a correct per-pair filter -0.0002 [-0.0072, +0.0074]; at n = 1 XP is worse there
 (0.2549 vs. 0.2468). Fresh-first on the real testbed: +0.0001 [-0.0010, +0.0011] (not significant).
-If the evaluator passed only the target pair's labels, XP would still be slightly better on the release
+
+                                                          13
+If the evaluator passed only the target pair's labels, XP would still be slightly better on the release
 (-0.0016 [-0.0028, -0.0005] against S1) but worse on the real testbed (+0.0060 [+0.0022, +0.0099]).
 
 Selection. The nested selection picked the all-fold setting in 3 of 5 outer folds; the per-fold config-A
@@ -785,16 +908,13 @@ testbed per-budget Brier (seed 0) for XP / S0-deployed / per-pair: B1 0.2549/0.2
 0.2100/0.2219/0.2118, B31 0.1916/0.2130/0.1991. Fresh-first skipped 154,939 candidates in configu-
 ration A (ALC 0.1960 vs. 0.1965).
 
-                                                          12
-D Per-pair predictor (rounds 1­3; now the fallback and the budget-0 prior)
+D Per-pair predictor (rounds 1­3; now the fallback and the budget-0 prior)
 
 All constants below are hand-set and are still in model.py: the budget-0 prior is the offset of the
-
 cross-pair model, the rest is its fallback. Values are those of the round-4 file (1010370); the selected
 submission (1010717) differs only in SUBJECT_SHRINK (0 instead of 0.7, which removes the whole
 subject part below) and PRIOR_INTERCEPT (-0.5 instead of 0), besides µ of the cross-pair model
 (Table 1). The few whose values were adjusted after looking at the local testbeds are marked  and
-
 have sensitivity analyses in Appendix F.
 
 Budget-0 prior. A logistic prior p0 = (z) with z = clip(zsubj +zitem, ±1.5), so p0  [0.18, 0.82].
@@ -802,19 +922,14 @@ The subject part is zsubj = 0.7 · (0.35 clip(t - 2024.5, ±2) + e + 0.25 clip(log
 0.1 [non-default harness]), where t is the release year (fractional), e  {0, 0.15, 0.3, 0.45} encodes
 an empty, low, other or high reasoning_effort, and N is a parameter count parsed from the name
 ("7b", "70B"); when no count is present, name tokens such as mini/nano/flash contribute -0.3 and
-
 pro/opus/ultra contribute 0.2. A per-provider table (0 entries, inside the multiplier) and an intercept
  added after it (PRIOR_INTERCEPT: 0 in round 4, -0.5 in the selected submission) complete the
-
 subject part; the provider table is empty and is the slot a fitted coefficient table would fill. The item
 part parses key=value pairs in item_features: a tier/difficulty/level value matching hard/expert/. . .
 adds -0.6, easy/basic/. . . adds 0.5, a numeric level   [1, 5] adds -0.25( - 3), and points above
-
 one subtract 0.1 each (capped at five); finally the item length adds -0.12 clip(log2(L/600), ±3) for
 L characters. The directions encode common knowledge (newer, larger, reasoning-enabled subjects
-
 do better; harder, longer, higher-value items are failed more often); the magnitudes were chosen to
-
 move the prior by at most a few tenths of a logit per attribute and were not tuned on either testbed.
 
 Pair-level shrinkage. Given n acquired labels y1, . . . , yn of the same pair with item logits zi(tje)m
@@ -824,9 +939,10 @@ The pair estimate for a target item is ppair = (logit  + zitem - z¯), i.e. the i
 rate on the logit scale.
 
 Item-level component 1: ridge features. From n  7 labels, three cheap features of the item
-
 text--log length, digit density and log(1+number of sentences)--are standardised over the acquired
-items and a logistic regression with offset logit ppair and ridge penalty  = 4 is fitted by six Newton
+
+                                                          14
+items and a logistic regression with offset logit ppair and ridge penalty  = 4 is fitted by six Newton
 steps; its adjustment clip(f~, ±1) is added to the target's logit.
 
 Item-level component 2: TF-IDF nearest neighbours. Item texts (content, features and interactors,
@@ -847,15 +963,13 @@ items share many terms; Appendix G compares a sharper unigram-only representatio
 Leave-one-out gating. From n  5 labels, every configuration in {ridge off, on} × { 
 {0, 1, 2, 4}} ( = 0 means no kNN) is scored by its leave-one-out Brier score on the acquired
 labels themselves: label j is predicted from the other n - 1 labels, including a leave-one-out shrink-
-
 age estimate and a leave-one-out ridge fit. The best configuration replaces plain shrinkage only if its
 mean per-item improvement exceeds 2 standard error(s) of that mean; otherwise the predictor returns
 ppair. This makes adaptation opt-in per pair and budget: a pair whose labels show no exploitable
 structure is predicted by shrinkage alone. Below 5 labels no item-level component is used at all (in
 preliminary runs an always-on kNN from one or three labels only added noise at B1 and B3).
 
-13
-Acquisition policy. labeling.py implements the streaming interface and never raises. Candidates
+Acquisition policy. labeling.py implements the streaming interface and never raises. Candidates
 are accepted in stream order (uniformly random, hence the same label distribution as the evaluator's
 default) except that a candidate whose maximum TF-IDF cosine similarity to an already acquired
 item exceeds 0.6 is skipped while fewer than 90% of the remaining candidates are needed; it
@@ -866,7 +980,9 @@ once 7 labels are known).
 
 Implementation (round-4 and selected files). Predictions are clipped to [0.01, 0.99]; predict
 is wrapped in a fallback chain (cross-pair model  per-pair full model  shrinkage only 
+
 smoothed label mean  0.5), accepts labels given as booleans, numbers or strings, tolerates miss-
+
 ing fields, malformed entries and non-dictionary inputs, and is deterministic. The round-4 ZIP
 (1010370; 19.8 kB; members README.md, labeling.py, model.py) contains no models.txt
 and no requirements.txt: both files import only standard-library modules (model.py: array,
@@ -874,28 +990,28 @@ base64, hashlib, json, math, os, re, sys, threading, zlib; the round-3 item-text
 stay inactive because no weight file is shipped; labeling.py loads its sibling model.py by path)
 and make no network calls. The organisers' check_submission_zip.py (commit cc88a959)
 passes on the ZIP. Our smoke test calls predict with the organisers' sample inputs at every budget
+
 and with malformed labels and inputs (44 cases), plus 220 cross-pair cases, and checks determinism;
+
 with the cross-pair model enabled the mean latency is 0.32 ms per call on short items and 0.06 ms at
+
 budget 31 with 300-word items (maximum 0.7 ms), about 16,449 calls per second on one laptop core.
 
 E Rounds 1­3: data, testbeds and the training release
 
 What we could and could not use. The official training data (measurement-db: item-level
 responses of many subjects on curated benchmarks) require accepting terms with a Hugging Face
-
 account. For most of the project we had no credentials and did not try to obtain the data in any other
-
 way; the per-pair predictor and all its constants were fixed before any of it was seen. Its public file
 listing (2026-10-22, revision 54074453da) held 281 benchmark directories: 14.8 GB of benchmarks,
 subjects, items and responses tables plus 107.8 GB of traces and 154.7 GB of assets. On that
-day the author's login became available and we downloaded the 163 competition-eligible directories
+
+15
+day the author's login became available and we downloaded the 163 competition-eligible directories
 (binary, item-level responses; the eligibility flags live inside the benchmarks tables) without traces
 or assets, and used them as described next. We also inspected the organisers' inventory of eligible
-
 benchmarks (1,261 entries) but fitted nothing on any of them. The two local testbeds below only
-
 evaluate design choices; the few constants they influenced are marked in Appendix D and probed in
-
 Appendix F.
 
 The training release:  validation and a fit that was not shipped.
@@ -916,6 +1032,7 @@ against 0.2396 [0.2380, 0.2411] for the organisers' empirical mean and 0.2470 fo
 
 with 0 = 4 the best of {2, 4, 8}. The ordering and the size of the gain measured locally thus
 transfer to real systems on real benchmarks. Second, it fits an L2-penalised logistic regression on
+
 exactly the feature terms of the hand-set prior plus a provider table and benchmark fixed effects
 
 (nuisance parameters; the shipped intercept is their mean), pairs weighted equally, with five-fold
@@ -936,8 +1053,8 @@ fitted signs agree with the hand-set values; what held-out benchmarks punish is 
 
 (Appendix I).
 
-                       14
-An item-text difficulty prior (pre-registered; not shipped). Benchmark difficulty dominates
+An item-text difficulty prior (pre-registered; not shipped). Benchmark difficulty dominates
+
 the pair rate (benchmark means have standard deviation 0.223) and the attribute prior cannot see
 it. We therefore tested, with design and ship rule fixed in PREREG.md (SHA-256 bb54af425d. . . )
 before any fit, whether the item text predicts difficulty on unseen benchmarks: a ridge regression
@@ -945,29 +1062,68 @@ on 262,144 signed-hashed buckets (words, bigrams, character trigrams, item_featu
 text statistics (length, LATEX, code, answer choices, . . . ), trained on the item logit the hand-set
 prior leaves unexplained (109,233 items, benchmarks weighted equally) and stacked onto the prior
 as T = W s + B with W, B fitted on out-of-fold scores; shrinkage is unchanged. On the same
+
 benchmark-held-out folds, every choice nested inside the training benchmarks, the ALC changes by
+
 -0.0000 [-0.0013, +0.0014] (cluster bootstrap over 135 benchmarks), closing -0.1%, 0.1% and 0.1%
 of the gap to the pair-rate oracle at n = 0, 1, 3. The inner CV chose the largest penalty of the grid in
 5 of 5 folds and the out-of-fold slope W was negative in all 5 (-0.32 to -0.03): text patterns learned
+
 on some benchmarks point the wrong way on others. Exploratory variants registered afterwards
 (penalties up to 104; statistics alone) give +0.0002 and +0.0001, the local testbeds +0.0019 (real,
+
 not significant) and +0.0003 (synthetic, not significant). Headroom exists--knowing each held-out
+
 benchmark's mean rate would gain -0.0061 ALC--but item text in this form does not reach it; the
+
 rule fails and the submission is unchanged (Appendix J).
 
 Real Ollama testbed. To obtain item-level correctness labels of real language models we ran
+
 four small open-weight models locally with Ollama (Q4_K_M quantisation, greedy decoding, CPU
+
 only): Qwen2.5-Instruct 1.5B, 3B and 7B and Llama-3.2-3B-Instruct. Three public benchmarks
 were used, none of which appears in the PAIEC inventory (only a derived variant, mr_gsm8k, does):
 the first 200 GSM8K test items, the first 200 SVAMP test items (with the SVAMP problem type
 as item_features), and a 300-item mix of ten BIG-Bench-Hard subtasks (30 items each, subtask
 name as item_features). Two harnesses are represented: a direct-answer prompt ("reply with only
 the final answer"; exact match after numeric or option normalisation) and, for GSM8K/SVAMP, an
+
 earlier 8-shot chain-of-thought run of the Qwen models whose greedy answers we re-used. Each
+
 (model, harness, benchmark) triple with at least 80 items is one pair, giving 17 pairs, 3,800 labelled
-items, and success rates from 8.0% to 79.0% (Table 17 in the appendix). The subject dictionaries
+
+items, and success rates from 8.0% to 79.0% (Table 18 in the appendix). The subject dictionaries
+
 carry the real model names, providers, release dates and harness names, so the budget-0 prior sees
+
 realistic inputs; the raw records are released with the code.
+
+                       16
+Table 12: Brier ALC (lower is better) with 95% bootstrap CIs over pairs and pooled ECE on the two
+local testbeds, all methods evaluated on identical random-policy acquisition trajectories. Oracles are
+references, not predictors.
+
+                               Synthetic IRT (160 pairs)         Real Ollama (17 pairs)
+
+Method                         ALC [95% CI]  ECE ALC [95% CI]    ECE
+
+constant 0.5                   0.2500 [0.2500, 0.2500] 0.111 0.2500 [0.2500, 0.2500] 0.127
+empirical mean (organisers)    0.2208 [0.2055, 0.2362] 0.114 0.2871 [0.2369, 0.3303] 0.170
+
+attribute prior only           0.2148 [0.2040, 0.2251] 0.041 0.2340 [0.2198, 0.2468] 0.076
+
+prior + shrinkage              0.1797 [0.1691, 0.1900] 0.035 0.2228 [0.1951, 0.2460] 0.063
+
+shrinkage + ridge (always on)  0.1814 [0.1708, 0.1918] 0.029 0.2199 [0.1945, 0.2416] 0.061
+
+shrinkage + kNN (always on)    0.1794 [0.1687, 0.1895] 0.033 0.2226 [0.1949, 0.2453] 0.061
+
+full: LOO-gated ridge + kNN (rounds 1­3) 0.1797 [0.1691, 0.1900] 0.032 0.2224 [0.1949, 0.2454] 0.061
+
+oracle: pair success rate      0.1598 [0.1483, 0.1710] 0.000 0.1961 [0.1675, 0.2208] 0.000
+oracle: true item probability
+                               0.1379 [0.1280, 0.1482] 0.007 --  --
 
 Synthetic IRT testbed. Because the real testbed is small (small models, three benchmarks), we
 complement it with a generator that follows a two-parameter item response model [Lord, 1980,
@@ -995,58 +1151,9 @@ the constant 0.5; the organisers' empirical mean (their code: 0.5 without matchi
 mean otherwise); our prior alone; shrinkage alone; shrinkage with each item-level component always
 on; the LOO-gated model (shipped in rounds 1­3).
 
-                                                           15
-Table 11: Brier ALC (lower is better) with 95% bootstrap CIs over pairs and pooled ECE on the two
-local testbeds, all methods evaluated on identical random-policy acquisition trajectories. Oracles are
-references, not predictors.
-
-                                                 Synthetic IRT (160 pairs)                                                                  Real Ollama (17 pairs)
-
-Method                                         ALC [95% CI]                                                                 ECE ALC [95% CI]                  ECE
-
-constant 0.5                                   0.2500 [0.2500, 0.2500] 0.111 0.2500 [0.2500, 0.2500] 0.127
-empirical mean (organisers)                    0.2208 [0.2055, 0.2362] 0.114 0.2871 [0.2369, 0.3303] 0.170
-
-attribute prior only                           0.2148 [0.2040, 0.2251] 0.041 0.2340 [0.2198, 0.2468] 0.076
-
-prior + shrinkage                              0.1797 [0.1691, 0.1900] 0.035 0.2228 [0.1951, 0.2460] 0.063
-
-shrinkage + ridge (always on)                  0.1814 [0.1708, 0.1918] 0.029 0.2199 [0.1945, 0.2416] 0.061
-
-shrinkage + kNN (always on)                    0.1794 [0.1687, 0.1895] 0.033 0.2226 [0.1949, 0.2453] 0.061
-
-full: LOO-gated ridge + kNN (rounds 1­3) 0.1797 [0.1691, 0.1900] 0.032 0.2224 [0.1949, 0.2454] 0.061
-
-oracle: pair success rate                      0.1598 [0.1483, 0.1710] 0.000 0.1961 [0.1675, 0.2208] 0.000
-oracle: true item probability
-                                               0.1379 [0.1280, 0.1482] 0.007 --                                                                               --
-
-         (a) synthetic IRT testbed, 160 pairs                                                                              (b) real Ollama testbed, 17 pairs
-0.30                                                                                                                0.5
-0.25
-0.20                                                                                                                0.4
-Brier score (lower is better)
-                                                                                     Brier score (lower is better)  0.3
-
-0.15                                                                                                                0.2
-
-      0  1            3        7  15             31                                                                      0  1               3  7  15                31
-
-         acquired labels n (axis: log2 (n + 1))                                                                             acquired labels n (axis: log2 (n + 1))
-
-constant 0.5                      prior only                                                                             full (shipped)        oracle: true probability
-empirical mean (organisers)       prior + shrinkage                                                                      oracle: pair rate
-
-Figure 3: Brier score per budget (the ALC of Eq. 1 is the trapezoidal area under these curves on the
-
-log2(n+1) axis). The empirical mean is worse than the constant at n = 1; shrinkage removes that
-penalty; the full model separates from shrinkage only at n  15. Dashed/dotted lines are the oracle
-
-references.
-
 F Rounds 1­3: results of the per-pair predictor
 
-Main comparison. Table 11 and Figure 3 give the headline numbers. On the real testbed the
+Main comparison. Table 12 and Figure 3 give the headline numbers. On the real testbed the
 per-pair predictor (shipped in rounds 1­3) reaches 0.2224 [0.1949, 0.2454] against 0.2871 [0.2369,
 0.3303] for the empirical mean and 0.25 for the constant; the paired difference to the empirical mean
 is -0.0647 [-0.0872, -0.0415] (significant; the full model is better on 82% of pairs) and to the constant
@@ -1057,16 +1164,72 @@ on both testbeds (B1 = 0.330 and 0.498) and only overtakes it from n = 3 (synthe
 (real); on the real testbed its ALC (0.2871) is above the constant's 0.25 (paired difference +0.0371
 [-0.0081, +0.0779], not significant).
 
-Where the gain comes from. Decomposing the ablation rows of Table 11: the prior alone improves
+Where the gain comes from. Decomposing the ablation rows of Table 12: the prior alone improves
 on the constant by -0.0352 (synthetic) and -0.0160 (real) ALC; shrinkage adds -0.0351 [-0.0415,
+
+                                                           17
+         (a) synthetic IRT testbed, 160 pairs                                                                              (b) real Ollama testbed, 17 pairs
+0.30                                                                                                                0.5
+0.25
+0.20                                                                                                                0.4
+Brier score (lower is better)
+                                                                                     Brier score (lower is better)  0.3
+
+0.15                                                                                                                0.2
+
+      0  1  3                7  15               31                                                                      0  1               3  7  15                31
+
+         acquired labels n (axis: log2 (n + 1))                                                                             acquired labels n (axis: log2 (n + 1))
+
+constant 0.5                    prior only                                                                               full (shipped)        oracle: true probability
+empirical mean (organisers)     prior + shrinkage                                                                        oracle: pair rate
+
+Figure 3: Brier score per budget (the ALC of Eq. 1 is the trapezoidal area under these curves on the
+
+log2(n+1) axis). The empirical mean is worse than the constant at n = 1; shrinkage removes that
+penalty; the full model separates from shrinkage only at n  15. Dashed/dotted lines are the oracle
+
+references.
+
 -0.0285] and -0.0113 [-0.0283, +0.0042] on top (the real-testbed difference is not significant with 17
 pairs). The item-level components are a much smaller effect. Against shrinkage, always-on kNN
 changes the ALC by -0.0003 (synthetic) and -0.0002 (real), always-on ridge by +0.0017 and -0.0029,
 and the LOO-gated full model by +0.0000 [-0.0002, +0.0003] (not significant) and -0.0004 [-0.0012,
 +0.0003] (not significant); at n = 31 alone the gated model changes the Brier score by -0.000
 and -0.001. Replacing TF-IDF by sentence-transformers/all-MiniLM-L6-v2 embeddings
+changes the full model's ALC by -0.0001 [-0.0005, +0.0001] (not significant), so we ship TF-IDF;
+Appendix G adds the LOO gate against always-on components and a sharper unigram TF-IDF, which
+makes the kNN worse. We report these as what they are: item-level adaptation from at most 31 labels
+is a marginal gain whose sign has to be protected by the gate.
 
-                                                     16
+Headroom. The oracle rows explain why. On the synthetic testbed, knowing the true probability of
+every item gives an ALC of 0.1379, knowing only the evaluation-set success rate 0.1598: perfect
+item-level discrimination is worth 0.0219 ALC, to be recovered from 15­31 labels at budgets that
+carry 30% of the weight. Shrinkage (0.1797) is 0.0199 above the rate oracle; that gap is the price
+of estimating a rate from few labels, concentrated at n  3 (B1: 0.041; B31: -0.003), and only a
+better prior, i.e. training data, can reduce it. On the real testbed the gap is 0.0266 (0.2228 vs. 0.1961).
+The two parts of the headroom are of similar size but call for different remedies: a prior fitted to real
+subjects and benchmarks, and item difficulty information from outside the pair.
+
+Prior strength and text signal. Figure 4 gives the ALC for 0  {1, 2, 4, 8} (shrinkage is best
+at 2 on synthetic and 8 on real; full-model range 0.0038 and 0.0182; we ship 0 = 4, the smallest
+worst-case regret and the best of {2, 4, 8} on the training release) and the synthetic sweep over topic,
+where the item-level effect stays two orders of magnitude below the item-level headroom (0.0080 to
+0.0306): the gate protects against harm, it cannot create information.
+
+Acquisition policies. None of the five policies we compared is significantly different from the
+evaluator's random policy on either testbed (Appendix G, Table 17): the novelty filter shipped in
+rounds 1­3 gives -0.0013 [-0.0038, +0.0013] (synthetic) and -0.0044 [-0.0108, +0.0025] (real), the
+organisers' uncertainty band +0.0001 and -0.0041. Selecting by |p-0.5| distorts the pair-rate estimate
+that carries most of the metric; we ship the policy closest to random that removes near-duplicates.
+
+Frontier-like subjects. The official test set has subjects our testbeds lack (2025­2026 releases, long
+reasoning efforts, very large models, agent harnesses); over 160 such descriptions the budget-0 prior
+ranges from 0.39 to 0.82 (the cap; Appendix K). What a wrong prior costs is exact under shrinkage
+(Table 15): a prior of 0.7 on a pair whose true rate is 0.3 costs 0.062 ALC and loses to the constant
+(excess 0.040), whereas shrinkage beats the constant whenever |r - 0.5|  0.2 and |p0 - r|  0.3. On
+
+                                                           18
                                                   (a) ALC and oracles                                                                                                       (b) paired difference, 95% CI
                                         0.18                                                                                                                      0.50
 Brier ALC0.24
@@ -1095,37 +1258,6 @@ and the two oracles; (b) paired difference full - shrinkage with its 95% CI over
 
 favours the full model).
 
-changes the full model's ALC by -0.0001 [-0.0005, +0.0001] (not significant), so we ship TF-IDF;
-Appendix G adds the LOO gate against always-on components and a sharper unigram TF-IDF, which
-makes the kNN worse. We report these as what they are: item-level adaptation from at most 31 labels
-is a marginal gain whose sign has to be protected by the gate.
-
-Headroom. The oracle rows explain why. On the synthetic testbed, knowing the true probability of
-every item gives an ALC of 0.1379, knowing only the evaluation-set success rate 0.1598: perfect
-item-level discrimination is worth 0.0219 ALC, to be recovered from 15­31 labels at budgets that
-carry 30% of the weight. Shrinkage (0.1797) is 0.0199 above the rate oracle; that gap is the price
-of estimating a rate from few labels, concentrated at n  3 (B1: 0.041; B31: -0.003), and only a
-better prior, i.e. training data, can reduce it. On the real testbed the gap is 0.0266 (0.2228 vs. 0.1961).
-The two parts of the headroom are of similar size but call for different remedies: a prior fitted to real
-subjects and benchmarks, and item difficulty information from outside the pair.
-
-Prior strength and text signal. Figure 4 gives the ALC for 0  {1, 2, 4, 8} (shrinkage is best
-at 2 on synthetic and 8 on real; full-model range 0.0038 and 0.0182; we ship 0 = 4, the smallest
-worst-case regret and the best of {2, 4, 8} on the training release) and the synthetic sweep over topic,
-where the item-level effect stays two orders of magnitude below the item-level headroom (0.0080 to
-0.0306): the gate protects against harm, it cannot create information.
-
-Acquisition policies. None of the five policies we compared is significantly different from the
-evaluator's random policy on either testbed (Appendix G, Table 16): the novelty filter shipped in
-rounds 1­3 gives -0.0013 [-0.0038, +0.0013] (synthetic) and -0.0044 [-0.0108, +0.0025] (real), the
-organisers' uncertainty band +0.0001 and -0.0041. Selecting by |p-0.5| distorts the pair-rate estimate
-that carries most of the metric; we ship the policy closest to random that removes near-duplicates.
-
-Frontier-like subjects. The official test set has subjects our testbeds lack (2025­2026 releases, long
-reasoning efforts, very large models, agent harnesses); over 160 such descriptions the budget-0 prior
-ranges from 0.39 to 0.82 (the cap; Appendix K). What a wrong prior costs is exact under shrinkage
-(Table 14): a prior of 0.7 on a pair whose true rate is 0.3 costs 0.062 ALC and loses to the constant
-(excess 0.040), whereas shrinkage beats the constant whenever |r - 0.5|  0.2 and |p0 - r|  0.3. On
 the real testbed an optimistic shift of every subject's prior logit costs significantly (+0.5: +0.0134), a
 pessimistic one does not (-0.5: -0.0034, not significant); on the training release the hand-set prior
 averages 0.510 against a mean pair rate of 0.537, so rounds 1­4 kept the intercept at zero (the selected
@@ -1133,21 +1265,19 @@ submission changes it after the formative feedback, Section 4).
 
 Replication and calibration. Appendix H reports replication over generator seeds and acquisition
 trajectories (the full model beats the empirical mean significantly in 4 of 4 further real trajectories).
-Pooled ECE (Table 11) is 0.032/0.061 (synthetic/real) for the full model against 0.114/0.170 for
-
-                                                          17
-the empirical mean and 0.111/0.127 for the constant: shrinkage towards a sensible prior also fixes
+Pooled ECE (Table 12) is 0.032/0.061 (synthetic/real) for the full model against 0.114/0.170 for
+the empirical mean and 0.111/0.127 for the constant: shrinkage towards a sensible prior also fixes
 calibration at small budgets.
 
 G Additional ablations
 
-Prior strength. Table 20 gives the ALC for 0  {1, 2, 4, 8}. The best value differs between
+Prior strength. Table 21 gives the ALC for 0  {1, 2, 4, 8}. The best value differs between
 testbeds (shrinkage: 2 on synthetic, 8 on real), reflecting the wider spread of pair rates in the synthetic
 generator; the ALC of the full model varies by 0.0038 (synthetic) and 0.0182 (real) over the range, so
 the choice matters at the third decimal. On the training release 0 = 4 gives 0.2051 against 0.2052
 (2) and 0.2086 (8).
 
-When does text help? The synthetic sweep (Figure 4, right; Table 19) varies how much difficulty
+When does text help? The synthetic sweep (Figure 4, right; Table 20) varies how much difficulty
 is explained by topic. With no topic or length signal (topic = 0.00,  = 0.0) the full model's paired
 difference to shrinkage is +0.0002 [-0.0000, +0.0005], the gate's cost when there is nothing to find; at
 the strongest setting (topic = 1.00) it is -0.0002 [-0.0005, +0.0001], while the item-level headroom
@@ -1168,7 +1298,8 @@ model's ALC from 0.2224 to 0.2223 (paired -0.0001 [-0.0005, +0.0001], not signif
 always-on kNN variant from 0.2226 to 0.2252 (+0.0026 [+0.0000, +0.0055], significant), at the cost
 of a neural dependency, model loading and about 10 ms per embedding on CPU.
 
-Sharper lexical similarity does not help. A unigram-only TF-IDF whose target terms are restricted
+                                              19
+Sharper lexical similarity does not help. A unigram-only TF-IDF whose target terms are restricted
 to the acquired vocabulary separates same-topic from other-topic synthetic items far better (mean
 cosine about 0.3 versus 0.1 in the generator) but makes the always-on kNN worse: paired against
 the shipped representation, the always-on kNN changes by +0.0009 [-0.0001, +0.0020] (synthetic)
@@ -1177,7 +1308,7 @@ and +0.0026 [+0.0006, +0.0050] (real), and the gated full model by +0.0004 [+0.0
 dominated by label noise; the bigram-diluted similarity acts as a regulariser. Item-level signal exists
 (the oracles show it) but 31 labels are too few to exploit it through similarity alone.
 
-Acquisition policies. Table 16 compares policies for the full predictor on identical pools and
+Acquisition policies. Table 17 compares policies for the full predictor on identical pools and
 streams. Plain stream order differs from the evaluator's random policy by -0.0013 [-0.0038, +0.0013]
 (synthetic, not significant) and -0.0044 [-0.0107, +0.0019] (real, not significant)--both are uniform
 samples, so this is the trajectory-to-trajectory noise floor of the comparison. The shipped novelty
@@ -1194,8 +1325,7 @@ of intermediate predicted difficulty, distorting the pair-rate estimate that car
 None of the policies is significantly different from random on either testbed; we ship the one that is
 closest to random while removing redundant items.
 
-                                                           18
-H Replication
+H Replication
 
 Regenerating the synthetic testbed with two further seeds gives full-model ALCs of 0.2266 and
 0.1963 (empirical mean 0.2737 and 0.2438; shrinkage 0.2264 and 0.1963). On the real testbed, four
@@ -1227,7 +1357,9 @@ prior's own terms, two ineligible benchmarks) and run fit on them. The dry run u
 benchmarks, 299 pairs and 47,784 rows; a light-regularisation fit recovers all 13 slope signs with
 maximum error 0.05 and mean error 0.02 logits, and the fitted benchmark effects have standard devia-
 tion 0.57. Its cross-validated selection chose C = 0.003 and 0 = 4 and did not beat the hand-set
-prior (budget-0 Brier +0.0036 [+0.0004, +0.0069]; shrinkage ALC +0.0013 [+0.0001, +0.0027]), so
+
+                                                           20
+prior (budget-0 Brier +0.0036 [+0.0004, +0.0069]; shrinkage ALC +0.0013 [+0.0001, +0.0027]), so
 on these tables the rule would have kept the hand-set constants.
 
 The run on the release. Revision 54074453da; 163 eligible directories, 144 with at least one pair
@@ -1253,12 +1385,12 @@ Pre-registration and outcome. experiments/results/round3/PREREG.md (SHA-256 pre-
 fix bb54af425d, recorded in every result file and verified unchanged at build time) fixed fea-
 tures, target, model, nested selection, evaluation and ship rule before any text model was fitted.
 PREREG_ADDENDUM_1.md (verified unchanged) registered the two exploratory variants after the
+primary folds had run, explicitly without influence on the decision. The rule: ship iff (a) the
 
-                                                           19
-primary folds had run, explicitly without influence on the decision. The rule: ship iff (a) the
 benchmark-held-out ALC difference (text minus hand-set) has a 95% cluster-bootstrap CI below zero,
 (b) the real testbed is not significantly worse, and the engineering gates hold ( 200 calls/s on one
 core with a new target item per call, weights  5 MB, validator and smoke test pass, never raises).
+
 Outcome: (a) fails, (b) holds, gates pass; the text prior is not shipped.
 
 Features and target. JSON contents (the release stores many items as JSON objects) are flattened
@@ -1289,31 +1421,33 @@ CV: -0.04 to -0.00). The final fit on all 144 benchmarks again selected penalty 
 B = +0.14, cap 1.5 and  = 0; it is kept as text_prior_candidate.json (1.40 MB) and not
 shipped.
 
-Table 12: Item-text prior: benchmark-held-out cross-validation on the training release (closed-form
-protocol, shrinkage with 0 = 4 unless stated, no item-level components). B0 over all items of each
-of the 16,718 pairs; B1­B7 and ALC on the evaluation half of the 16,303 pairs with at least 80 items.
-Exploratory rows were registered after the primary result; the oracles are references.
-
-             Method                                         B0      B1          B3      B7               ALC
-
-             hand-set prior (shipped)                     0.2388  0.2235      0.2083  0.1956            0.2051
-             hand-set + item-text prior (pre-registered)  0.2391  0.2234      0.2083  0.1956            0.2051
-                                                          0.2391  0.2240      0.2086  0.1955            0.2052
-                same, 0 = 2                               0.2391  0.2278      0.2141  0.2002            0.2086
-                same, 0 = 8                               0.2397  0.2239      0.2085  0.1957            0.2053
-                exploratory E1: penalty up to 104         0.2395  0.2237      0.2084  0.1956            0.2052
-                exploratory E2: 16 statistics only        0.2398  0.2240      0.2086  0.1957            0.2054
-             hand-set + fitted intercept shift only       0.2519  0.2320      0.2127  0.1975            0.2096
-             intercept only (training mean)               0.2187  0.2115      0.2022  0.1932            0.1990
-             oracle: held-out benchmark mean                      0.1756      0.1756  0.1756
-             oracle: pair success rate                       ­                                             ­
-
-Results. Table 12. Per budget the paired differences are -0.0000 [-0.0025, +0.0027] at n = 1 and
+Results. Table 13. Per budget the paired differences are -0.0000 [-0.0025, +0.0027] at n = 1 and
 -0.0000 [-0.0013, +0.0014] at n = 3 (gap to the pair-rate oracle closed: 0.1% [-5.6, 6.0] and 0.1%
 [-4.2, 4.3]); budget-0 Brier changes by +0.0003 [-0.0036, +0.0046]; the plain pair bootstrap gives
 -0.0000 [-0.0001, +0.0001]. The text prior has the lower mean ALC in 1 of 5 folds (significantly in 0)
 and on 57 of 135 benchmarks. Refitting only the intercept shift (W = 0; a descriptive decomposition)
 gives +0.0003 [-0.0007, +0.0009]: the hand-set prior's level is already right on held-out benchmarks.
+
+                                                     21
+Table 13: Item-text prior: benchmark-held-out cross-validation on the training release (closed-form
+protocol, shrinkage with 0 = 4 unless stated, no item-level components). B0 over all items of each
+of the 16,718 pairs; B1­B7 and ALC on the evaluation half of the 16,303 pairs with at least 80 items.
+Exploratory rows were registered after the primary result; the oracles are references.
+
+Method                                         B0      B1      B3      B7     ALC
+
+hand-set prior (shipped)                     0.2388  0.2235  0.2083  0.1956  0.2051
+hand-set + item-text prior (pre-registered)  0.2391  0.2234  0.2083  0.1956  0.2051
+                                             0.2391  0.2240  0.2086  0.1955  0.2052
+   same, 0 = 2                               0.2391  0.2278  0.2141  0.2002  0.2086
+   same, 0 = 8                               0.2397  0.2239  0.2085  0.1957  0.2053
+   exploratory E1: penalty up to 104         0.2395  0.2237  0.2084  0.1956  0.2052
+   exploratory E2: 16 statistics only        0.2398  0.2240  0.2086  0.1957  0.2054
+hand-set + fitted intercept shift only       0.2519  0.2320  0.2127  0.1975  0.2096
+intercept only (training mean)               0.2187  0.2115  0.2022  0.1932  0.1990
+oracle: held-out benchmark mean                      0.1756  0.1756  0.1756
+oracle: pair success rate                       ­                               ­
+
 With the text prior, 0 = 2 gives +0.0001 and 0 = 8 +0.0035 (significant) relative to the hand-set
 prior at 0 = 4. The exploratory variants (E1: grid 10, 100, 1000, 10000, selected 100, 1000,
 10000; E2: statistics only, grid 0.1, 1, 10, 100, selected 100) changed the ALC by +0.0002 [-0.0007,
@@ -1323,9 +1457,7 @@ held-out benchmark-mean oracle closes 30%, 25% and 19% of the gap at n = 0, 1, 3
 Local testbeds. Full harness, identical trajectories: real ALC 0.2224 (hand-set) vs. 0.2243 (text),
 paired +0.0019 [-0.0002, +0.0037], text better on 35% of pairs; without the BIG-Bench-Hard pairs,
 whose items may overlap the fewshot_ttt_bbh training benchmark, +0.0017 [-0.0007, +0.0042]
-
-                                                           20
-(13 pairs). Synthetic: 0.1797 vs. 0.1800 (+0.0003 [-0.0002, +0.0008]); its pseudo-word items carry
+(13 pairs). Synthetic: 0.1797 vs. 0.1800 (+0.0003 [-0.0002, +0.0008]); its pseudo-word items carry
 no transferable text signal by construction.
 
 Engineering gates and the shipped file. With the candidate loaded, predict runs at 3,056, 673
@@ -1360,12 +1492,13 @@ sustainable_food, swe_rebench, swe_smith, swe_together, swebench_live, swepolybe
 tensortrust, truthfulqa_mc, visual_memory, visual_riddles, visualwebarena, vl_rewardbench,
 weavebench, wikihow_agent, workarena, workbench_revisited, worldcentralbanks.
 
-K Prior sensitivity for frontier-like subjects
+                                                           22
+K Prior sensitivity for frontier-like subjects
 
-Table 13 gives the budget-0 prior p0 of the round-4 constants (1010370; in the selected submission p0
+Table 14 gives the budget-0 prior p0 of the round-4 constants (1010370; in the selected submission p0
 no longer depends on the subject) for subject descriptions that the official test set is likely to contain
-and our testbeds do not. Table 14 gives the exact expected cost of a miscalibrated prior under the
-per-pair shrinkage rule, and Table 15 the measured effect of shifting every subject's prior logit on the
+and our testbeds do not. Table 15 gives the exact expected cost of a miscalibrated prior under the
+per-pair shrinkage rule, and Table 16 the measured effect of shifting every subject's prior logit on the
 two testbeds (PRIOR_INTERCEPT in model.py; all other constants unchanged; identical trajectories;
 generated by prior_sensitivity.py).
 
@@ -1374,22 +1507,20 @@ efforts, very large models, agent harnesses). Appendix K tabulates the budget-0 
 descriptions: p0 ranges from 0.39 to 0.82 (the cap); the organisers' GPT-4o and 2026 medium-effort
 sample subjects receive 0.49 and 0.66, our testbed models 0.36­0.39. What a wrong prior costs is
 exact: with 0 = 4 and n labels the expected Brier excess over the pair-rate oracle is E[(n - r)2]
-with binomial successes (Table 14). A prior of 0.7 on a pair whose true rate is 0.3 costs 0.062 ALC
+with binomial successes (Table 15). A prior of 0.7 on a pair whose true rate is 0.3 costs 0.062 ALC
 and loses to the constant (excess 0.040); shrinkage beats the constant whenever |r - 0.5|  0.2 and
 |p0 - r|  0.3, and never when |r - 0.5| < 0.15, where the constant is close to optimal. Shifting
-every subject's prior logit by ±0.5 or ±1 (Table 15) is asymmetric on the real testbed: +0.5 and +1
+every subject's prior logit by ±0.5 or ±1 (Table 16) is asymmetric on the real testbed: +0.5 and +1
 cost +0.0134 and +0.0353 ALC (both significant), whereas -0.5 changes it by -0.0034 [-0.0117,
 +0.0049] (not significant)--small models at 8.0­79.0% accuracy tolerate a pessimistic prior; on the
 synthetic testbed zero is best and both ±0.5 shifts cost significantly (+0.0037, +0.0047). On the
 training release the hand-set prior averages 0.510 against a mean pair rate of 0.537, i.e. it is not
 optimistic for real systems on average over the release. Rounds 1­4 kept the intercept at zero and
 named it as the first constant to change if the official formative score pointed the other way. It did: on
-
-                                                           21
-the hidden pool the budget-0 prior was worse than the constant, and the selected submission lowers
+the hidden pool the budget-0 prior was worse than the constant, and the selected submission lowers
 the intercept and switches the subject terms off (Section 4).
 
-Table 13: Budget-0 prior p0 (no item cues; 600-character item) by release year and
+Table 14: Budget-0 prior p0 (no item cues; 600-character item) by release year and
 reasoning_effort for a subject with no size or name cue on the default harness (left), and for a
 high-effort subject on a non-default harness with a mini name cue, a 70B or a 400B parameter count
 
@@ -1397,51 +1528,52 @@ high-effort subject on a non-default harness with a mini name cue, a 70B or a 40
 
 effort, non-default harness).
 
-                 default harness, no name cue  high effort, non-default harness
-                none low medium high
-Release year                                   mini 70B        400B
-                0.44 0.46 0.49 0.51
-2023            0.50 0.52 0.55 0.58            0.48 0.58       0.69
-2024            0.56 0.58 0.61 0.63
-2025            0.62 0.64 0.67 0.69            0.54 0.64       0.74
+               default harness, no name cue  high effort, non-default harness
+              none low medium high
+Release year                                 mini 70B      400B
+              0.44 0.46 0.49 0.51
+2023          0.50 0.52 0.55 0.58            0.48 0.58     0.69
+2024          0.56 0.58 0.61 0.63
+2025          0.62 0.64 0.67 0.69            0.54 0.64     0.74
 2026
-                                               0.60 0.70       0.78
+                                             0.60 0.70     0.78
 
-                                               0.66 0.75       0.82
+                                             0.66 0.75     0.82
 
-Table 14: Exact expected Brier ALC excess over the pair-rate oracle r(1 - r) of the per-pair shrinkage
+Table 15: Exact expected Brier ALC excess over the pair-rate oracle r(1 - r) of the per-pair shrinkage
 
 rule (0 = 4, clipping to [0.01, 0.99]) when the prior rate is p0 and the true pair rate is r; the number
 of successes among the n acquired labels is binomial(n, r) and the ALC weights are those of Eq. 1.
 The last column is the excess of the constant 0.5;  marks cells where the constant is better.
 
-True rate r     0.3    0.4  prior rate p0        0.7     0.8   constant 0.5
+True rate r     0.3    0.4  prior rate p0      0.7    0.8  constant 0.5
                             0.5 0.6
-0.2           0.010  0.020                     0.089   0.126      0.090
-0.3           0.009  0.012  0.036  0.060       0.062   0.091      0.040
-0.4           0.013  0.010                     0.040   0.063      0.010
-0.5           0.024  0.014  0.022  0.039       0.024   0.040      0.000
-0.6           0.040  0.023  0.013  0.023       0.013   0.023      0.010
-0.7           0.062  0.039  0.011  0.014       0.009              0.040
-0.8           0.089  0.060  0.013  0.010       0.010   0.012      0.090
-                                                       0.007
+0.2           0.010  0.020                   0.089  0.126     0.090
+0.3           0.009  0.012  0.036  0.060     0.062  0.091     0.040
+0.4           0.013  0.010                   0.040  0.063     0.010
+0.5           0.024  0.014  0.022  0.039     0.024  0.040     0.000
+0.6           0.040  0.023  0.013  0.023     0.013  0.023     0.010
+0.7           0.062  0.039  0.011  0.014     0.009            0.040
+0.8           0.089  0.060  0.013  0.010     0.010  0.012     0.090
+                                                    0.007
                             0.022  0.012
                             0.036  0.020
 
-Table 15: Brier ALC of the prior alone, shrinkage and the full model when every subject's prior logit
-is shifted by PRIOR_INTERCEPT (random policy, same trajectories as Table 11). Round-4 value: 0;
+                                   23
+Table 16: Brier ALC of the prior alone, shrinkage and the full model when every subject's prior logit
+is shifted by PRIOR_INTERCEPT (random policy, same trajectories as Table 12). Round-4 value: 0;
 the selected submission uses -0.5 with the subject terms switched off, which this table does not
 
 cover.
 
-Shift (logits)     Real Ollama (17 pairs)       Synthetic IRT (160 pairs)
-                prior shrinkage full           prior shrinkage full
--1.0
--0.5            0.2511  0.2229     0.2229      0.2689  0.1959  0.1955
-+0.0            0.2319  0.2191     0.2190      0.2286  0.1835  0.1834
-+0.5            0.2340  0.2228     0.2224      0.2148  0.1797  0.1797
-+1.0            0.2663  0.2364     0.2358      0.2268  0.1844  0.1844
-                0.3250  0.2585     0.2576      0.2527  0.1932  0.1932
+              Shift (logits)     Real Ollama (17 pairs)         Synthetic IRT (160 pairs)
+                              prior shrinkage full             prior shrinkage full
+              -1.0
+              -0.5            0.2511  0.2229           0.2229  0.2689  0.1959  0.1955
+              +0.0            0.2319  0.2191           0.2190  0.2286  0.1835  0.1834
+              +0.5            0.2340  0.2228           0.2224  0.2148  0.1797  0.1797
+              +1.0            0.2663  0.2364           0.2358  0.2268  0.1844  0.1844
+                              0.3250  0.2585           0.2576  0.2527  0.1932  0.1932
 
 L Validator and smoke-test output
 
@@ -1456,17 +1588,16 @@ For the round-4 ZIP (1010370) it prints
 c76331d084f1). The smoke test (experiments/results/smoke_test.json) records 44 suc-
 cessful cases and the timings of the per-pair path quoted in Appendix D.
 
-                                                          22
-M Additional tables
+M Additional tables
 
-Table 16: Acquisition policies (full predictor): Brier ALC [95% CI] and paired difference to the
+Table 17: Acquisition policies (full predictor): Brier ALC [95% CI] and paired difference to the
 evaluator's random policy on the same pairs (negative favours the policy). The BLE rule accepts a
 candidate when its current prediction satisfies |p - 0.5|  0.15 [Truong et al., 2026].
 
-Policy                 ALC [95% CI]      Synthetic                                        Real
-                                               vs random [95% CI] ALC [95% CI]               vs random [95% CI]
+Policy                 ALC [95% CI]   Synthetic                                Real
+                                            vs random [95% CI] ALC [95% CI]       vs random [95% CI]
 
-random (evaluator default) 0.1797 [0.1691, 0.1900] --                0.2224 [0.1949, 0.2454] --
+random (evaluator default) 0.1797 [0.1691, 0.1900] --          0.2224 [0.1949, 0.2454] --
 
 stream order           0.1784 [0.1675, 0.1888] -0.0013 [-0.0038, 0.0013] 0.2180 [0.1915, 0.2400] -0.0044 [-0.0107, 0.0019]
 
@@ -1476,69 +1607,69 @@ novelty + uncertainty  0.1785 [0.1675, 0.1888] -0.0013 [-0.0038, 0.0013] 0.2180 
 
 uncertainty band (BLE rule) 0.1798 [0.1693, 0.1896] +0.0001 [-0.0027, 0.0030] 0.2183 [0.1905, 0.2409] -0.0041 [-0.0096, 0.0016]
 
-Table 17: Real Ollama testbed: one pair per (model, harness, benchmark). Accuracy is the success
+                                                       24
+Table 18: Real Ollama testbed: one pair per (model, harness, benchmark). Accuracy is the success
 rate over all items of the pair (acquisition and evaluation pools together).
 
-        Model (Ollama tag)     Harness                 Benchmark                   Items         Acc. (%)
+Model (Ollama tag)     Harness               Benchmark                     Items   Acc. (%)
 
-        qwen2.5:1.5b-instruct  8-shot CoT              GSM8K (test, first 200)       200              37.5
-        qwen2.5:3b-instruct    8-shot CoT              GSM8K (test, first 200)       200              24.0
-        qwen2.5:7b-instruct    8-shot CoT              GSM8K (test, first 200)       200              42.5
-        qwen2.5:1.5b-instruct  8-shot CoT              SVAMP (test, first 200)       200              79.0
-        qwen2.5:3b-instruct    8-shot CoT              SVAMP (test, first 200)       200              67.0
-        llama3.2:3b            direct answer           BBH mix (10 subtasks × 30)    300              49.3
-        qwen2.5:1.5b-instruct  direct answer           BBH mix (10 subtasks × 30)    300              39.3
-        qwen2.5:3b-instruct    direct answer           BBH mix (10 subtasks × 30)    300              29.3
-        qwen2.5:7b-instruct    direct answer           BBH mix (10 subtasks × 30)    300              51.0
-        llama3.2:3b            direct answer           GSM8K (test, first 200)       200                8.0
-        qwen2.5:1.5b-instruct  direct answer           GSM8K (test, first 200)       200              12.0
-        qwen2.5:3b-instruct    direct answer           GSM8K (test, first 200)       200              12.5
-        qwen2.5:7b-instruct    direct answer           GSM8K (test, first 200)       200              23.5
-        llama3.2:3b            direct answer           SVAMP (test, first 200)       200              33.0
-        qwen2.5:1.5b-instruct  direct answer           SVAMP (test, first 200)       200              32.5
-        qwen2.5:3b-instruct    direct answer           SVAMP (test, first 200)       200              39.5
-        qwen2.5:7b-instruct    direct answer           SVAMP (test, first 200)       200              64.5
+qwen2.5:1.5b-instruct  8-shot CoT            GSM8K (test, first 200)         200        37.5
+qwen2.5:3b-instruct    8-shot CoT            GSM8K (test, first 200)         200        24.0
+qwen2.5:7b-instruct    8-shot CoT            GSM8K (test, first 200)         200        42.5
+qwen2.5:1.5b-instruct  8-shot CoT            SVAMP (test, first 200)         200        79.0
+qwen2.5:3b-instruct    8-shot CoT            SVAMP (test, first 200)         200        67.0
+llama3.2:3b            direct answer         BBH mix (10 subtasks × 30)      300        49.3
+qwen2.5:1.5b-instruct  direct answer         BBH mix (10 subtasks × 30)      300        39.3
+qwen2.5:3b-instruct    direct answer         BBH mix (10 subtasks × 30)      300        29.3
+qwen2.5:7b-instruct    direct answer         BBH mix (10 subtasks × 30)      300        51.0
+llama3.2:3b            direct answer         GSM8K (test, first 200)         200          8.0
+qwen2.5:1.5b-instruct  direct answer         GSM8K (test, first 200)         200        12.0
+qwen2.5:3b-instruct    direct answer         GSM8K (test, first 200)         200        12.5
+qwen2.5:7b-instruct    direct answer         GSM8K (test, first 200)         200        23.5
+llama3.2:3b            direct answer         SVAMP (test, first 200)         200        33.0
+qwen2.5:1.5b-instruct  direct answer         SVAMP (test, first 200)         200        32.5
+qwen2.5:3b-instruct    direct answer         SVAMP (test, first 200)         200        39.5
+qwen2.5:7b-instruct    direct answer         SVAMP (test, first 200)         200        64.5
 
-Table 18: Brier score per budget for the main methods (random policy). The last column is the ALC
+Table 19: Brier score per budget for the main methods (random policy). The last column is the ALC
 of Eq. 1.
 
-Testbed       Method                      B0            B1     B3     B7           B15    B31     ALC
+Testbed    Method                      B0     B1     B3     B7             B15     B31     ALC
 synthetic
-              constant 0.5               0.250         0.250  0.250  0.250         0.250  0.250  0.2500
-real          empirical mean             0.250         0.330  0.211  0.183         0.172  0.166  0.2208
-              attribute prior only       0.215         0.215  0.215  0.215         0.215  0.215  0.2148
-              prior + shrinkage          0.215         0.201  0.181  0.169         0.162  0.157  0.1797
-              full (shipped)             0.215         0.201  0.181  0.169         0.162  0.157  0.1797
-              oracle: pair success rate  0.160         0.160  0.160  0.160         0.160  0.160  0.1598
+           constant 0.5               0.250  0.250  0.250  0.250           0.250   0.250  0.2500
+real       empirical mean             0.250  0.330  0.211  0.183           0.172   0.166  0.2208
+           attribute prior only       0.215  0.215  0.215  0.215           0.215   0.215  0.2148
+           prior + shrinkage          0.215  0.201  0.181  0.169           0.162   0.157  0.1797
+           full (shipped)             0.215  0.201  0.181  0.169           0.162   0.157  0.1797
+           oracle: pair success rate  0.160  0.160  0.160  0.160           0.160   0.160  0.1598
 
-              constant 0.5               0.250         0.250  0.250  0.250         0.250  0.250  0.2500
-              empirical mean             0.250         0.498  0.264  0.231         0.217  0.202  0.2871
-              attribute prior only       0.234         0.234  0.234  0.234         0.234  0.234  0.2340
-              prior + shrinkage          0.234         0.247  0.226  0.213         0.211  0.201  0.2228
-              full (shipped)             0.234         0.247  0.226  0.212         0.211  0.199  0.2224
-              oracle: pair success rate  0.196         0.196  0.196  0.196         0.196  0.196  0.1961
+           constant 0.5               0.250  0.250  0.250  0.250           0.250   0.250  0.2500
+           empirical mean             0.250  0.498  0.264  0.231           0.217   0.202  0.2871
+           attribute prior only       0.234  0.234  0.234  0.234           0.234   0.234  0.2340
+           prior + shrinkage          0.234  0.247  0.226  0.213           0.211   0.201  0.2228
+           full (shipped)             0.234  0.247  0.226  0.212           0.211   0.199  0.2224
+           oracle: pair success rate  0.196  0.196  0.196  0.196           0.196   0.196  0.1961
 
-                                                       23
-Table 19: Synthetic signal sweep (160 pairs per setting, seed 0): ALC of shrinkage and of the full
+Table 20: Synthetic signal sweep (160 pairs per setting, seed 0): ALC of shrinkage and of the full
 model, their paired difference, and the two oracle references.
 
-topic  Shrinkage Full [95% CI]            Full - shrink [95% CI] Oracle rate Oracle p
+topic  Shrinkage Full [95% CI]                  Full - shrink [95% CI] Oracle rate Oracle p
 
-0.00 0.0 0.1816  0.1818 [0.1708, 0.1926]  +0.0002 [-0.0000, 0.0005]  0.1543  0.1464
-0.00 0.3 0.1801  0.1803 [0.1692, 0.1906]  +0.0002 [-0.0000, 0.0004]  0.1551  0.1444
-0.35 0.3 0.1797  0.1800 [0.1689, 0.1905]  +0.0003 [0.0001, 0.0005]   0.1571  0.1427
-0.70 0.3 0.1797  0.1797 [0.1691, 0.1900]  +0.0000 [-0.0002, 0.0003]  0.1598  0.1379
-1.00 0.3 0.1800  0.1798 [0.1694, 0.1898]  -0.0002 [-0.0005, 0.0001]  0.1627  0.1321
-0.70 0.0 0.1793  0.1796 [0.1688, 0.1896]  +0.0002 [0.0000, 0.0005]   0.1583  0.1392
+0.00 0.0 0.1816        0.1818 [0.1708, 0.1926]  +0.0002 [-0.0000, 0.0005]  0.1543  0.1464
+0.00 0.3 0.1801        0.1803 [0.1692, 0.1906]  +0.0002 [-0.0000, 0.0004]  0.1551  0.1444
+0.35 0.3 0.1797        0.1800 [0.1689, 0.1905]  +0.0003 [0.0001, 0.0005]   0.1571  0.1427
+0.70 0.3 0.1797        0.1797 [0.1691, 0.1900]  +0.0000 [-0.0002, 0.0003]  0.1598  0.1379
+1.00 0.3 0.1800        0.1798 [0.1694, 0.1898]  -0.0002 [-0.0005, 0.0001]  0.1627  0.1321
+0.70 0.0 0.1793        0.1796 [0.1688, 0.1896]  +0.0002 [0.0000, 0.0005]   0.1583  0.1392
 
-Table 20: Sensitivity to the prior strength 0 (Brier ALC).
+           Table 21: Sensitivity to the prior strength 0 (Brier ALC).
 
-Synthetic, shrinkage            0 = 1     0 = 2   0 = 4   0 = 8
-Synthetic, full
-Real, shrinkage                 0.1829    0.1793  0.1797  0.1837
-Real, full                      0.1831    0.1795  0.1797  0.1832
-                                0.2394    0.2290  0.2228  0.2208
-                                0.2388    0.2285  0.2224  0.2206
+           Synthetic, shrinkage       0 = 1      0 = 2     0 = 4   0 = 8
+           Synthetic, full
+           Real, shrinkage            0.1829     0.1793    0.1797  0.1837
+           Real, full                 0.1831     0.1795    0.1797  0.1832
+                                      0.2394     0.2290    0.2228  0.2208
+                                      0.2388     0.2285    0.2224  0.2206
 
-                                24
+                                             25
 

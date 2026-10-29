@@ -1,0 +1,24 @@
+{
+ "zip": "C:\\Users\\neels\\Downloads\\gen_papers_2\\neurips_challenges\\paiec\\submission\\candidates\\test_rater_DO_NOT_UPLOAD.zip",
+ "bytes": 24752,
+ "sha256": "9353c29fdbc7da6bec4fe4a8832a3ca1b5619f9f0a2add09c2e44dbf8d2af1f0",
+ "constants": {
+  "mu": 7.0,
+  "sd": 6.6,
+  "w": 0.3,
+  "b": 0.1
+ },
+ "models_txt": "Qwen/Qwen3-VL-4B-Instruct",
+ "test_constants": true,
+ "validator_exit": 0,
+ "smoke_exit": 0,
+ "official_loop_exit": 0,
+ "official_loop_alc": 0.217909212732859,
+ "official_loop_equals_m050": true,
+ "functional_test": {
+  "exit": 0,
+  "stdout": "{\"p_before\": 0.4650570548417855, \"p_after\": 0.5240722841368223, \"expected\": 0.5240722841368223, \"dir\": \"C:\\\\Users\\\\neels\\\\AppData\\\\Local\\\\Temp\\\\tmp6ycl4jef\\\\.paiec_rater\", \"p_xp\": 0.526319438298274, \"state\": \"loading\"}",
+  "stderr_tail": "",
+  "offset_applied_correctly": true
+ }
+}

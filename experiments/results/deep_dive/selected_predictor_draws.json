@@ -1,0 +1,137 @@
+{
+ "note": "three formative draws of the selected predictor (1010717); aggregates only, parsed from the saved Codabench Scoring output by make_macros.py with deep_dive/parse_feedback.py",
+ "same_predictor_evidence": {
+  "1010717": {
+   "zip": "xp_level_m050.zip",
+   "zip_sha256": "cda9fe9cae49b68997d831f1de8dfe3d53a14ad3d1ac15281b22bd8326c7a715",
+   "model_py_starts_with_selected": true,
+   "labeling_identical": true,
+   "wrapper_returns_core_predict": true
+  },
+  "1010835": {
+   "zip": "probe_A.zip",
+   "zip_sha256": "68678c6c114d9575aef270a0a2e297f4db37334ae7dbbbb5d05431015c163bdb",
+   "model_py_starts_with_selected": true,
+   "labeling_identical": true,
+   "wrapper_returns_core_predict": true
+  },
+  "1010837": {
+   "zip": "probe_B.zip",
+   "zip_sha256": "c9489ad2656705da1e3435a659cc53c7ed12f92dfd7bab6074fcd76e548f1193",
+   "model_py_starts_with_selected": true,
+   "labeling_identical": true,
+   "wrapper_returns_core_predict": true
+  }
+ },
+ "draws": [
+  {
+   "submission_id": 1010717,
+   "zip": "xp_level_m050.zip",
+   "n_pairs": 8,
+   "n_benchmark_ids": 7,
+   "n_eval_subject_items": 498,
+   "alc": 0.1627845,
+   "ece": 0.141722875,
+   "brier_by_budget": {
+    "0": 0.23019375,
+    "1": 0.18321125,
+    "3": 0.154,
+    "7": 0.143275375,
+    "15": 0.147529875,
+    "31": 0.14161825
+   },
+   "ece_by_budget": {
+    "0": 0.278000625,
+    "1": 0.214220625,
+    "3": 0.127386875,
+    "7": 0.090778875,
+    "15": 0.096339125,
+    "31": 0.081775875
+   }
+  },
+  {
+   "submission_id": 1010835,
+   "zip": "probe_A.zip",
+   "n_pairs": 8,
+   "n_benchmark_ids": 7,
+   "n_eval_subject_items": 492,
+   "alc": 0.192013875,
+   "ece": 0.12389612500000001,
+   "brier_by_budget": {
+    "0": 0.24252474999999998,
+    "1": 0.1915275,
+    "3": 0.19629425,
+    "7": 0.188464625,
+    "15": 0.177490125,
+    "31": 0.170060625
+   },
+   "ece_by_budget": {
+    "0": 0.228459125,
+    "1": 0.124286125,
+    "3": 0.128336375,
+    "7": 0.114745125,
+    "15": 0.099637375,
+    "31": 0.076492875
+   }
+  },
+  {
+   "submission_id": 1010837,
+   "zip": "probe_B.zip",
+   "n_pairs": 9,
+   "n_benchmark_ids": 7,
+   "n_eval_subject_items": 487,
+   "alc": 0.21432855555555555,
+   "ece": 0.14226311111111112,
+   "brier_by_budget": {
+    "0": 0.25681033333333336,
+    "1": 0.24375888888888889,
+    "3": 0.20484577777777777,
+    "7": 0.20389833333333332,
+    "15": 0.19610077777777776,
+    "31": 0.1892697777777778
+   },
+   "ece_by_budget": {
+    "0": 0.253765,
+    "1": 0.19529566666666667,
+    "3": 0.11756622222222222,
+    "7": 0.112645,
+    "15": 0.11393022222222222,
+    "31": 0.08999288888888889
+   }
+  }
+ ],
+ "overlap": {
+  "1010835": {
+   "shared_benchmark_ids_with_1010717": 7,
+   "shared_pairs_with_1010717": 1
+  },
+  "1010837": {
+   "shared_benchmark_ids_with_1010717": 7,
+   "shared_pairs_with_1010717": 0
+  }
+ },
+ "benchmark_matched_alc": {
+  "1010835_minus_1010717": {
+   "n_benchmarks": 7,
+   "mean_diff": 0.0122975,
+   "se": 0.01833959956299353
+  },
+  "1010837_minus_1010717": {
+   "n_benchmarks": 7,
+   "mean_diff": 0.02304285714285714,
+   "se": 0.015889916026147755
+  },
+  "1010837_minus_1010835": {
+   "n_benchmarks": 7,
+   "mean_diff": 0.010745357142857138,
+   "se": 0.01445503558194064
+  }
+ },
+ "summary": {
+  "n_draws": 3,
+  "alc_mean": 0.18970897685185184,
+  "alc_sd": 0.025849213380363275,
+  "alc_min": 0.1627845,
+  "alc_max": 0.21432855555555555
+ }
+}

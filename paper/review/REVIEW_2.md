@@ -85,3 +85,50 @@ coding-assistant use.
 - New appendices A (formative details, matched differences, calibration, checks, full population table) and B
   (deep-dive diagnosis, what did not help, ceilings).
 - Main text 7 pp (was 7); total 24 pp (was 20).
+
+## Pass 3 (2026-10-29): the pre-registered item-difficulty study (negative)
+
+Added Section 5.3 (about half a page), an appendix paragraph and Table 8, and updates to the abstract, contributions,
+limitations, reproduction commands and disclosure. All numbers come from
+`experiments/results/deep_dive/items/eval_items_qwen3vl_4b.json`, the PREREG files (hashes; the timestamps the files
+state: 13:08, 13:18, 13:31, 14:08 PDT on 2026-10-26) and the ratings file, through `make_macros.py`; the deployment
+probes from `experiments/results/deep_dive/probes_summary.json` (new, derived from the saved Codabench logs).
+`make_audit.py` adds 13 claims (182 total, 0 failing), including a re-derivation of the gate from the CIs and the
+order of the pre-registration, amendments and gate evaluation by file time.
+
+Checks made while writing it:
+- The gate fails on condition (a) in both comparisons; condition (b) holds in both. The text says exactly that,
+  not "neither comparison passes either condition".
+- The 0.089 / 0.037 correlations are medians over 26 and 21 benchmarks; the text says "medians over benchmarks".
+- The deployment claim is worded as the probes' design allows: B's valid score implies load and forward pass
+  unless the probe did not run; C's PAIEC-PREDICT-002 is returned only after a successful load on a GPU of at
+  least 70 GB (branch checked in `probe_C/model.py`). Probe mapping 1010835/7/65 -> probe_A/B/C is read from
+  each run's `details.json`.
+- The Mac is described as "a Mac GPU (MPS backend)", not as a specific chip, which nothing on file records.
+- Main text is now 7.6 pages (Disclosure ends about 60% down page 8; references follow on page 8). Total 25 pages.
+  `build_paper.sh` (now four pdflatex passes): 0 undefined, 0 overfull, 0 `??`, no rerun warning.
+
+Not added (out of scope of the request, flagged to the coordinator): probes A (1010835) and B (1010837) return the
+selected predictor's predictions, so their formative scores are two more draws of 1010717's predictor; they would
+illustrate the draw noise of Section 5.1 directly.
+
+## Pass 4 (2026-10-29): three draws of the selected predictor
+
+Probes 1010835 and 1010837 run the selected predictor (their `model.py` is the selected `model.py` byte for byte plus
+a wrapper that returns `_core_predict`; `labeling.py` identical; with the probe disabled their local-testbed ALC in
+the organisers' client equals the selected ZIP's). Their formative scores are parsed from the saved Scoring output
+into `experiments/results/deep_dive/selected_predictor_draws.json` (aggregates only) by `make_macros.py`.
+
+- The selected predictor: 0.1628, 0.1920, 0.2143 on three draws; mean 0.1897, sd 0.026, se 0.015. The mean, not
+  the best draw, is now given wherever 1010717's score appears (abstract, Sec. 5.1, leaderboard paragraph, new
+  Sec. 7 Conclusion; audited paragraph by paragraph), and Table 3 / Figure 1 show all three draws and their mean.
+- The three-draw range (0.052) exceeds the range of the four submission runs (0.031): the text now says plainly that
+  the gaps between our runs are draw noise and that the variants have about the same expected score; 1010717 is
+  kept because the simulator favours it.
+- **Correction forced by the new draws:** one draw of the selected predictor (1010837) has B0 = 0.2568, above the
+  constant's 0.25. The earlier sentences "every recalibrated run predicted budget 0 better than the constant" and
+  "beat the constant at budget 0 on each of its draws" were removed; the text now reports 1 of 5 recalibrated draws
+  above 0.25 and the selected predictor's mean B0 of 0.2432 against 0.2834 for the previous submission.
+- At the board, the three-draw mean would rank about 46 (the best draw 22).
+- Main text: exactly 8 pages (references start at the top of page 9), after trimming a few sentences in Sec. 3, 4,
+  5.1, 5.2, 7 and 9 (no content removed that the report relies on). Total 25 pages. Audit: 190 claims, 0 failing.

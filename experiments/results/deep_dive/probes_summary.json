@@ -1,0 +1,35 @@
+{
+ "note": "deployment probes; derived from saved Codabench logs by make_macros.py",
+ "probes": {
+  "1010835": {
+   "zip": "probe_A.zip",
+   "mode": "A",
+   "zip_sha256": "68678c6c114d9575aef270a0a2e297f4db37334ae7dbbbb5d05431015c163bdb",
+   "models_txt": "Qwen/Qwen3-VL-4B-Instruct",
+   "base_zip_sha256": "cda9fe9cae49b68997d831f1de8dfe3d53a14ad3d1ac15281b22bd8326c7a715",
+   "scored": true,
+   "platform_error_codes": []
+  },
+  "1010837": {
+   "zip": "probe_B.zip",
+   "mode": "B",
+   "zip_sha256": "c9489ad2656705da1e3435a659cc53c7ed12f92dfd7bab6074fcd76e548f1193",
+   "models_txt": "Qwen/Qwen3-VL-4B-Instruct",
+   "base_zip_sha256": "cda9fe9cae49b68997d831f1de8dfe3d53a14ad3d1ac15281b22bd8326c7a715",
+   "scored": true,
+   "platform_error_codes": []
+  },
+  "1010865": {
+   "zip": "probe_C.zip",
+   "mode": "C",
+   "zip_sha256": "e5d27cbef6e5e4a5be883a86aded2401d4ae47e1780660d28ec93e6d5ab055f1",
+   "models_txt": "Qwen/Qwen3-VL-4B-Instruct",
+   "base_zip_sha256": "cda9fe9cae49b68997d831f1de8dfe3d53a14ad3d1ac15281b22bd8326c7a715",
+   "scored": false,
+   "platform_error_codes": [
+    "PAIEC-PREDICT-002",
+    "PAIEC-UNKNOWN-001"
+   ]
+  }
+ }
+}

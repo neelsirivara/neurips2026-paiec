@@ -515,11 +515,75 @@ def main() -> None:
     claim("[formative] 1010370's budget-0 Brier is above the constant's 0.25", "formative_runs.json runs.shipped",
           f"B0 {bud.get('shipped', {}).get('0')}", (bud.get("shipped", {}).get("0") or 0) > 0.25)
     cands = ("xp_nosubj_mu2", "xp_level_m050", "xp_level_m100")
-    claim("[formative] every recalibrated run has budget-0 Brier below 0.25 (1010370 is the only run above)", "formative_runs.json runs.*",
-          ", ".join(f"{k} {bud.get(k, {}).get('0')}" for k in cands), all((bud.get(k, {}).get("0") or 1) < 0.25 for k in cands))
+    sdr = load("deep_dive/selected_predictor_draws.json")
+    draws = g(sdr, "draws") or []
+    rec_b0 = {k: bud.get(k, {}).get("0") for k in cands}
+    rec_b0.update({str(d["submission_id"]): d["brier_by_budget"]["0"] for d in draws[1:]})
+    above = [k for k, v in rec_b0.items() if v is not None and v > 0.25]
+    claim("[formative] of the 5 recalibrated draws (3 variant runs + 2 probe draws) exactly 1 has B0 above 0.25, and it is a draw of "
+          "1010717's predictor (1010837)", "formative_runs.json + selected_predictor_draws.json",
+          ", ".join(f"{k} {v:.4f}" for k, v in rec_b0.items()), len(rec_b0) == 5 and above == ["1010837"])
     e0 = {k: g(v, "ece_by_budget", "0") for k, v in runs.items()}
-    claim("[formative] every recalibrated run has lower budget-0 ECE than 1010370", "formative_runs.json runs.*.ece_by_budget.0",
-          ", ".join(f"{k} {v:.3f}" for k, v in e0.items() if v is not None), all(e0[k] < e0["shipped"] for k in cands if k in e0))
+    e0_rec = [e0[k] for k in cands if k in e0] + [d["ece_by_budget"]["0"] for d in draws[1:]]
+    claim("[formative] every recalibrated draw (5) has lower budget-0 ECE than 1010370", "formative_runs.json + selected_predictor_draws.json",
+          f"max {max(e0_rec):.3f} vs {e0.get('shipped'):.3f}", len(e0_rec) == 5 and max(e0_rec) < e0["shipped"])
+    # three draws of the selected predictor
+    ev_same = g(sdr, "same_predictor_evidence") or {}
+    import zipfile as _zf2
+    ok_code = True
+    with _zf2.ZipFile(zsel) as z:
+        sel_m, sel_l = z.read("model.py"), z.read("labeling.py")
+    for nm in ("probe_A", "probe_B"):
+        zp = sub / "candidates" / f"{nm}.zip"
+        if not zp.exists():
+            ok_code = False
+            continue
+        with _zf2.ZipFile(zp) as z:
+            m, l2 = z.read("model.py"), z.read("labeling.py")
+        tail = m[len(sel_m):]
+        ok_code = ok_code and m.startswith(sel_m) and l2 == sel_l and b"_core_predict = predict" in tail and b"return _core_predict(input, labeled)" in tail
+    claim("[draws] probes 1010835/1010837 run the selected predictor: model.py = selected model.py + wrapper returning _core_predict, "
+          "labeling.py identical (re-derived from the ZIPs and recorded in the JSON)", "submission/candidates/probe_A.zip, probe_B.zip",
+          f"re-derived {ok_code}; recorded {[v.get('model_py_starts_with_selected') for v in ev_same.values()]}",
+          ok_code and all(v and v["model_py_starts_with_selected"] and v["labeling_identical"] for v in ev_same.values()))
+    pinfo = [load(f"deep_dive/candidates/{nm}/probe_info.json") for nm in ("probe_A", "probe_B")]
+    lsel_alc = g(load("deep_dive/candidates/xp_level_m050/official_loop_check.json"), "alc_mean")
+    claim("[draws] with the probe disabled, the probes give exactly the selected ZIP's local-testbed ALC in the organisers' client",
+          "deep_dive/candidates/probe_*/probe_info.json", f"{[g(p, 'official_loop_alc') for p in pinfo]} vs {lsel_alc}",
+          all(p is not None and g(p, "official_loop_alc") == lsel_alc for p in pinfo))
+    d1 = draws[0] if draws else {}
+    claim("[draws] the 1010717 draw in selected_predictor_draws.json equals formative_runs.json (two parses of the same log)",
+          "selected_predictor_draws.json vs formative_runs.json", f"{d1.get('alc')} vs {g(runs, 'xp_level_m050', 'alc_mean')}",
+          bool(d1) and abs(d1["alc"] - g(runs, "xp_level_m050", "alc_mean")) < 1e-12
+          and all(abs(d1["brier_by_budget"][b] - g(runs, "xp_level_m050", "brier_by_budget", b)) < 1e-12 for b in d1["brier_by_budget"]))
+    import statistics as _st
+    alcs3 = [d["alc"] for d in draws]
+    alc4 = [v["alc_mean"] for v in runs.values()]
+    claim("[draws] the selected predictor's three-draw range exceeds the range of the four submission runs (so their gaps are draw noise)",
+          "selected_predictor_draws.json + formative_runs.json",
+          f"draws {[round(a, 4) for a in alcs3]} (range {max(alcs3) - min(alcs3):.4f}), four runs range {max(alc4) - min(alc4):.4f}",
+          len(alcs3) == 3 and max(alcs3) - min(alcs3) > max(alc4) - min(alc4))
+    claim("[draws] three-draw mean and sd as printed (0.1897, 0.026)", "selected_predictor_draws.json",
+          f"mean {_st.mean(alcs3):.4f}, sd {_st.stdev(alcs3):.4f}", round(_st.mean(alcs3), 4) == 0.1897 and round(_st.stdev(alcs3), 3) == 0.026)
+    mm2 = g(sdr, "benchmark_matched_alc") or {}
+    same_max = max(abs(v["mean_diff"]) for v in mm2.values())
+    between = [abs(v["ALC"]["mean_diff"]) for v in (g(fr, "benchmark_matched") or {}).values()]
+    claim("[draws] the largest matched difference between draws of the same predictor exceeds 3 of the 6 between-submission differences",
+          "selected_predictor_draws.json + formative_runs.json", f"same max {same_max:.4f}; between {[round(b, 4) for b in between]}",
+          sum(1 for b in between if b < same_max) == 3)
+    sc_lb = g(load("leaderboard_context.json"), "scores_sorted") or []
+    claim("[draws] the three-draw mean would rank 46 on the public board (the best draw 22)", "leaderboard_context.json",
+          f"mean rank {1 + sum(1 for v in sc_lb if v < _st.mean(alcs3))}, best-draw rank {1 + sum(1 for v in sc_lb if v < min(alcs3))}",
+          1 + sum(1 for v in sc_lb if v < _st.mean(alcs3)) == 46 and 1 + sum(1 for v in sc_lb if v < min(alcs3)) == 22)
+    # wherever the report states 1010717's score, the mean over its draws is stated too (main text, abstract, conclusion)
+    main_part = tex.split("\\appendix")[0]
+    paras = [p for p in main_part.split("\n\n") if "\\FmSelAlc" in p or "\\SdDrawOneAlc" in p]
+    bad = [p[:60] for p in paras if "\\SdAlcMean" not in p]
+    abst = tex.split("\\begin{abstract}")[1].split("\\end{abstract}")[0] if "\\begin{abstract}" in tex else ""
+    concl = tex.split("\\section{Conclusion}")[1].split("\\section{")[0] if "\\section{Conclusion}" in tex else ""
+    claim("[draws] every main-text paragraph that states 1010717's score also states the three-draw mean; abstract and conclusion state it",
+          "paper/main.tex", f"{len(paras)} paragraphs, without mean: {bad}; abstract {'\\SdAlcMean' in abst}; conclusion {'\\SdAlcMean' in concl}",
+          bool(paras) and not bad and "\\SdAlcMean" in abst and "\\SdAlcMean" in concl)
     ece = load("deep_dive/ece_check.json")
     sims = [g(ece, s, "ece_by_budget")[0] for s in ("A", "INV", "HARD", "SHIFT") if g(ece, s, "ece_by_budget")]
     claim("[formative] 1010370's budget-0 ECE is above all four simulated populations' values", "ece_check.json",
@@ -626,6 +690,84 @@ def main() -> None:
           f"1010717 {g(runs, 'xp_level_m050', 'alc_mean'):.4f}, #10 {sc[9] if len(sc) > 9 else None}",
           len(sc) > 9 and g(runs, "xp_level_m050", "alc_mean") > sc[9])
 
+    # ------------------------------------------------------------------ pre-registered item-difficulty study (2026-10-29)
+    ev = load("deep_dive/items/eval_items_qwen3vl_4b.json")
+    items_dir = RESULTS / "deep_dive" / "items"
+
+    def fsha(name):
+        p = items_dir / name
+        return hashlib.sha256(p.read_bytes()).hexdigest() if p.exists() else None
+    claim("[items] the result file records the SHA-256 of PREREG_items.md and of amendments 1 and 2, and they match the files",
+          "deep_dive/items/eval_items_qwen3vl_4b.json", f"{g(ev, 'prereg_sha256', default='')[:12]}, {g(ev, 'amendment_sha256', default='')[:12]}, "
+          f"{g(ev, 'amendment2_sha256', default='')[:12]}",
+          bool(ev) and ev.get("prereg_sha256") == fsha("PREREG_items.md") and ev.get("amendment_sha256") == fsha("PREREG_items_AMENDMENT_1.md")
+          and ev.get("amendment2_sha256") == fsha("PREREG_items_AMENDMENT_2.md"))
+    import datetime as _dt
+    mt = {n: _dt.datetime.fromtimestamp((items_dir / n).stat().st_mtime) for n in
+          ("PREREG_items.md", "PREREG_items_AMENDMENT_1.md", "PREREG_items_AMENDMENT_2.md", "PREREG_items_AMENDMENT_3.md",
+           "ratings_qwen3vl_4b.jsonl", "eval_items_qwen3vl_4b.json") if (items_dir / n).exists()}
+    order = ["PREREG_items.md", "PREREG_items_AMENDMENT_1.md", "PREREG_items_AMENDMENT_2.md", "PREREG_items_AMENDMENT_3.md",
+             "eval_items_qwen3vl_4b.json"]
+    claim("[items] file times are in the stated order: pre-registration < amendments 1, 2, 3 < gate evaluation", "deep_dive/items/ (mtimes)",
+          ", ".join(f"{n.split('_')[-1]} {mt[n]:%m-%d %H:%M}" for n in order if n in mt),
+          len(mt) == 6 and all(mt[a] < mt[b] for a, b in zip(order, order[1:])))
+    rated = g(ev, "n_items_rated")
+    claim("[items] every needed item was rated (coverage 1.0 in INV and AS)", "eval_items_qwen3vl_4b.json",
+          f"{rated}/{g(ev, 'n_items_needed')}, coverage {g(ev, 'scenarios', 'INV', 'rating_coverage')}/{g(ev, 'scenarios', 'AS', 'rating_coverage')}",
+          rated == g(ev, "n_items_needed") and g(ev, "scenarios", "INV", "rating_coverage") == 1.0 and g(ev, "scenarios", "AS", "rating_coverage") == 1.0)
+    inv1, as1 = g(ev, "scenarios", "INV", "variants", "s1", "minus_base") or {}, g(ev, "scenarios", "AS", "variants", "s1", "minus_base") or {}
+    ictl, actl = g(ev, "scenarios", "INV", "ctrl_diff") or {}, g(ev, "scenarios", "AS", "ctrl_diff") or {}
+    gate_a = inv1.get("ci_hi", 1) < 0 and ictl.get("ci_hi", 1) < 0
+    gate_b = not as1.get("ci_lo", -1) > 0 and not actl.get("ci_lo", -1) > 0
+    claim("[items] gate re-derived from the CIs: (a) fails vs base and vs control, (b) holds in both; the recorded verdicts agree",
+          "eval_items_qwen3vl_4b.json", f"INV vs base hi {inv1.get('ci_hi'):+.4f}, vs ctrl hi {ictl.get('ci_hi'):+.4f}; AS vs base lo "
+          f"{as1.get('ci_lo'):+.4f}, vs ctrl lo {actl.get('ci_lo'):+.4f}; recorded {g(ev, 'gate')}, {g(ev, 'gate_vs_b_only')}",
+          (not inv1.get("ci_hi", 1) < 0) and (not ictl.get("ci_hi", 1) < 0) and gate_b and not gate_a
+          and g(ev, "gate", "pass") is False and g(ev, "gate_vs_b_only", "pass") is False)
+    ws = [f["beta"][0] for f in (g(ev, "fits", "s1") or [])]
+    claim("[items] the s1 slope is positive in all 5 folds", "eval_items_qwen3vl_4b.json fits.s1", f"{[round(w, 3) for w in ws]}",
+          len(ws) == 5 and all(w > 0 for w in ws))
+    cc = g(ev, "within_benchmark_corr_s1_vs_item_effect") or {}
+    claim("[items] within-benchmark correlation of s1 with the empirical item effect is small (medians < 0.1 in INV and AS)",
+          "eval_items_qwen3vl_4b.json", f"INV {g(cc, 'INV', 'median')}, AS {g(cc, 'AS', 'median')}",
+          bool(cc) and g(cc, "INV", "median") < 0.1 and g(cc, "AS", "median") < 0.1)
+    bb_i = g(ev, "scenarios", "INV", "variants", "s1", "brier_minus_base") or []
+    bb_a = g(ev, "scenarios", "AS", "variants", "s1", "brier_minus_base") or []
+    claim("[items] differences to the base are mostly the budget-0 level: |0.1 dB0| exceeds half of |dALC| in INV and AS, and |dB1..31| <= 0.001",
+          "eval_items_qwen3vl_4b.json brier_minus_base", f"INV dB0 {bb_i[0] if bb_i else None}, AS dB0 {bb_a[0] if bb_a else None}",
+          bool(bb_i and bb_a) and abs(0.1 * bb_i[0]) > 0.5 * abs(inv1["mean"]) and abs(0.1 * bb_a[0]) > 0.5 * abs(as1["mean"])
+          and max(abs(x) for x in bb_i[1:] + bb_a[1:]) <= 0.001)
+    claim("[items] the exploratory s3 and s1+s3 variants also have INV CIs that include 0", "eval_items_qwen3vl_4b.json",
+          ", ".join(f"{v} [{g(ev, 'scenarios', 'INV', 'variants', v, 'minus_base', 'ci_lo'):+.4f}, "
+                    f"{g(ev, 'scenarios', 'INV', 'variants', v, 'minus_base', 'ci_hi'):+.4f}]" for v in ("s3", "s1+s3")),
+          all(g(ev, "scenarios", "INV", "variants", v, "minus_base", "ci_lo") < 0 < g(ev, "scenarios", "INV", "variants", v, "minus_base", "ci_hi")
+              for v in ("s3", "s1+s3")))
+    rmodels = set()
+    rp = items_dir / "ratings_qwen3vl_4b.jsonl"
+    if rp.exists():
+        for line in rp.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                rmodels.add(json.loads(line).get("model"))
+    claim("[items] all ratings come from Qwen/Qwen3-VL-4B-Instruct (no API backend)", "ratings_qwen3vl_4b.jsonl", f"{sorted(rmodels)}",
+          rmodels == {"Qwen/Qwen3-VL-4B-Instruct"})
+    claim("[items] no Claude-API rating exists (the API route was built, never run)", "deep_dive/items/",
+          f"files: {sorted(p.name for p in items_dir.iterdir())}", not any("claude" in p.name.lower() for p in items_dir.iterdir()))
+    pr = g(load("deep_dive/probes_summary.json"), "probes") or {}
+    claim("[probes] 1010835/1010837/1010865 are probe_A/B/C, built on the selected ZIP with the rating model in models.txt; B scored, "
+          "C stopped with PAIEC-PREDICT-002", "deep_dive/probes_summary.json",
+          "; ".join(f"{k}: {v['zip']}, scored={v['scored']}, codes={v['platform_error_codes']}" for k, v in pr.items()),
+          [pr.get(k, {}).get("zip") for k in ("1010835", "1010837", "1010865")] == ["probe_A.zip", "probe_B.zip", "probe_C.zip"]
+          and all(v.get("base_zip_sha256") == g(fr, "selected_submission", "sha256") and v.get("models_txt") == "Qwen/Qwen3-VL-4B-Instruct"
+                  for v in pr.values())
+          and pr["1010837"]["scored"] and "PAIEC-PREDICT-002" in pr["1010865"]["platform_error_codes"])
+    pc = (sub / "candidates" / "probe_C" / "model.py")
+    pct = pc.read_text(encoding="utf-8") if pc.exists() else ""
+    claim("[probes] probe C returns NaN (invalid output) only after a successful load on a GPU with >= 70 GB", "submission/candidates/probe_C/model.py",
+          "branch present" if 'get("class") == "ok"' in pct and 'gpu_total_gb") or 0) >= 70.0' in pct else "branch missing",
+          'get("class") == "ok"' in pct and 'gpu_total_gb") or 0) >= 70.0' in pct)
+    claim("[selected] the selected ZIP still has no models.txt after the item study (1010717 unchanged)", "submission/candidates/xp_level_m050.zip",
+          f"sha {sha_sel[:12] if sha_sel else None}", bool(sha_sel) and sha_sel == "cda9fe9cae49b68997d831f1de8dfe3d53a14ad3d1ac15281b22bd8326c7a715")
+
     n_fail = sum(1 for r in rows if not r[3])
     lines = ["# Claim audit (generated by experiments/src/make_audit.py)", "",
              "Every directional claim in paper/main.tex, re-derived from the result files. `HOLDS` means the",
@@ -648,6 +790,11 @@ def main() -> None:
               "`experiments/results/leaderboard_context.json` (derived by `make_macros.py` from the raw Codabench dumps in",
               "`../leaderboards/`; scores only). Figure 1 is drawn by pgfplots from",
               "`paper/results_fig_formative.tex`, generated from the same JSON.", "",
+              "Item-difficulty study (2026-10-29 addition, Section 5.3 and Table 8): every number comes from",
+              "`experiments/results/deep_dive/items/eval_items_qwen3vl_4b.json`, the PREREG files next to it (hashes and the",
+              "timestamps they state) and `ratings_qwen3vl_4b.jsonl` (model name, rating time); the deployment probes from",
+              "`experiments/results/deep_dive/probes_summary.json` (derived by `make_macros.py` from the saved Codabench logs:",
+              "zip name, whether a score exists, platform error codes) and `submission/candidates/probe_*/`.", "",
               "Not re-derived here (stated as such in the report or in REVIEW_2.md): the participants' resubmission noise",
               "estimates mentioned in DEEP_DIVE.md (not used in the report); whether `build_candidate.py` reproduces the",
               "selected ZIP byte for byte (not re-run, to leave the submission files untouched)."]

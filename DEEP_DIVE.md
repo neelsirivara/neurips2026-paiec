@@ -10,12 +10,15 @@ Compute and editing:
 - Item rating ran on the Mac GPU under `~/neurips/GPU_LOCK` (§10).
 - The paper was not edited by this work.
 
-**Status (2026-10-26 afternoon; latest first):**
+**Status (final, 2026-10-29):**
 - **Selected submission: 1010717** (`xp_level_m050`, sha256 `cda9fe9c…`), chosen by the coordinator on the
   recommendation in §9.
 - Four formative runs are analysed in §9.
-- Two deployment probes for an on-GPU item-rating model are uploaded (1010835, 1010837); see §11.
-- The pre-registered item-rating study is running; its gate result is pending (§10).
+- The deployment probes (§11) showed that a 4B model loads and runs on the scoring GPU.
+- The pre-registered LLM item-rating study **failed its gate** (§10):
+  - against the intercept-only control it gains −0.0006 [−0.0014, +0.0002] ALC on the inventory proxy;
+  - so the integration (§13) was not built, and no further zip exists.
+- The API route was built and never run (§12).
 
 ## 1. Summary (written before the candidate uploads; §9 has the four-run update)
 
@@ -262,7 +265,7 @@ over benchmarks.
 |---|---|---|---|---|---|
 | 1 | **Calibrated budget-0 level**: subject terms off, intercept −0.5, τ_mu 2 → `xp_level_m050` | MID −0.0041 [−0.0057, −0.0025], HARD −0.0069 [−0.0090, −0.0048], SHIFT −0.0042 [−0.0056, −0.0028], INV −0.0020 [−0.0050, +0.0015]. Release-like: A +0.0018, Y25 +0.0046 (`proto_level3.json`). The hidden B0 row says the pool is not release-like (§1). | done | low (B0 is 10% of the weight; B1+ barely changes) | **yes, built and uploaded (1010717)** |
 | 2 | Conservative variant: subject terms off, τ_mu 2, intercept 0 → `xp_nosubj_mu2` | −0.0010 to −0.0019 on INV/INV25/MID/HARD (MID and HARD significant), +0.0002 / +0.0007 n.s. on A/Y25 | done | very low | **yes, uploaded (1010715)** |
-| 3 | LLM-rated item difficulty (+ its benchmark average) as an extra offset, via allowed API | Ceiling −0.031 to −0.042 (item oracle, A), −0.047 with the benchmark level (`proto_oracle.json`). Realistic ≈ ρ² × ceiling with ρ 0.15–0.5 (literature; doctawho42: best transferable item covariate correlation 0.15) → −0.002 to −0.010; may be 0 | API key + about $20–50 + about 2 days | high: transfer, API failures inside the 8 h run, key in the zip | only if started Oct 26–27 (§7) |
+| 3 | LLM-rated item difficulty (+ its benchmark average) as an extra offset, via allowed API or a local model. **Tested with a local Qwen3-VL-4B (§10): gate failed, −0.0006 [−0.0014, +0.0002] vs the intercept-only control** | Ceiling −0.031 to −0.042 (item oracle, A), −0.047 with the benchmark level (`proto_oracle.json`). Realistic ≈ ρ² × ceiling with ρ 0.15–0.5 (literature; doctawho42: best transferable item covariate correlation 0.15) → −0.002 to −0.010; may be 0 | API key + about $20–50 + about 2 days | high: transfer, API failures inside the 8 h run, key in the zip | only if started Oct 26–27 (§7) |
 | 4 | LLM-rated benchmark difficulty only (kkk61's approach) | Ceiling −0.0065 (A) / −0.0114 (HARD), mostly B0–B1. Realistic −0.002 to −0.005. Partly overlaps #1, since a level fix already takes the mean part. | same as 3, fewer calls | high | same as 3 |
 | 5 | Stronger level shift (intercept −0.75 / −1) | HARD −0.0082/−0.0087 and SHIFT −0.0052/−0.0055 vs −0.0069/−0.0042 at −0.5, but INV −0.0014/−0.0003 and A +0.0036/+0.0057 | 5 min | medium: tuning one draw's B0 | yes, if the candidates' logs still show high B0 |
 | 6 | Re-tune XP prior sds on the inventory proxy (48-setting grid, nested by fold) | +0.0004 [−0.0007, +0.0014]; picked setting on A +0.0003 (`grid_inv.json`) | done | – | no gain |
@@ -327,13 +330,18 @@ Checks on each, all run with `python -I` (records in `experiments/results/deep_d
 
 ## 8. What the user needs to do
 
-1. Keep saving each upload's Logs → Scoring output: shipped 1010370 (saved), 1010715, 1010717. Run
-   `python -I experiments/src/deep_dive/parse_feedback.py <file>`.
-2. Choose the OpenReview submission ID. On current evidence, prefer **1010717** (`xp_level_m050`). Keep it unless its
-   draw shows D or B0 ECE back at release-like levels with a worse matched B0.
-3. If a candidate becomes the selected submission, the report's description of the budget-0 prior must say so: three
-   constants changed. The paper was not edited here.
-4. Decide today on the LLM route (§7). It needs a provider, a key with a spend cap and a budget.
+Final state (2026-10-29):
+1. Put **1010717** (`submission/candidates/xp_level_m050.zip`) in the OpenReview form.
+2. The report has to say that the selected zip differs from the round-4 zip in three constants of the budget-0 prior
+   (§6). The report agent handles this; the paper was not edited here.
+3. Nothing else is pending from this deep dive:
+   - the LLM item route failed its pre-registered gate (§10);
+   - the API route was dropped (§12).
+
+   No further upload is needed.
+
+History: the original steps were to save each upload's scoring output and run `parse_feedback.py`, choose the ID on
+the four-run evidence (§9), and decide on the LLM route (§7).
 
 ## 9. Formative runs of the candidates (2026-10-26)
 
@@ -383,7 +391,39 @@ The ~0.03 improvement over the shipped zip is mostly draw noise; the simulator e
 feedback "may guide development". Not allowed: extracting private test data (we never invert per-pair rows) and
 anything keyed on anonymous benchmark or subject IDs (we use them only to average our own runs).
 
-## 10. Item-rating study (pre-registered; in progress)
+## 10. Item-rating study (pre-registered): negative result, not shipped
+
+**Outcome (gate evaluated 2026-10-29 09:55 PDT): FAIL.** Nothing is integrated, and 1010717 stays the selected
+submission. Files are in `experiments/results/deep_dive/items/`:
+- the result: `eval_items_qwen3vl_4b.json` and its log;
+- the ratings: `ratings_qwen3vl_4b.jsonl`, 20,720 prompts, 0 errors, sha256 `390442e8…`, copied read-only from the
+  Mac. All 24,199 needed items are rated.
+
+ALC difference, candidate (m050 + w·z(s1) + b) minus comparison, with 95% cluster-bootstrap CIs over benchmarks:
+
+| | INV (33 inventory benchmarks) | AS (25 release-like benchmarks) |
+|---|---|---|
+| base m050 ALC | 0.1868 | 0.1950 |
+| s1 − base (pre-registered gate) | +0.0005 [−0.0015, +0.0024] → (a) fails | −0.0023 [−0.0050, +0.0008] → (b) holds |
+| s1 − intercept-only control (amendment 2) | −0.0006 [−0.0014, +0.0002] → (a') fails | −0.0000 [−0.0010, +0.0011] → (b') holds |
+| exploratory: s3 − base / s1+s3 − base | +0.0008 / +0.0003 | −0.0018 / −0.0018 |
+
+**What the numbers say.**
+- The rating carries real but small item information.
+  - The fitted slope is positive in all 5 folds (w = 0.15–0.19 per sd of s1). So, unlike the round-3 text prior, its
+    sign transfers across benchmarks.
+  - Its within-benchmark correlation with the leave-pair-out empirical item effect is small: median 0.089 on INV (77% of
+    benchmarks positive) and 0.037 on AS.
+  - On INV the item part lowers B1–B31 by only 0.0001–0.0006.
+- The fitted intercept b (+0.33 to +0.56) pulls the budget-0 level back toward the training mean.
+  - That costs 0.008 at B0 on INV and gains 0.025 at B0 on AS.
+  - So the "vs base" differences are mostly a level effect, which is why amendment 2 added the intercept-only control.
+- Against that control the rating adds at most 0.0006, far below both the gate and the 0.003 bar for starting
+  integration.
+- This agrees with the literature (§3: embeddings and text-derived item features transfer poorly to new benchmarks) and
+  with doctawho42's report that the best transferable item covariate correlates about 0.15 within a pair.
+
+**History of the study:**
 
 - **Pre-registration** (`experiments/results/deep_dive/items/`):
   - `PREREG_items.md`: 13:08 PDT, before any rating.
@@ -398,7 +438,8 @@ anything keyed on anonymous benchmark or subject IDs (we use them only to averag
   - 24,199 items (20,690 unique prompts) from 33 inventory benchmarks (INV) and 25 seeded non-inventory benchmarks (AS).
   - Text was recovered by replaying the round-4 frame build. All 58 benchmarks were verified against the frame
     (`items_manifest.json`).
-- **Run.** Mac, under the GPU lock, owner `paiec_item_rating`, from 13:22 PDT, about 0.45 s per item.
+- **Run.** Mac, under the GPU lock, owner `paiec_item_rating`, 13:22–16:36 PDT on 2026-10-26. 20,690 prompts in 193.5
+  min (exit 0); the lock was released by the wrapper at exit.
 - **Gate.** Leave-benchmark-out fit of w·z(s1) + b on top of m050. It requires both:
   - (a) a CI-separated ALC gain on INV;
   - (b) AS not significantly worse;
@@ -439,3 +480,37 @@ test and the official-loop check. In a functional test on the laptop (CPU torch)
   - error 42: GPU ≥ 70 GB;
   - error 40: GPU < 70 GB;
   - valid score: the probe did not run, or the load failed.
+- **Probe C (1010865) failed by design** with "[PAIEC-PREDICT-002] Invalid predict() output" (logs in
+  `_downloads/cb_logs_1010865/`). That is its "loaded OK, GPU ≥ 70 GB" branch.
+- **Deployment of a 4B model works on the scoring GPU:** `Qwen/Qwen3-VL-4B-Instruct` loads from `models.txt` in bf16
+  on cuda:0 and runs inside the per-call timeout, on a GPU of at least 70 GB. This follows from B's valid run together
+  with C's code.
+
+## 12. API route: built, never run
+
+- `deep_dive/rate_items_claude.py` exists: Message Batches API, verbalised 0–100 probability, client only via
+  `anthropic_key.py`. It is pre-registered as `PREREG_items_AMENDMENT_3.md`.
+- The user decided not to set up a Claude API key for this deadline. So no count_tokens call, no pilot and no batch
+  was ever run. The file is left in place untouched.
+- Later Bedrock or Vertex credentials would be a post-deadline option.
+
+## 13. Integration code: written, not built (the gate failed)
+
+**Status.** `deep_dive/rater_appendix.py.txt` and `deep_dive/build_rater.py` would turn `xp_level_m050` into an
+item-rating candidate. `build_rater.py` refuses to build unless both gates pass.
+
+**Design:**
+- `models.txt` = `Qwen/Qwen3-VL-4B-Instruct`.
+- At most 4 worker processes hold the model at once (O_EXCL slot files with the holder's pid; a stale slot is
+  reclaimed).
+- The model loads in a background thread with a 300 s cap.
+- Ratings go to a disk cache shared by all workers and checkpoints.
+- Each call rates at most 400 items, and rating stops 4.5 h after the run starts.
+- Once the rater is active, an unrated item gets the mean offset b, so labelled entries and targets share one level.
+- Any failure falls back to plain m050.
+
+**Plumbing test** (with made-up constants; the test archive was deleted afterwards). All of these pass:
+- the organisers' validator;
+- smoke test, including its 62,000-label timing check;
+- official loop check, where predictions equal m050 exactly because there is no GPU on the laptop;
+- a fake-cache functional test, which applies the expected offset exactly at budget 0.

@@ -31,6 +31,9 @@ for l in open(ratings_path, encoding="utf-8"):
     r = json.loads(l)
     if r.get("s1") is not None and not r.get("error"):
         rat[r["key"]] = r
+API_MODEL = next((r.get("model") for r in rat.values() if r.get("backend") == "api"), None)
+if API_MODEL:
+    import rate_items_claude as RC
 NI = len(F.item_dir)
 s1 = np.full(NI, np.nan)
 s3 = np.full(NI, np.nan)
@@ -38,7 +41,10 @@ n_items = 0
 for l in open(CACHE / "deep_dive_items.jsonl", encoding="utf-8"):
     it = json.loads(l)
     n_items += 1
-    k = RI.prompt_key(RI.build_prompt(it["content"], it["features"]))
+    if API_MODEL:
+        k = RC.key_of(RC.build_prompt(it["content"], it["features"]), API_MODEL)
+    else:
+        k = RI.prompt_key(RI.build_prompt(it["content"], it["features"]))
     r = rat.get(k)
     if r is not None:
         s1[it["idx"]] = r["s1"]
@@ -92,6 +98,19 @@ for name, sig in signals.items():
         fits[name].append({"mu": mu, "sd": sd, "beta": [float(x) for x in beta], "n_rows": int(rows.sum()),
                            "n_bench": int(len(np.unique(b_of)))})
     log(f"fit {name}: per-fold beta " + "; ".join(str(np.round(fr['beta'], 3)) for fr in fits[name]))
+# all-fold fit of the primary signal (deployment constants if the gate passes; not used in any evaluation)
+_ok = ~np.isnan(s1) & in_study
+_mu, _sd = float(np.mean(s1[_ok])), float(np.std(s1[_ok]))
+_rows = row_ok & _ok[F.row_item]
+_it = F.row_item[_rows]
+_b_of = F.item_dir[_it]
+_cnt = np.bincount(_b_of, minlength=len(F.dirs)).astype(float)
+_w = 1.0 / _cnt[_b_of]
+_w *= len(_w) / _w.sum()
+_beta = fit_offset(((s1[_it] - _mu) / _sd)[:, None], F.row_y[_rows], base_o_row[_rows], _w)
+deploy_fit = {"signal": "s1", "mu": _mu, "sd": _sd, "w": float(_beta[0]), "b": float(_beta[1]), "n_rows": int(_rows.sum()),
+              "n_bench": int(len(np.unique(_b_of)))}
+log(f"all-fold fit (deployment constants): {deploy_fit}")
 
 
 def make_offset(name, ts_fold):
@@ -125,7 +144,7 @@ res = {"prereg_sha256": hashlib.sha256(PREREG.read_bytes()).hexdigest(),
        "amendment2_sha256": (hashlib.sha256((OUT / "items" / "PREREG_items_AMENDMENT_2.md").read_bytes()).hexdigest()
                              if (OUT / "items" / "PREREG_items_AMENDMENT_2.md").exists() else None),
        "ratings_file": str(ratings_path), "n_rating_keys": len(rat), "n_items_rated": int(rated.sum()), "n_items_needed": n_items,
-       "fits": fits, "scenarios": {}}
+       "fits": fits, "deploy_fit": deploy_fit, "scenarios": {}}
 taus_c = dict(SHIPPED_TAUS); taus_c["mu"] = 2.0
 base_sl = [np.full(F.n_pairs, base_zs)] * 5
 for sname, keep in (("INV", inv_dirs), ("AS", as_dirs)):

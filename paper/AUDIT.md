@@ -3,7 +3,7 @@
 Every directional claim in paper/main.tex, re-derived from the result files. `HOLDS` means the
 artifact supports the claim as worded; `FAILS` means the text must be changed (or the claim dropped).
 
-169 claims checked, 0 failing.
+190 claims checked, 0 failing.
 
 | # | Claim | Artifact | Values | Status |
 |---|---|---|---|---|
@@ -149,33 +149,54 @@ artifact supports the claim as worded; `FAILS` means the text must be changed (o
 | 140 | [report] author block is exactly Neel Sirivara / University of Washington / nsiriv@cs.washington.edu | `paper/main.tex` | author block | HOLDS |
 | 141 | [report] the selected submission ID printed in the paper is 1010717 | `paper/results_macros.tex \SelId` | True | HOLDS |
 | 142 | [formative] 1010370's budget-0 Brier is above the constant's 0.25 | `formative_runs.json runs.shipped` | B0 0.2834058888888889 | HOLDS |
-| 143 | [formative] every recalibrated run has budget-0 Brier below 0.25 (1010370 is the only run above) | `formative_runs.json runs.*` | xp_nosubj_mu2 0.224745, xp_level_m050 0.23019375, xp_level_m100 0.24583488888888888 | HOLDS |
-| 144 | [formative] every recalibrated run has lower budget-0 ECE than 1010370 | `formative_runs.json runs.*.ece_by_budget.0` | shipped 0.340, xp_nosubj_mu2 0.263, xp_level_m050 0.278, xp_level_m100 0.219 | HOLDS |
-| 145 | [formative] 1010370's budget-0 ECE is above all four simulated populations' values | `ece_check.json` | observed 0.34045833333333336, simulated [0.235, 0.271, 0.299, 0.286] | HOLDS |
-| 146 | [formative] 1010717's budget-0 ECE is above every simulated value for its constants (appendix wording 'also above') | `ece_check.json` | observed 0.278000625, simulated [0.257, 0.247, 0.203] | HOLDS |
-| 147 | [formative] 1010370's B1 and B3 are within 0.01 of the simulated INV values (text: 'in the range of') | `formative_runs.json + proto_level3.json INV` | B1 0.21034755555555557 vs 0.20476645468929802, B3 0.19087988888888888 vs 0.18934701199238768 | HOLDS |
-| 148 | [formative] ALC rows equal the ALC recomputed from per-budget means (all runs) | `formative_runs.json` | shipped 2.8e-07, xp_nosubj_mu2 1.2e-07, xp_level_m050 0.0e+00, xp_level_m100 4.4e-08 | HOLDS |
-| 149 | [formative] the same 7 benchmark IDs in every run and no pair repeated across runs | `formative_runs.json overlap` | benchmarks/run [7, 7, 7, 7], all-runs 7, max shared pairs 0 | HOLDS |
-| 150 | [formative] no benchmark-matched ALC difference between any two runs reaches two standard errors | `formative_runs.json benchmark_matched` | |t| [1.75, 1.03, 0.53, 0.31, 0.64, 0.5] | HOLDS |
-| 151 | [formative] no matched entry (any budget) reaches the 5% t critical value with 6 df (2.447) | `formative_runs.json benchmark_matched` | max |t| 2.42 over 42 | HOLDS |
-| 152 | [formative] revision rule not triggered: matched B0 of 1010717 minus 1010370 is negative | `formative_runs.json benchmark_matched` | -0.04459892857142857 | HOLDS |
-| 153 | [formative] observed raw B1..B31 differences (1010717 - 1010370) far exceed the simulated maximum change at n>=1 (draw noise) | `formative_runs.json + proto_level3.json` | mean raw -0.0274, simulated max |delta| 0.0046 | HOLDS |
-| 154 | [simulator] 1010717 constants: CI below 0 on MID, HARD, SHIFT | `proto_level3.json` | MID -0.0025, HARD -0.0048, SHIFT -0.0028 | HOLDS |
-| 155 | [simulator] 1010717 constants: not significant on INV and INV25 | `proto_level3.json` | INV [-0.0050, +0.0015], INV25 [-0.0063, +0.0052] | HOLDS |
-| 156 | [simulator] 1010717 constants: significant cost on A and Y25 (release-like) | `proto_level3.json` | A +0.0005, Y25 +0.0015 | HOLDS |
-| 157 | [simulator] 1010717 constants: no significant loss in any non-release-like population | `proto_level3.json` | INV lo -0.0050, INV25 lo -0.0063, MID lo -0.0057, HARD lo -0.0090, SHIFT lo -0.0056 | HOLDS |
-| 158 | [simulator] 1010735 constants more than double the release-like cost of 1010717 (A and Y25) | `proto_level3.json` | A +0.0057 vs +0.0018, Y25 +0.0104 vs +0.0046 | HOLDS |
-| 159 | [simulator] 1010715 constants change the ALC by less than 0.002 in magnitude outside release-like data | `proto_level3.json` | INV -0.0010, INV25 -0.0015, MID -0.0011, HARD -0.0019, SHIFT -0.0006 | HOLDS |
-| 160 | [simulator] the level matters almost only at B0: per scenario |dB0| exceeds every |dB1..B31|, and the latter stay below 0.005 | `proto_level3.json` | max |dB1..31| 0.0046 | HOLDS |
-| 161 | [data] on inventory benchmarks the hand-set prior's B0 exceeds 0.25 (also for 2025+ subjects); inventory rate < non-inventory | `population.json` | B0 0.2596251745316176, 0.2653274373088732; rates 0.4658561993196064 vs 0.5465849694572765 | HOLDS |
-| 162 | [data] a subject-ability table by model name does not transfer (R^2 < 0.02 in every variant) | `population.json ability_transfer` | [0.01, 0.014, 0.019, 0.011] | HOLDS |
-| 163 | [deep dive] item-level oracle gains exceed benchmark-level ones in A and HARD (most headroom is item-level) | `proto_oracle.json` | A: item -0.0417, bench -0.0065; HARD: item -0.0342, bench -0.0114 | HOLDS |
-| 164 | [deep dive] re-tuning the prior sds on INV gives no significant gain | `grid_inv.json` | +0.0004 [-0.0007, +0.0014] | HOLDS |
-| 165 | [checks] xp_level_m050: validator OK, smoke ok, equivalence < 1e-3, stream mode with 0 predict calls during acquisition, 31 labels per pair | `deep_dive/candidates/xp_level_m050/` | validator OK, smoke True, equiv 1.1411497810587257e-05, mode stream, acq calls 0 | HOLDS |
-| 166 | [checks] xp_level_m100: validator OK, smoke ok, equivalence < 1e-3, stream mode with 0 predict calls during acquisition, 31 labels per pair | `deep_dive/candidates/xp_level_m100/` | validator OK, smoke True, equiv 1.0345691321134165e-05, mode stream, acq calls 0 | HOLDS |
-| 167 | [checks] xp_nosubj_mu2: validator OK, smoke ok, equivalence < 1e-3, stream mode with 0 predict calls during acquisition, 31 labels per pair | `deep_dive/candidates/xp_nosubj_mu2/` | validator OK, smoke True, equiv 1.1625958221239685e-05, mode stream, acq calls 0 | HOLDS |
-| 168 | [checks] local testbed in the organisers' client: the level change hardly matters (|1010717 - 1010370| < 0.001 ALC) | `official_loop_check.json (both)` | 0.217909212732859 vs 0.21788153978998467 | HOLDS |
-| 169 | [leaderboard] our best draw (1010717) is worse than the board's #10 ('far from the leaders') | `leaderboard_context.json` | 1010717 0.1628, #10 0.148272 | HOLDS |
+| 143 | [formative] of the 5 recalibrated draws (3 variant runs + 2 probe draws) exactly 1 has B0 above 0.25, and it is a draw of 1010717's predictor (1010837) | `formative_runs.json + selected_predictor_draws.json` | xp_nosubj_mu2 0.2247, xp_level_m050 0.2302, xp_level_m100 0.2458, 1010835 0.2425, 1010837 0.2568 | HOLDS |
+| 144 | [formative] every recalibrated draw (5) has lower budget-0 ECE than 1010370 | `formative_runs.json + selected_predictor_draws.json` | max 0.278 vs 0.340 | HOLDS |
+| 145 | [draws] probes 1010835/1010837 run the selected predictor: model.py = selected model.py + wrapper returning _core_predict, labeling.py identical (re-derived from the ZIPs and recorded in the JSON) | `submission/candidates/probe_A.zip, probe_B.zip` | re-derived True; recorded [True, True, True] | HOLDS |
+| 146 | [draws] with the probe disabled, the probes give exactly the selected ZIP's local-testbed ALC in the organisers' client | `deep_dive/candidates/probe_*/probe_info.json` | [0.217909212732859, 0.217909212732859] vs 0.217909212732859 | HOLDS |
+| 147 | [draws] the 1010717 draw in selected_predictor_draws.json equals formative_runs.json (two parses of the same log) | `selected_predictor_draws.json vs formative_runs.json` | 0.1627845 vs 0.1627845 | HOLDS |
+| 148 | [draws] the selected predictor's three-draw range exceeds the range of the four submission runs (so their gaps are draw noise) | `selected_predictor_draws.json + formative_runs.json` | draws [0.1628, 0.192, 0.2143] (range 0.0515), four runs range 0.0306 | HOLDS |
+| 149 | [draws] three-draw mean and sd as printed (0.1897, 0.026) | `selected_predictor_draws.json` | mean 0.1897, sd 0.0258 | HOLDS |
+| 150 | [draws] the largest matched difference between draws of the same predictor exceeds 3 of the 6 between-submission differences | `selected_predictor_draws.json + formative_runs.json` | same max 0.0230; between [0.0418, 0.0293, 0.0154, 0.0124, 0.0263, 0.0139] | HOLDS |
+| 151 | [draws] the three-draw mean would rank 46 on the public board (the best draw 22) | `leaderboard_context.json` | mean rank 46, best-draw rank 22 | HOLDS |
+| 152 | [draws] every main-text paragraph that states 1010717's score also states the three-draw mean; abstract and conclusion state it | `paper/main.tex` | 3 paragraphs, without mean: []; abstract True; conclusion True | HOLDS |
+| 153 | [formative] 1010370's budget-0 ECE is above all four simulated populations' values | `ece_check.json` | observed 0.34045833333333336, simulated [0.235, 0.271, 0.299, 0.286] | HOLDS |
+| 154 | [formative] 1010717's budget-0 ECE is above every simulated value for its constants (appendix wording 'also above') | `ece_check.json` | observed 0.278000625, simulated [0.257, 0.247, 0.203] | HOLDS |
+| 155 | [formative] 1010370's B1 and B3 are within 0.01 of the simulated INV values (text: 'in the range of') | `formative_runs.json + proto_level3.json INV` | B1 0.21034755555555557 vs 0.20476645468929802, B3 0.19087988888888888 vs 0.18934701199238768 | HOLDS |
+| 156 | [formative] ALC rows equal the ALC recomputed from per-budget means (all runs) | `formative_runs.json` | shipped 2.8e-07, xp_nosubj_mu2 1.2e-07, xp_level_m050 0.0e+00, xp_level_m100 4.4e-08 | HOLDS |
+| 157 | [formative] the same 7 benchmark IDs in every run and no pair repeated across runs | `formative_runs.json overlap` | benchmarks/run [7, 7, 7, 7], all-runs 7, max shared pairs 0 | HOLDS |
+| 158 | [formative] no benchmark-matched ALC difference between any two runs reaches two standard errors | `formative_runs.json benchmark_matched` | |t| [1.75, 1.03, 0.53, 0.31, 0.64, 0.5] | HOLDS |
+| 159 | [formative] no matched entry (any budget) reaches the 5% t critical value with 6 df (2.447) | `formative_runs.json benchmark_matched` | max |t| 2.42 over 42 | HOLDS |
+| 160 | [formative] revision rule not triggered: matched B0 of 1010717 minus 1010370 is negative | `formative_runs.json benchmark_matched` | -0.04459892857142857 | HOLDS |
+| 161 | [formative] observed raw B1..B31 differences (1010717 - 1010370) far exceed the simulated maximum change at n>=1 (draw noise) | `formative_runs.json + proto_level3.json` | mean raw -0.0274, simulated max |delta| 0.0046 | HOLDS |
+| 162 | [simulator] 1010717 constants: CI below 0 on MID, HARD, SHIFT | `proto_level3.json` | MID -0.0025, HARD -0.0048, SHIFT -0.0028 | HOLDS |
+| 163 | [simulator] 1010717 constants: not significant on INV and INV25 | `proto_level3.json` | INV [-0.0050, +0.0015], INV25 [-0.0063, +0.0052] | HOLDS |
+| 164 | [simulator] 1010717 constants: significant cost on A and Y25 (release-like) | `proto_level3.json` | A +0.0005, Y25 +0.0015 | HOLDS |
+| 165 | [simulator] 1010717 constants: no significant loss in any non-release-like population | `proto_level3.json` | INV lo -0.0050, INV25 lo -0.0063, MID lo -0.0057, HARD lo -0.0090, SHIFT lo -0.0056 | HOLDS |
+| 166 | [simulator] 1010735 constants more than double the release-like cost of 1010717 (A and Y25) | `proto_level3.json` | A +0.0057 vs +0.0018, Y25 +0.0104 vs +0.0046 | HOLDS |
+| 167 | [simulator] 1010715 constants change the ALC by less than 0.002 in magnitude outside release-like data | `proto_level3.json` | INV -0.0010, INV25 -0.0015, MID -0.0011, HARD -0.0019, SHIFT -0.0006 | HOLDS |
+| 168 | [simulator] the level matters almost only at B0: per scenario |dB0| exceeds every |dB1..B31|, and the latter stay below 0.005 | `proto_level3.json` | max |dB1..31| 0.0046 | HOLDS |
+| 169 | [data] on inventory benchmarks the hand-set prior's B0 exceeds 0.25 (also for 2025+ subjects); inventory rate < non-inventory | `population.json` | B0 0.2596251745316176, 0.2653274373088732; rates 0.4658561993196064 vs 0.5465849694572765 | HOLDS |
+| 170 | [data] a subject-ability table by model name does not transfer (R^2 < 0.02 in every variant) | `population.json ability_transfer` | [0.01, 0.014, 0.019, 0.011] | HOLDS |
+| 171 | [deep dive] item-level oracle gains exceed benchmark-level ones in A and HARD (most headroom is item-level) | `proto_oracle.json` | A: item -0.0417, bench -0.0065; HARD: item -0.0342, bench -0.0114 | HOLDS |
+| 172 | [deep dive] re-tuning the prior sds on INV gives no significant gain | `grid_inv.json` | +0.0004 [-0.0007, +0.0014] | HOLDS |
+| 173 | [checks] xp_level_m050: validator OK, smoke ok, equivalence < 1e-3, stream mode with 0 predict calls during acquisition, 31 labels per pair | `deep_dive/candidates/xp_level_m050/` | validator OK, smoke True, equiv 1.1411497810587257e-05, mode stream, acq calls 0 | HOLDS |
+| 174 | [checks] xp_level_m100: validator OK, smoke ok, equivalence < 1e-3, stream mode with 0 predict calls during acquisition, 31 labels per pair | `deep_dive/candidates/xp_level_m100/` | validator OK, smoke True, equiv 1.0345691321134165e-05, mode stream, acq calls 0 | HOLDS |
+| 175 | [checks] xp_nosubj_mu2: validator OK, smoke ok, equivalence < 1e-3, stream mode with 0 predict calls during acquisition, 31 labels per pair | `deep_dive/candidates/xp_nosubj_mu2/` | validator OK, smoke True, equiv 1.1625958221239685e-05, mode stream, acq calls 0 | HOLDS |
+| 176 | [checks] local testbed in the organisers' client: the level change hardly matters (|1010717 - 1010370| < 0.001 ALC) | `official_loop_check.json (both)` | 0.217909212732859 vs 0.21788153978998467 | HOLDS |
+| 177 | [leaderboard] our best draw (1010717) is worse than the board's #10 ('far from the leaders') | `leaderboard_context.json` | 1010717 0.1628, #10 0.148272 | HOLDS |
+| 178 | [items] the result file records the SHA-256 of PREREG_items.md and of amendments 1 and 2, and they match the files | `deep_dive/items/eval_items_qwen3vl_4b.json` | 06d9e784369b, debdb62d36d6, de34fa4cca2e | HOLDS |
+| 179 | [items] file times are in the stated order: pre-registration < amendments 1, 2, 3 < gate evaluation | `deep_dive/items/ (mtimes)` | items.md 10-26 13:08, 1.md 10-26 13:18, 2.md 10-26 13:31, 3.md 10-26 14:08, 4b.json 10-29 09:55 | HOLDS |
+| 180 | [items] every needed item was rated (coverage 1.0 in INV and AS) | `eval_items_qwen3vl_4b.json` | 24199/24199, coverage 1.0/1.0 | HOLDS |
+| 181 | [items] gate re-derived from the CIs: (a) fails vs base and vs control, (b) holds in both; the recorded verdicts agree | `eval_items_qwen3vl_4b.json` | INV vs base hi +0.0024, vs ctrl hi +0.0002; AS vs base lo -0.0050, vs ctrl lo -0.0010; recorded {'a_inv_ci_below_0': False, 'b_as_not_sig_worse': True, 'pass': False}, {'a_inv_ci_below_0': False, 'b_as_not_sig_worse': True, 'pass': False} | HOLDS |
+| 182 | [items] the s1 slope is positive in all 5 folds | `eval_items_qwen3vl_4b.json fits.s1` | [0.194, 0.152, 0.179, 0.172, 0.147] | HOLDS |
+| 183 | [items] within-benchmark correlation of s1 with the empirical item effect is small (medians < 0.1 in INV and AS) | `eval_items_qwen3vl_4b.json` | INV 0.08890150755916956, AS 0.036545473770856776 | HOLDS |
+| 184 | [items] differences to the base are mostly the budget-0 level: |0.1 dB0| exceeds half of |dALC| in INV and AS, and |dB1..31| <= 0.001 | `eval_items_qwen3vl_4b.json brier_minus_base` | INV dB0 0.008038754002884682, AS dB0 -0.02520101386710258 | HOLDS |
+| 185 | [items] the exploratory s3 and s1+s3 variants also have INV CIs that include 0 | `eval_items_qwen3vl_4b.json` | s3 [-0.0016, +0.0030], s1+s3 [-0.0018, +0.0024] | HOLDS |
+| 186 | [items] all ratings come from Qwen/Qwen3-VL-4B-Instruct (no API backend) | `ratings_qwen3vl_4b.jsonl` | ['Qwen/Qwen3-VL-4B-Instruct'] | HOLDS |
+| 187 | [items] no Claude-API rating exists (the API route was built, never run) | `deep_dive/items/` | files: ['PREREG_items.md', 'PREREG_items_AMENDMENT_1.md', 'PREREG_items_AMENDMENT_2.md', 'PREREG_items_AMENDMENT_3.md', 'eval_items_STUB_dryrun.json', 'eval_items_qwen3vl_4b.json', 'eval_items_qwen3vl_4b.log', 'items_extract.log', 'items_manifest.json', 'rating_order.txt', 'ratings_qwen3vl_4b.jsonl'] | HOLDS |
+| 188 | [probes] 1010835/1010837/1010865 are probe_A/B/C, built on the selected ZIP with the rating model in models.txt; B scored, C stopped with PAIEC-PREDICT-002 | `deep_dive/probes_summary.json` | 1010835: probe_A.zip, scored=True, codes=[]; 1010837: probe_B.zip, scored=True, codes=[]; 1010865: probe_C.zip, scored=False, codes=['PAIEC-PREDICT-002', 'PAIEC-UNKNOWN-001'] | HOLDS |
+| 189 | [probes] probe C returns NaN (invalid output) only after a successful load on a GPU with >= 70 GB | `submission/candidates/probe_C/model.py` | branch present | HOLDS |
+| 190 | [selected] the selected ZIP still has no models.txt after the item study (1010717 unchanged) | `submission/candidates/xp_level_m050.zip` | sha cda9fe9cae49 | HOLDS |
 
 Number provenance: every number in the PDF is a macro from `paper/results_macros.tex`
 (generated by `make_macros.py`); tables are `paper/results_table_*.tex` from the same script;
@@ -192,6 +213,12 @@ candidate checks from `deep_dive/candidates/*/`, and the public leaderboard from
 `experiments/results/leaderboard_context.json` (derived by `make_macros.py` from the raw Codabench dumps in
 `../leaderboards/`; scores only). Figure 1 is drawn by pgfplots from
 `paper/results_fig_formative.tex`, generated from the same JSON.
+
+Item-difficulty study (2026-10-29 addition, Section 5.3 and Table 8): every number comes from
+`experiments/results/deep_dive/items/eval_items_qwen3vl_4b.json`, the PREREG files next to it (hashes and the
+timestamps they state) and `ratings_qwen3vl_4b.jsonl` (model name, rating time); the deployment probes from
+`experiments/results/deep_dive/probes_summary.json` (derived by `make_macros.py` from the saved Codabench logs:
+zip name, whether a score exists, platform error codes) and `submission/candidates/probe_*/`.
 
 Not re-derived here (stated as such in the report or in REVIEW_2.md): the participants' resubmission noise
 estimates mentioned in DEEP_DIVE.md (not used in the report); whether `build_candidate.py` reproduces the

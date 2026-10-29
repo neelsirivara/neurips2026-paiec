@@ -1,0 +1,3 @@
+OK: C:\Users\neels\Downloads\gen_papers_2\neurips_challenges\paiec\submission\candidates\test_rater_DO_NOT_UPLOAD.zip looks like a valid submission ZIP.
+
+[exit code 0]

@@ -1363,8 +1363,6 @@ def formative_macros(fr) -> None:
         if name == "xp_level_m050":
             cells = ["\\textbf{" + c + "}" for c in cells]
         lines.append(f"{labels[name]} & " + " & ".join(cells) + r" \\")
-    lines.append(r"\midrule")
-    lines.append("constant 0.5 (any draw) & -- & " + " & ".join(["0.2500"] * 6) + r" & 0.2500 & -- & -- \\")
     (PAPER / "results_table_formative.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")
     # learning-curve plot lines for pgfplots (x = log2(n+1))
     styles = {"shipped": "black, mark=*", "xp_nosubj_mu2": "blue, mark=square*", "xp_level_m050": "red, thick, mark=triangle*",
@@ -1605,6 +1603,282 @@ def candidate_check_macros() -> None:
     mac("CkShipLoopAlc", fmt(get(ship_loop, "alc_mean")))
 
 
+ITEMS = RESULTS / "deep_dive" / "items"
+ITEM_VARIANTS = {"s1": "SOne", "s3": "SThree", "s1+s3": "SBoth", "b_only": "BOnly"}
+
+
+def item_study_macros() -> None:
+    """Pre-registered LLM item-difficulty study (failed its gate): deep_dive/items/eval_items_qwen3vl_4b.json + PREREG files."""
+    ev = load("deep_dive/items/eval_items_qwen3vl_4b.json")
+    # pre-registration and amendments: SHA-256, consistency with the result file, and the timestamp each one states
+    docs = (("PREREG_items.md", "Prereg", "prereg_sha256"), ("PREREG_items_AMENDMENT_1.md", "AmOne", "amendment_sha256"),
+            ("PREREG_items_AMENDMENT_2.md", "AmTwo", "amendment2_sha256"), ("PREREG_items_AMENDMENT_3.md", "AmThree", None))
+    for fname, code, key in docs:
+        p = ITEMS / fname
+        txt = p.read_text(encoding="utf-8") if p.exists() else ""
+        sha = hashlib.sha256(p.read_bytes()).hexdigest() if p.exists() else None
+        mac("It" + code + "Sha", MISSING if sha is None else sha[:12])
+        m = re.search(r"[Ww]ritten (\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}) PDT", txt)
+        mac("It" + code + "Time", MISSING if not m else f"{m.group(1)} {m.group(2)} PDT")
+        if key:
+            mac("It" + code + "Consistent", "consistent" if sha and ev and ev.get(key) == sha else "INCONSISTENT")
+    a1 = (ITEMS / "PREREG_items_AMENDMENT_1.md").read_text(encoding="utf-8") if (ITEMS / "PREREG_items_AMENDMENT_1.md").exists() else ""
+    m = re.search(r"Qwen3-VL-4B-Instruct \(snapshot\s+([0-9a-f]{40})", a1)
+    mac("ItSnapshot", MISSING if not m else m.group(1)[:12])
+    # ratings file: model name(s), number of lines, total and mean rating time per prompt
+    rp = ITEMS / "ratings_qwen3vl_4b.jsonl"
+    models, secs, n = set(), 0.0, 0
+    if rp.exists():
+        for line in rp.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            r = json.loads(line)
+            models.add(r.get("model"))
+            secs += float(r.get("sec") or 0)
+            n += 1
+    mac("ItModel", MISSING if len(models) != 1 else next(iter(models)).replace("_", "\\_"))
+    mac("ItNPromptsFile", fmt_int(n) if n else MISSING)
+    mac("ItRatingHours", fmt(secs / 3600, 1) if n else MISSING)
+    mac("ItRatingSecPerPrompt", fmt(secs / n, 2) if n else MISSING)
+    mac("ItRatingsSha", MISSING if not rp.exists() else hashlib.sha256(rp.read_bytes()).hexdigest()[:12])
+    mac("ItNPrompts", fmt_int(get(ev, "n_rating_keys")))
+    mac("ItNItems", fmt_int(get(ev, "n_items_rated")))
+    mac("ItNNeeded", fmt_int(get(ev, "n_items_needed")))
+    # scenarios
+    for s, code in (("INV", "Inv"), ("AS", "As")):
+        r = get(ev, "scenarios", s)
+        p = "It" + code
+        mac(p + "NBench", fmt_int(get(r, "n_bench")))
+        mac(p + "NUnits", fmt_int(get(r, "n_units")))
+        mac(p + "Coverage", _pct(get(r, "rating_coverage")))
+        mac(p + "BaseAlc", fmt(get(r, "base_alc")))
+        for v, vc in ITEM_VARIANTS.items():
+            d = get(r, "variants", v)
+            mac(p + vc + "Alc", fmt(get(d, "alc")))
+            cluster_macros(p + vc, get(d, "minus_base"))
+            bb = get(d, "brier_minus_base") or []
+            mac(p + vc + "DBZero", fmt(bb[0], 4, sign=True) if bb else MISSING)
+            later = [abs(x) for x in bb[1:]]
+            mac(p + vc + "DLaterMax", fmt(max(later), 4) if later else MISSING)
+        cluster_macros(p + "Ctrl", get(r, "ctrl_diff"))
+    # fitted maps per outer fold: s1 slope w (per sd of s1) and intercept b; the b-only control's intercept
+    fits = get(ev, "fits") or {}
+    w = [f["beta"][0] for f in fits.get("s1", [])]
+    b = [f["beta"][1] for f in fits.get("s1", [])]
+    b0 = [f["beta"][0] for f in fits.get("b_only", [])]
+    mac("ItNFolds", fmt_int(len(w)) if w else MISSING)
+    mac("ItNFoldsWPos", fmt_int(sum(1 for x in w if x > 0)) if w else MISSING)
+    mac("ItWMin", fmt(min(w), 2) if w else MISSING)
+    mac("ItWMax", fmt(max(w), 2) if w else MISSING)
+    mac("ItBMin", fmt(min(b), 2) if b else MISSING)
+    mac("ItBMax", fmt(max(b), 2) if b else MISSING)
+    mac("ItBOnlyMin", fmt(min(b0), 2) if b0 else MISSING)
+    mac("ItBOnlyMax", fmt(max(b0), 2) if b0 else MISSING)
+    # within-benchmark correlation of s1 with the leave-pair-out empirical item effect
+    for s, code in (("INV", "Inv"), ("AS", "As")):
+        c = get(ev, "within_benchmark_corr_s1_vs_item_effect", s)
+        mac("ItCorr" + code + "Median", fmt(get(c, "median"), 3))
+        mac("ItCorr" + code + "Mean", fmt(get(c, "mean"), 3))
+        mac("ItCorr" + code + "NBench", fmt_int(get(c, "n_bench")))
+        mac("ItCorr" + code + "FracPos", _pct(get(c, "frac_positive")))
+    for key, code in (("gate", "GateBase"), ("gate_vs_b_only", "GateCtrl")):
+        gt = get(ev, key) or {}
+        mac("It" + code + "A", MISSING if "a_inv_ci_below_0" not in gt else ("holds" if gt["a_inv_ci_below_0"] else "fails"))
+        mac("It" + code + "B", MISSING if "b_as_not_sig_worse" not in gt else ("holds" if gt["b_as_not_sig_worse"] else "fails"))
+        mac("It" + code, MISSING if "pass" not in gt else ("passes" if gt["pass"] else "fails"))
+    # appendix table: every variant against the base, plus the s1 - intercept-only control
+    lab = {"s1": "$s_1$ (pre-registered)", "s3": "$s_3$ (exploratory)", "s1+s3": "$s_1+s_3$ (exploratory)",
+           "b_only": "intercept only (control)"}
+    lines = []
+    for v in ("s1", "b_only", "s3", "s1+s3"):
+        cells = []
+        for s in ("INV", "AS"):
+            d = get(ev, "scenarios", s, "variants", v)
+            bb = get(d, "brier_minus_base") or []
+            cells += [fmt(get(d, "alc")), _cell(get(d, "minus_base")), fmt(bb[0], 4, sign=True) if bb else MISSING]
+        lines.append(f"{lab[v]} $-$ base & " + " & ".join(cells) + r" \\")
+    cells = []
+    for s in ("INV", "AS"):
+        cells += ["--", _cell(get(ev, "scenarios", s, "ctrl_diff")), "--"]
+    lines.append(r"\midrule")
+    lines.append("$s_1$ $-$ intercept only & " + " & ".join(cells) + r" \\")
+    (PAPER / "results_table_items.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def probe_macros() -> None:
+    """Deployment probes of the rating model (uploaded, not selected).  Derived from the saved Codabench logs in
+    ../../_downloads/cb_logs_<id>/ when present (cached to results/deep_dive/probes_summary.json: zip name, whether a
+    scoring output exists, and the platform's error code; no scores or IDs of hidden data)."""
+    ids = (1010835, 1010837, 1010865)
+    cache = RESULTS / "deep_dive" / "probes_summary.json"
+    dl = HERE.parents[2] / "_downloads"
+    if all((dl / f"cb_logs_{i}" / "details.json").exists() for i in ids):
+        rec = {"note": "deployment probes; derived from saved Codabench logs by make_macros.py", "probes": {}}
+        for i in ids:
+            d = dl / f"cb_logs_{i}"
+            det = json.loads((d / "details.json").read_text(encoding="utf-8"))
+            zname = det.get("data_file", "").split("?")[0].rsplit("/", 1)[-1]
+            out = "".join((d / f).read_text(encoding="utf-8", errors="replace") for f in ("prediction_stdout.txt", "prediction_stderr.txt")
+                          if (d / f).exists())
+            codes = sorted(set(re.findall(r"\[(PAIEC-[A-Z]+-\d+)\]", out)))
+            sc = d / "scoring_stdout.txt"
+            info = load(f"deep_dive/candidates/{zname[:-4]}/probe_info.json") if zname.endswith(".zip") else None
+            rec["probes"][str(i)] = {"zip": zname, "mode": get(info, "mode"), "zip_sha256": get(info, "sha256"),
+                                     "models_txt": get(info, "models_txt"), "base_zip_sha256": get(info, "base_zip_sha256"),
+                                     "scored": bool(sc.exists() and "ALC summary" in sc.read_text(encoding="utf-8", errors="replace")),
+                                     "platform_error_codes": codes}
+        cache.write_text(json.dumps(rec, indent=1), encoding="utf-8")
+    pr = get(load("deep_dive/probes_summary.json"), "probes") or {}
+    for i, code in zip(ids, ("A", "B", "C")):
+        r = pr.get(str(i))
+        mac("Probe" + code + "Id", str(i) if r else MISSING)
+        mac("Probe" + code + "Scored", MISSING if r is None else ("finished with a valid score" if r["scored"] else "did not finish"))
+        mac("Probe" + code + "Error", MISSING if r is None else (", ".join(r["platform_error_codes"]) or "none"))
+        mac("Probe" + code + "Mode", MISSING if r is None else str(r.get("mode")))
+    base = {r.get("base_zip_sha256") for r in pr.values()}
+    mac("ProbeBaseIsSel", "the selected ZIP" if base == {get(load("deep_dive/formative_runs.json"), "selected_submission", "sha256")}
+        else "NOT the selected ZIP")
+
+
+DRAW_IDS = ((1010717, "xp_level_m050"), (1010835, "probe_A"), (1010837, "probe_B"))
+
+
+def selected_draws_macros() -> None:
+    """Three formative draws of the SELECTED predictor: 1010717 itself and the deployment probes 1010835 / 1010837, whose
+    model.py is the selected model.py plus an appended probe wrapper that returns the selected predictor's prediction
+    (labeling.py identical).  Parsed from the saved Codabench Scoring output with deep_dive/parse_feedback.py when the
+    logs exist; cached (aggregates only, no anonymous IDs) to results/deep_dive/selected_predictor_draws.json."""
+    import statistics as st
+    import sys as _sys
+    import zipfile
+    dl = HERE.parents[2] / "_downloads"
+    logs = {1010717: dl / "cb_logs_1010717" / "scoring_stdout.txt", 1010835: dl / "cb_logs_1010835" / "scoring_stdout.txt",
+            1010837: dl / "cb_logs_1010837" / "scoring_stdout.txt"}
+    cache = RESULTS / "deep_dive" / "selected_predictor_draws.json"
+    if all(p.exists() for p in logs.values()):
+        _sys.path.insert(0, str(HERE / "deep_dive"))
+        from parse_feedback import parse  # noqa: E402
+        tabs = {i: parse(p.read_text(encoding="utf-8", errors="replace")) for i, p in logs.items()}
+        # same predictor? the probe model.py must start with the selected model.py byte for byte, labeling.py identical
+        with zipfile.ZipFile(SUBMISSION / "candidates" / "xp_level_m050.zip") as z:
+            sel_model, sel_lab = z.read("model.py"), z.read("labeling.py")
+        same = {}
+        for i, name in DRAW_IDS:
+            zp = SUBMISSION / "candidates" / f"{name}.zip"
+            if not zp.exists():
+                same[str(i)] = None
+                continue
+            with zipfile.ZipFile(zp) as z:
+                m, lab = z.read("model.py"), z.read("labeling.py")
+            same[str(i)] = {"zip": zp.name, "zip_sha256": hashlib.sha256(zp.read_bytes()).hexdigest(),
+                            "model_py_starts_with_selected": m.startswith(sel_model), "labeling_identical": lab == sel_lab,
+                            "wrapper_returns_core_predict": (name == "xp_level_m050") or (b"_core_predict = predict" in m)}
+        draws = []
+        for i, name in DRAW_IDS:
+            t = tabs[i]
+            draws.append({"submission_id": i, "zip": f"{name}.zip", "n_pairs": len(t["ALC"]),
+                          "n_benchmark_ids": len({r[1] for r in t["ALC"]}), "n_eval_subject_items": sum(r[2] for r in t["ALC"]),
+                          "alc": st.mean(r[3] for r in t["ALC"]), "ece": st.mean(r[4] for r in t["ALC"]),
+                          "brier_by_budget": {b: st.mean(r[3] for r in t[int(b)]) for b, _ in BUD_IDX},
+                          "ece_by_budget": {b: st.mean(r[4] for r in t[int(b)]) for b, _ in BUD_IDX}})
+        sel_b = {r[1] for r in tabs[1010717]["ALC"]}
+        overlap = {str(i): {"shared_benchmark_ids_with_1010717": len({r[1] for r in tabs[i]["ALC"]} & sel_b),
+                            "shared_pairs_with_1010717": len({(r[0], r[1]) for r in tabs[i]["ALC"]} & {(r[0], r[1]) for r in tabs[1010717]["ALC"]})}
+                   for i, _ in DRAW_IDS[1:]}
+        matched = {}
+        for (a, _), (b, _) in ((DRAW_IDS[0], DRAW_IDS[1]), (DRAW_IDS[0], DRAW_IDS[2]), (DRAW_IDS[1], DRAW_IDS[2])):
+            def bm(t):
+                acc = {}
+                for r in t["ALC"]:
+                    acc.setdefault(r[1], []).append(r[3])
+                return {k: sum(v) / len(v) for k, v in acc.items()}
+            ma, mb = bm(tabs[a]), bm(tabs[b])
+            shared = sorted(set(ma) & set(mb))
+            d = [mb[k] - ma[k] for k in shared]
+            matched[f"{b}_minus_{a}"] = {"n_benchmarks": len(d), "mean_diff": st.mean(d) if d else None,
+                                         "se": (st.stdev(d) / len(d) ** 0.5) if len(d) > 1 else None}
+        alcs = [d["alc"] for d in draws]
+        rec = {"note": "three formative draws of the selected predictor (1010717); aggregates only, parsed from the saved "
+                       "Codabench Scoring output by make_macros.py with deep_dive/parse_feedback.py",
+               "same_predictor_evidence": same, "draws": draws, "overlap": overlap, "benchmark_matched_alc": matched,
+               "summary": {"n_draws": len(alcs), "alc_mean": st.mean(alcs), "alc_sd": st.stdev(alcs), "alc_min": min(alcs),
+                           "alc_max": max(alcs)}}
+        cache.write_text(json.dumps(rec, indent=1), encoding="utf-8")
+    sd = load("deep_dive/selected_predictor_draws.json")
+    draws = get(sd, "draws") or []
+    for d, code in zip(draws, ("One", "Two", "Three")):
+        mac("SdDraw" + code + "Id", str(d["submission_id"]))
+        mac("SdDraw" + code + "Alc", fmt(d["alc"]))
+        mac("SdDraw" + code + "BZero", fmt(d["brier_by_budget"]["0"]))
+    alcs = [d["alc"] for d in draws]
+    b0 = [d["brier_by_budget"]["0"] for d in draws]
+    e0 = [d["ece_by_budget"]["0"] for d in draws]
+    import statistics as st
+    mac("SdN", fmt_int(len(alcs)) if alcs else MISSING)
+    mac("SdAlcMean", fmt(st.mean(alcs)) if alcs else MISSING)
+    mac("SdAlcSd", fmt(st.stdev(alcs), 3) if len(alcs) > 1 else MISSING)
+    mac("SdAlcMin", fmt(min(alcs)) if alcs else MISSING)
+    mac("SdAlcMax", fmt(max(alcs)) if alcs else MISSING)
+    mac("SdAlcRange", fmt(max(alcs) - min(alcs), 3) if alcs else MISSING)
+    mac("SdAlcSe", fmt(st.stdev(alcs) / len(alcs) ** 0.5, 3) if len(alcs) > 1 else MISSING)
+    mac("SdBZeroMean", fmt(st.mean(b0)) if b0 else MISSING)
+    mac("SdBZeroMin", fmt(min(b0)) if b0 else MISSING)
+    mac("SdBZeroMax", fmt(max(b0)) if b0 else MISSING)
+    mac("SdNBZeroAbove", fmt_int(sum(1 for v in b0 if v > 0.25)) if b0 else MISSING)
+    mac("SdEceBZeroMax", fmt(max(e0), 3) if e0 else MISSING)
+    ev = get(sd, "same_predictor_evidence") or {}
+    ok = bool(ev) and all(v and v["model_py_starts_with_selected"] and v["labeling_identical"] and v["wrapper_returns_core_predict"]
+                          for v in ev.values())
+    mac("SdSameCode", "verified" if ok else "NOT VERIFIED")
+    ov = get(sd, "overlap") or {}
+    mac("SdSharedBenchMin", fmt_int(min(v["shared_benchmark_ids_with_1010717"] for v in ov.values())) if ov else MISSING)
+    mac("SdSharedPairsMax", fmt_int(max(v["shared_pairs_with_1010717"] for v in ov.values())) if ov else MISSING)
+    mm = get(sd, "benchmark_matched_alc") or {}
+    for key, code in (("1010835_minus_1010717", "TwoOne"), ("1010837_minus_1010717", "ThreeOne"), ("1010837_minus_1010835", "ThreeTwo")):
+        mac("SdMatch" + code + "Mean", fmt(get(mm, key, "mean_diff"), 4, sign=True))
+        mac("SdMatch" + code + "Se", fmt(get(mm, key, "se"), 4))
+    # all formative runs of every predictor (four submissions + two probe draws): B0 above the constant, gaps between runs
+    fr = load("deep_dive/formative_runs.json")
+    same = [abs(get(mm, k, "mean_diff")) for k in mm if get(mm, k, "mean_diff") is not None]
+    between = [abs(get(fr, "benchmark_matched", k, "ALC", "mean_diff")) for k in MATCH_KEYS
+               if get(fr, "benchmark_matched", k, "ALC", "mean_diff") is not None]
+    mac("SdMatchSameMax", fmt(max(same), 4) if same else MISSING)
+    mac("SdMatchNBetweenBelow", fmt_int(sum(1 for v in between if v < max(same))) if same and between else MISSING)
+    mac("SdMatchNBetween", fmt_int(len(between)) if between else MISSING)
+    runs = get(fr, "runs") or {}
+    other_b0 = [runs[n]["brier_by_budget"]["0"] for n in ("xp_nosubj_mu2", "xp_level_m050", "xp_level_m100") if n in runs]
+    allrec = other_b0 + [d["brier_by_budget"]["0"] for d in draws[1:]]
+    mac("SdRecalNRuns", fmt_int(len(allrec)) if allrec else MISSING)
+    mac("SdRecalNAbove", fmt_int(sum(1 for v in allrec if v > 0.25)) if allrec else MISSING)
+    mac("SdRecalBZeroMin", fmt(min(allrec)) if allrec else MISSING)
+    mac("SdRecalBZeroMax", fmt(max(allrec)) if allrec else MISSING)
+    lb = load("leaderboard_context.json")
+    sc = get(lb, "scores_sorted") or []
+    mac("LbRankSelMean", fmt_int(1 + sum(1 for v in sc if v < st.mean(alcs))) if sc and alcs else MISSING)
+    # table rows for the two extra draws and the mean of the selected predictor (appended to Table 3)
+    lines = []
+    for d, lab in zip(draws[1:], ("2nd draw", "3rd draw")):
+        cells = [fmt_int(d["n_pairs"])] + [fmt(d["brier_by_budget"][b]) for b, _ in BUD_IDX] + \
+                [fmt(d["alc"]), fmt(d["ece"], 3), fmt(d["ece_by_budget"]["0"], 3)]
+        lines.append(f"{d['submission_id']} (probe: 1010717's predictions, {lab}) & " + " & ".join(cells) + r" \\")
+    if draws:
+        cells = ["--"] + [fmt(st.mean(d["brier_by_budget"][b] for d in draws)) for b, _ in BUD_IDX] + \
+                [fmt(st.mean(alcs)), fmt(st.mean(d["ece"] for d in draws), 3), fmt(st.mean(e0), 3)]
+        lines.append(r"\textbf{1010717's predictor, mean of " + str(len(draws)) + " draws} & " + " & ".join("\\textbf{" + c + "}" for c in cells) + r" \\")
+    lines.append(r"\midrule")
+    lines.append("constant 0.5 (any draw) & -- & " + " & ".join([fmt(0.25)] * 6) + f" & {fmt(0.25)} & -- & -- \\\\")
+    (PAPER / "results_table_formative_draws.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    e0_all = [runs[n]["ece_by_budget"]["0"] for n in ("xp_nosubj_mu2", "xp_level_m050", "xp_level_m100") if n in runs] + \
+             [d["ece_by_budget"]["0"] for d in draws[1:]]
+    mac("SdRecalEceBZeroMax", fmt(max(e0_all), 3) if e0_all else MISSING)
+    plot = []
+    for d in draws[1:]:
+        pts = " ".join(f"({i},{float(d['brier_by_budget'][b]):.4f})" for i, (b, _) in enumerate(BUD_IDX))
+        plot.append(f"\\addplot[red, dashed, mark=triangle] coordinates {{{pts}}};")
+        plot.append(f"\\addlegendentry{{{d['submission_id']}}}")
+    (PAPER / "results_fig_formative_draws.tex").write_text("\n".join(plot) + "\n", encoding="utf-8")
+
+
 def leaderboard_macros() -> None:
     """Public Codabench leaderboard of the PAIEC competition phase (29785): best draw per user.
 
@@ -1695,6 +1969,9 @@ def main() -> None:
                            load("deep_dive/grid_inv.json"))
     candidate_check_macros()
     leaderboard_macros()
+    item_study_macros()
+    probe_macros()
+    selected_draws_macros()
     vpath = RESULTS / "validator_output.txt"
     zip_macros(load("submission_zip_info.json"), vpath.read_text(encoding="utf-8") if vpath.exists() else None)
     text = "% generated by experiments/src/make_macros.py -- do not edit\n" + "\n".join(macros) + "\n"
