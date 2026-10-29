@@ -3581,46 +3581,55 @@
 \newcommand{\ArBaseBZeroMean}{0.2415}
 \newcommand{\ArBaseFirstId}{1010717}
 \newcommand{\ArWtwoN}{4}
-\newcommand{\ArWtwoMean}{0.1675}
-\newcommand{\ArWtwoSd}{0.0150}
-\newcommand{\ArWtwoSe}{0.0075}
+\newcommand{\ArWtwoMean}{0.1705}
+\newcommand{\ArWtwoSd}{0.0136}
+\newcommand{\ArWtwoSe}{0.0068}
 \newcommand{\ArWtwoMin}{0.1549}
 \newcommand{\ArWtwoMax}{0.1881}
-\newcommand{\ArWtwoBZeroMean}{0.2210}
+\newcommand{\ArWtwoBZeroMean}{0.2207}
 \newcommand{\ArWtwoFirstId}{1019682}
-\newcommand{\ArDiffMean}{-0.0229}
-\newcommand{\ArDiffSe}{0.0103}
-\newcommand{\ArDiffBZero}{-0.0205}
-\newcommand{\PmN}{14}
-\newcommand{\PmMean}{-0.0033}
-\newcommand{\PmSe}{0.0022}
-\newcommand{\PmImproved}{10}
+\newcommand{\ArDiffMean}{-0.0199}
+\newcommand{\ArDiffSe}{0.0098}
+\newcommand{\ArDiffBZero}{-0.0208}
+\newcommand{\PmN}{11}
+\newcommand{\PmMean}{-0.0024}
+\newcommand{\PmSe}{0.0016}
+\newcommand{\PmImproved}{8}
 \newcommand{\PmBZeroExact}{exactly 0}
-\newcommand{\PmT}{-1.52}
-\newcommand{\PmBOneMean}{-0.0125}
-\newcommand{\PmBOneSe}{0.0055}
-\newcommand{\PmBThreeMean}{-0.0028}
-\newcommand{\PmBThreeSe}{0.0042}
-\newcommand{\PmBSevenMean}{+0.0010}
+\newcommand{\PmT}{-1.50}
+\newcommand{\PmBOneMean}{-0.0114}
+\newcommand{\PmBOneSe}{0.0028}
+\newcommand{\PmBThreeMean}{+0.0013}
+\newcommand{\PmBThreeSe}{0.0043}
+\newcommand{\PmBSevenMean}{+0.0009}
 \newcommand{\PmBSevenSe}{0.0015}
-\newcommand{\PmBFifteenMean}{-0.0013}
-\newcommand{\PmBFifteenSe}{0.0016}
-\newcommand{\PmBThirtyOneMean}{-0.0018}
-\newcommand{\PmBThirtyOneSe}{0.0022}
-\newcommand{\BmMean}{-0.0212}
-\newcommand{\BmSe}{0.0128}
+\newcommand{\PmBFifteenMean}{-0.0012}
+\newcommand{\PmBFifteenSe}{0.0015}
+\newcommand{\PmBThirtyOneMean}{-0.0035}
+\newcommand{\PmBThirtyOneSe}{0.0020}
+\newcommand{\BmMean}{-0.0209}
+\newcommand{\BmSe}{0.0151}
 \newcommand{\ArWtwoMissing}{1019688}
 \newcommand{\ArWtwoNMissing}{1}
 \newcommand{\RuleCTwo}{holds}
 \newcommand{\RuleCThree}{holds}
-\newcommand{\RuleMaxBudgetDiff}{-0.0204}
+\newcommand{\RuleMaxBudgetDiff}{-0.0166}
 \newcommand{\RuleCOne}{pending}
 \newcommand{\ArWtwoNFinished}{4}
-\newcommand{\RuleCOneSentence}{condition 1 is pending: 4 of 5 runs have finished, none with a platform error, and 1019688 is still running}
+\newcommand{\InfraId}{1019686}
+\newcommand{\InfraAlc}{0.1581}
+\newcommand{\InfraNPairs}{8}
+\newcommand{\InfraCode}{PAIEC-INFRA-ARCHIVE-001}
+\newcommand{\InfraRetryId}{1019903}
+\newcommand{\RetryNoteTime}{2026-10-29 23:00 UTC}
+\newcommand{\InfraFootnote}{\footnote{W2 run 1019686 was scored (its log is complete, 8 pairs) but ended with the platform's infrastructure archival error (\texttt{PAIEC-INFRA-ARCHIVE-001}), so the platform recorded no score. Under the retry note added to \texttt{SWITCH\_RULE.md} before the retry's result was retrieved, it was retried once with the same ZIP as 1019903; its log-only ALC (0.1581) is not counted (Appendix~\ref{app:formative}).}}
+\newcommand{\RuleContingencyTime}{Oct 30 12:00 PDT}
+\newcommand{\RuleCOneSentence}{condition 1 is pending: 4 of the 5 counted runs have finished without a platform error, and 1019688 is still running}
 \newcommand{\ArWtwoPending}{ (1019688 still running)}
-\newcommand{\RuleFlipAlc}{0.392}
-\newcommand{\RuleFlipBudget}{0.404}
-\newcommand{\RuleSelectSentence}{The remaining run would have to score an ALC above 0.392, or a per-budget Brier above 0.404, to overturn conditions 2 or 3, far worse than the constant 0.5 (0.25); so we select \SubId, final once that run finishes without an error.}
+\newcommand{\RuleFlipAlc}{0.380}
+\newcommand{\RuleFlipBudget}{0.390}
+\newcommand{\RuleSelectSentence}{The remaining run would have to score an ALC above 0.380, or a per-budget Brier above 0.390, to overturn conditions 2 or 3, far worse than the constant 0.5 (0.25); so we select \SubId, provisionally until that run finishes.}
+\newcommand{\SubStatus}{provisional}
 \newcommand{\ArPairsMin}{8}
 \newcommand{\ArPairsMax}{9}
 \newcommand{\ArItemsMin}{487}
@@ -3628,7 +3637,7 @@
 \newcommand{\ArBenchAll}{7}
 \newcommand{\ArNDraws}{11}
 \newcommand{\LbRankBaseMean}{46}
-\newcommand{\LbRankWtwoMean}{24}
+\newcommand{\LbRankWtwoMean}{28}
 \newcommand{\WsInvVsWtwoMean}{-0.0000}
 \newcommand{\WsInvVsWtwoLo}{-0.0003}
 \newcommand{\WsInvVsWtwoHi}{+0.0003}
@@ -3662,7 +3671,8 @@
 \newcommand{\WoHsBZeroBase}{0.2667}
 \newcommand{\WoHsBZeroNpeb}{0.2472}
 \newcommand{\WoHsBZeroShare}{103}
-\newcommand{\QwenFourteenSentence}{A second pre-registered rating study with Qwen3-14B (4-bit, local) was still running when this report was written; it cannot change the submission.}
+\newcommand{\QwenFourteenSentence}{A larger local rater, Qwen3-14B (4-bit), was pre-registered (Amendment~6, 2026-10-29 12:53 PDT) but not evaluated: rating stopped at 4,865 of 20,655 prompts because of contention on the shared machine before the deadline, so its gate never ran; the partial ratings are kept.}
+\newcommand{\QwenFourteenStatus}{not evaluated}
 \newcommand{\ZipKB}{19.8}
 \newcommand{\ZipShaShort}{c76331d084f1}
 \newcommand{\ZipMembers}{\texttt{README.md}, \texttt{labeling.py}, \texttt{model.py}}

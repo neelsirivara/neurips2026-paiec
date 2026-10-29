@@ -5,5 +5,5 @@
  "previous_selection": 1010717,
  "decided_by": "experiments/results/w2_items/SWITCH_RULE.md (written before any W2 draw returned)",
  "status": "provisional: set by the coordinator on 2026-10-29 with 4 of 5 W2 draws in; to be confirmed when 1019688 lands",
- "note": "edit selected_codabench_id/status here and rerun make_macros.py; the report reads the ID only from this file"
+ "note": "the report reads the ID only from this file. To finalise, set status to a string starting with 'final' (e.g. 'final' or 'final (contingency, Oct 30 12:00 PDT)') and run bash experiments/src/build_paper.sh once. With 1019688 in draws.json the text says all three conditions hold; with 1019688 still missing it applies the rule's contingency (conditions 2 and 3 on the finished runs, tolerance recomputed for the actual count)."
 }

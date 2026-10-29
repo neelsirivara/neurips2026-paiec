@@ -1,10 +1,15 @@
 {
  "study": "Qwen3-14B item rating (PREREG_items_AMENDMENT_6.md)",
- "status": "pending",
+ "status": "not_evaluated",
+ "status_wording": "not evaluated: the rating stopped at 4,865 of 20,655 prompts because of host contention under the deadline, so the pre-registered gate never ran",
+ "rated_prompts": 4865,
+ "total_prompts": 20655,
+ "ratings_kept": true,
  "inv_vs_control": {
   "mean": null,
   "ci_lo": null,
   "ci_hi": null
  },
- "note": "set status to 'failed' (or 'passed') and fill inv_vs_control from the gate result; make_macros.py then writes the sentence \\QwenFourteenSentence. While 'pending' the report says the study was still running."
+ "allowed_status": ["pending", "not_evaluated", "failed", "passed"],
+ "note": "set by the coordinator on 2026-10-29. make_macros.py writes the one-sentence result \\QwenFourteenSentence from this file; 'failed' uses inv_vs_control, 'passed' prints a warning because the report is not written for that case."
 }

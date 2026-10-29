@@ -22,7 +22,10 @@ from parse_feedback import parse  # noqa: E402
 DL = HERE.parents[3] / "_downloads"
 RES = HERE.parents[1] / "results" / "w2_items"
 ARMS = {"xp_level_m050": [1010717, 1010835, 1010837, 1019450, 1019451, 1019452, 1019453],
-        "w2_f05s1_k1q2": [1019682, 1019683, 1019685, 1019686, 1019688]}
+        "w2_f05s1_k1q2": [1019682, 1019683, 1019685, 1019688, 1019903]}
+# 1019686: platform status Failed ([PAIEC-INFRA-ARCHIVE-001] infrastructure archival error; complete scoring log, no
+# recorded score); retried once as 1019903 (SWITCH_RULE.md update).  Reported separately, not in the W2 arm.
+INFRA_FAILED = {1019686: "w2_f05s1_k1q2"}
 NOTE_M050 = ("1010835 / 1010837 are the deployment probes A / B, whose predictions are xp_level_m050's "
              "(DEEP_DIVE.md section 11)")
 BUDGETS = [0, 1, 3, 7, 15, 31]
@@ -57,6 +60,15 @@ for arm, ids in ARMS.items():
                                   "alc": st.mean(r[3] for r in t["ALC"]),
                                   "brier_by_budget": {str(b): st.mean(r[3] for r in t[b]) for b in BUDGETS},
                                   "ece_b0": st.mean(r[4] for r in t[0] if r[4] is not None)}
+out["infra_failed_log_only"] = {}
+for sid, arm in INFRA_FAILED.items():
+    p = log_path(sid)
+    t = parse(p.read_text(encoding="utf-8", errors="replace")) if p else None
+    if t and "ALC" in t and all(b in t for b in BUDGETS):
+        out["infra_failed_log_only"][str(sid)] = {
+            "arm": arm, "note": "platform status Failed (infrastructure archival error); log complete; not counted",
+            "n_pairs": len(t["ALC"]), "alc": st.mean(r[3] for r in t["ALC"]),
+            "brier_by_budget": {str(b): st.mean(r[3] for r in t[b]) for b in BUDGETS}}
 for arm, ids in ARMS.items():
     got = [sid for sid in ids if sid in tables]
     if not got:

@@ -3,7 +3,7 @@
 Every directional claim in paper/main.tex, re-derived from the result files. `HOLDS` means the
 artifact supports the claim as worded; `FAILS` means the text must be changed (or the claim dropped).
 
-211 claims checked, 0 failing.
+213 claims checked, 0 failing.
 
 | # | Claim | Artifact | Values | Status |
 |---|---|---|---|---|
@@ -194,7 +194,7 @@ artifact supports the claim as worded; `FAILS` means the text must be changed (o
 | 185 | [items] differences to the base are mostly the budget-0 level: |0.1 dB0| exceeds half of |dALC| in INV and AS, and |dB1..31| <= 0.001 | `eval_items_qwen3vl_4b.json brier_minus_base` | INV dB0 0.008038754002884682, AS dB0 -0.02520101386710258 | HOLDS |
 | 186 | [items] the exploratory s3 and s1+s3 variants also have INV CIs that include 0 | `eval_items_qwen3vl_4b.json` | s3 [-0.0016, +0.0030], s1+s3 [-0.0018, +0.0024] | HOLDS |
 | 187 | [items] all ratings come from Qwen/Qwen3-VL-4B-Instruct (no API backend) | `ratings_qwen3vl_4b.jsonl` | ['Qwen/Qwen3-VL-4B-Instruct'] | HOLDS |
-| 188 | [items] no Claude-API rating exists (the API route was built, never run) | `deep_dive/items/` | files: ['PREREG_items.md', 'PREREG_items_AMENDMENT_1.md', 'PREREG_items_AMENDMENT_2.md', 'PREREG_items_AMENDMENT_3.md', 'PREREG_items_AMENDMENT_4.md', 'PREREG_items_AMENDMENT_5.md', 'PREREG_items_AMENDMENT_6.md', 'eval_items_STUB_dryrun.json', 'eval_items_a6_DRYRUN_qwen3vl.json', 'eval_items_a6_DRYRUN_qwen3vl.log', 'eval_items_qwen3vl_4b.json', 'eval_items_qwen3vl_4b.log', 'eval_items_qwen3vl_4b_h7check.json', 'items_extract.log', 'items_manifest.json', 'rating_order.txt', 'ratings_qwen3vl_4b.jsonl'] | HOLDS |
+| 188 | [items] no Claude-API rating exists (the API route was built, never run) | `deep_dive/items/` | files: ['PREREG_items.md', 'PREREG_items_AMENDMENT_1.md', 'PREREG_items_AMENDMENT_2.md', 'PREREG_items_AMENDMENT_3.md', 'PREREG_items_AMENDMENT_4.md', 'PREREG_items_AMENDMENT_5.md', 'PREREG_items_AMENDMENT_6.md', 'eval_items_STUB_dryrun.json', 'eval_items_a6_DRYRUN_qwen3vl.json', 'eval_items_a6_DRYRUN_qwen3vl.log', 'eval_items_qwen3vl_4b.json', 'eval_items_qwen3vl_4b.log', 'eval_items_qwen3vl_4b_h7check.json', 'items_extract.log', 'items_manifest.json', 'rating_order.txt', 'ratings_qwen3_14b_partial.jsonl', 'ratings_qwen3vl_4b.jsonl'] | HOLDS |
 | 189 | [probes] 1010835/1010837/1010865 are probe_A/B/C, built on the selected ZIP with the rating model in models.txt; B scored, C stopped with PAIEC-PREDICT-002 | `deep_dive/probes_summary.json` | 1010835: probe_A.zip, scored=True, codes=[]; 1010837: probe_B.zip, scored=True, codes=[]; 1010865: probe_C.zip, scored=False, codes=['PAIEC-PREDICT-002', 'PAIEC-UNKNOWN-001'] | HOLDS |
 | 190 | [probes] probe C returns NaN (invalid output) only after a successful load on a GPU with >= 70 GB | `submission/candidates/probe_C/model.py` | branch present | HOLDS |
 | 191 | [base 1010717] the selected ZIP still has no models.txt after the item study (1010717 unchanged) | `submission/candidates/xp_level_m050.zip` | sha cda9fe9cae49 | HOLDS |
@@ -208,16 +208,18 @@ artifact supports the claim as worded; `FAILS` means the text must be changed (o
 | 199 | [W2] the simulated gain grows with the budget (difference at n=31 more negative than at n=1, every scenario) | `w2_items/confirm.json` | True | HOLDS |
 | 200 | [W2] confirmation gain larger than tuning gain on INV (text: 'larger') | `confirm.json vs w2_results.json tune` | -0.0035 vs -0.0010 | HOLDS |
 | 201 | [W2] checks: validator OK, smoke ok, stream mode with 0 acquisition predict calls, equivalence < 1e-3, zero strength = base | `w2_items/candidates/w2_f05s1_k1q2/` | validator OK, smoke 0, mode stream, acq calls 0, equiv 1.4501363691132862e-05, zero True | HOLDS |
-| 202 | [draws W2] arm means and sds re-derived from the saved logs equal draws.json | `_downloads/cb_logs_*/scoring_stdout.txt` | base 0.1904 (0.0187, n 7), W2 0.1675 (0.0150, n 4) | HOLDS |
-| 203 | [draws W2] pair-matched comparison re-derived: 14 shared pairs, ALC -0.0033 (se 0.0022), 10 better, B0 difference exactly 0 | `_downloads/cb_logs_*/scoring_stdout.txt` | n 14, mean -0.0033, se 0.0022, better 10, max |dB0| 0.0e+00 | HOLDS |
-| 204 | [draws W2] every draw's uploaded file name matches its arm (base: xp_level_m050 or the two probes; W2: w2_f05s1_k1q2) | `_downloads/cb_logs_*/details.json` | {1010717: 'xp_level_m050.zip', 1010835: 'probe_A.zip', 1010837: 'probe_B.zip', 1019450: 'xp_level_m050.zip', 1019451: 'xp_level_m050.zip', 1019452: 'xp_level_m050.zip', 1019453: 'xp_level_m050.zip', 1019682: 'w2_f05s1_k1q2.zip', 1019683: 'w2_f05s1_k1q2.zip', 1019685: 'w2_f05s1_k1q2.zip', 1019686: 'w2_f05s1_k1q2.zip'} | HOLDS |
-| 205 | [draws W2] the arm difference is already about as large at B0 as in ALC (composition), although W2 leaves B0 unchanged | `w2_items/draws.json` | dB0 -0.0205, dALC -0.0229 | HOLDS |
-| 206 | [switch] SWITCH_RULE.md predates the first saved W2 log; conditions 2 (<= 0.022) and 3 (<= 0.03) hold on the finished draws | `w2_items/SWITCH_RULE.md + draws.json` | rule 12:27, first W2 log 14:00; dALC -0.0229; max per-budget -0.0204 | HOLDS |
-| 207 | [switch] the pending W2 draw(s) cannot overturn condition 2 unless they score worse than the constant 0.5 (ALC > 0.25) | `w2_items/draws.json` | pending [1019688]; would need ALC > 0.392 | HOLDS |
-| 208 | [switch] the selected ID is the first W2 draw (1019682) | `selected_submission.json + draws.json` | 1019682 vs 1019682 | HOLDS |
-| 209 | [W2-sem] the semantic kernel's INV CI against W2 includes 0 (gate d fails), so nothing was built | `w2_items/confirm_sem.json` | -0.0000 [-0.0003, +0.0003]; gate False | HOLDS |
-| 210 | [W1] the exact posterior's H7 gain comes entirely from budget 0; faster early updates are significantly worse on H7-INV | `deep_dive/w1/` | dALC -0.0019, 0.1*dB0 -0.0020; faster +0.0017 [+0.0002, +0.0033] | HOLDS |
-| 211 | [Qwen3-14B] the report's sentence matches results/qwen3_14b_status.json | `qwen3_14b_status.json + results_macros.tex` | status pending | HOLDS |
+| 202 | [draws W2] arm means and sds re-derived from the saved logs equal draws.json | `_downloads/cb_logs_*/scoring_stdout.txt` | base 0.1904 (0.0187, n 7), W2 0.1705 (0.0136, n 4) | HOLDS |
+| 203 | [draws W2] pair-matched comparison re-derived from the logs equals draws.json (pairs, mean), and the B0 difference is exactly 0 | `_downloads/cb_logs_*/scoring_stdout.txt` | n 11, mean -0.0024, se 0.0016, better 8, max |dB0| 0.0e+00 | HOLDS |
+| 204 | [draws W2] every draw's uploaded file name matches its arm (base: xp_level_m050 or the two probes; W2: w2_f05s1_k1q2) | `_downloads/cb_logs_*/details.json` | {1010717: 'xp_level_m050.zip', 1010835: 'probe_A.zip', 1010837: 'probe_B.zip', 1019450: 'xp_level_m050.zip', 1019451: 'xp_level_m050.zip', 1019452: 'xp_level_m050.zip', 1019453: 'xp_level_m050.zip', 1019682: 'w2_f05s1_k1q2.zip', 1019683: 'w2_f05s1_k1q2.zip', 1019685: 'w2_f05s1_k1q2.zip', 1019903: 'w2_f05s1_k1q2.zip'} | HOLDS |
+| 205 | [draws W2] the arm difference is already about as large at B0 as in ALC (composition), although W2 leaves B0 unchanged | `w2_items/draws.json` | dB0 -0.0208, dALC -0.0199 | HOLDS |
+| 206 | [switch] conditions 2 (<= 0.022) and 3 (<= 0.03) hold on the counted W2 draws | `w2_items/SWITCH_RULE.md + draws.json` | dALC -0.0199; max per-budget -0.0166 | HOLDS |
+| 207 | [switch] the rule predates the W2 draws: NOT re-checkable by file time any more (SWITCH_RULE.md was amended with the retry note); an earlier audit run on 2026-10-29 found it saved 12:27 PDT, before the first W2 log (14:00 PDT) | `w2_items/SWITCH_RULE.md` | current mtime 10-29 15:28 | HOLDS |
+| 208 | [switch] 1019686 (infrastructure archival error, same ZIP) is reported but not counted; its retry 1019903 is counted; the retry note was saved before the retry's log was retrieved | `draws.json + SWITCH_RULE.md + _downloads/cb_logs_*` | infra ['1019686']; counted [1019682, 1019683, 1019685, 1019903]; rule mtime < 1019903 log mtime | HOLDS |
+| 209 | [switch] the pending W2 draw(s) cannot overturn condition 2 unless they score worse than the constant 0.5 (ALC > 0.25) | `w2_items/draws.json` | pending [1019688]; would need ALC > 0.380 | HOLDS |
+| 210 | [switch] the selected ID is the first W2 draw (1019682) | `selected_submission.json + draws.json` | 1019682 vs 1019682 | HOLDS |
+| 211 | [W2-sem] the semantic kernel's INV CI against W2 includes 0 (gate d fails), so nothing was built | `w2_items/confirm_sem.json` | -0.0000 [-0.0003, +0.0003]; gate False | HOLDS |
+| 212 | [W1] the exact posterior's H7 gain comes entirely from budget 0; faster early updates are significantly worse on H7-INV | `deep_dive/w1/` | dALC -0.0019, 0.1*dB0 -0.0020; faster +0.0017 [+0.0002, +0.0033] | HOLDS |
+| 213 | [Qwen3-14B] the report's sentence matches results/qwen3_14b_status.json | `qwen3_14b_status.json + results_macros.tex` | status not_evaluated | HOLDS |
 
 Number provenance: every number in the PDF is a macro from `paper/results_macros.tex`
 (generated by `make_macros.py`); tables are `paper/results_table_*.tex` from the same script;

@@ -55,9 +55,10 @@ pages 1-7 (references start on page 7, after about three quarters of it), append
 
 - Confirm the selected ID when 1019688 lands: update `experiments/results/selected_submission.json` (status) if
   needed and `w2_items/draws.json` (the W2 agent); rerun `bash experiments/src/build_paper.sh`.
-- Qwen3-14B: set `experiments/results/qwen3_14b_status.json` `status` to `failed` and fill `inv_vs_control`
-  (mean, ci_lo, ci_hi); the one-sentence result is then generated (`\QwenFourteenSentence`). A `passed` status
-  prints a bold warning, since the report is not written for that case.
+- Qwen3-14B (resolved 2026-10-29): status `not_evaluated` (rating stopped at 4,865 of 20,655 prompts, gate never
+  ran). `make_macros.py` now supports `pending`, `not_evaluated`, `failed` and `passed`; the generated sentence
+  says the rater was pre-registered (Amendment 6, 12:53 PDT) and stopped before its gate, with the partial
+  ratings kept, and the audit checks that it says neither "failed" nor "passed".
 - Before upload: make the repository public and push `submission/candidates/`, `experiments/src/w2_items/`,
   `experiments/results/w2_items/`, `experiments/results/selected_submission.json`, `qwen3_14b_status.json`, the
   deep-dive folders and `paper/`.

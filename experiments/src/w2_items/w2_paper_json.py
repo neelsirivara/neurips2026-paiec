@@ -70,7 +70,10 @@ if dp.exists():
                                           "brier_by_budget": v["brier_by_budget"]} for k, v in d["draws"].items()},
                          "arms": d["arms"], "arm_difference_w2_minus_m050": d.get("arm_difference_w2_minus_m050"),
                          "benchmark_matched_w2_minus_m050": d.get("benchmark_matched_w2_minus_m050"),
-                         "structure": d.get("structure")}
+                         "structure": d.get("structure"),
+                         "pair_matched_w2_minus_m050": d.get("pair_matched_w2_minus_m050"),
+                         "b0_anchored_difference_w2_minus_m050": d.get("b0_anchored_difference_w2_minus_m050"),
+                         "infra_failed_log_only": d.get("infra_failed_log_only")}
 cs = RES / "confirm_sem.json"
 if cs.exists():
     c = json.loads(cs.read_text(encoding="utf-8"))

@@ -1929,8 +1929,10 @@ def w2_macros() -> None:
     m3 = re.search(r"exceeds the m050 mean at the same budget by more than ([0-9]+\.[0-9]+)", rt)
     mac("RuleAlcTol", MISSING if not m2 else m2.group(1))
     mac("RuleBudgetTol", MISSING if not m3 else m3.group(1))
-    ids_listed = re.findall(r"\b(10196\d\d)\b", rt)
-    mac("RuleNDraws", fmt_int(len(set(ids_listed))) if ids_listed else MISSING)
+    # IDs named in the rule's main text (before the retry note); the counted runs come from draws.json
+    ids_listed = re.findall(r"\b(10196\d\d)\b", rt.split("**Infrastructure failure")[0])
+    nrule0 = len(get(dr, "arms", "w2_f05s1_k1q2", "draws") or []) + len(get(dr, "missing") or [])
+    mac("RuleNDraws", fmt_int(nrule0) if nrule0 else MISSING)
     # ---- simulator: tuning (folds 0-1) and confirmation (folds 2-4)
     crit = get(load("w2_items/tune.json"), "criterion") or {}
     mac("WtNSettings", fmt_int(len(crit)) if crit else MISSING)
@@ -2042,20 +2044,50 @@ def w2_macros() -> None:
     mac("RuleCOne", "holds" if not missing and not failed and w2draws else
         ("pending" if missing and not failed else "FAILS"))
     mac("ArWtwoNFinished", fmt_int(len(w2draws)))
-    nrule = len(set(ids_listed)) if ids_listed else None
-    if not missing and not failed:
-        s1 = f"condition 1 holds: all {nrule} runs finished without a platform error"
-    elif missing and not failed:
-        s1 = (f"condition 1 is pending: {len(w2draws)} of {nrule} runs have finished, none with a platform error, and "
-              f"{', '.join(str(m) for m in missing)} is still running")
+    nrule = len(w2draws) + len(missing)          # the runs that count for condition 1 (after the rule's retry note)
+    # infrastructure failure retried under SWITCH_RULE.md's retry note (reported, not counted)
+    infra = get(dr, "infra_failed_log_only") or {}
+    mr = re.search(r"\[(PAIEC-[A-Z]+-[A-Z]+-\d+)\]", rt)
+    mt = re.search(r"recorded (\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}) UTC", rt)
+    retry = [str(i) for i in w2draws if str(i) not in ids_listed and re.search(rf"submission \*\*{i}\*\*", rt)]
+    if infra:
+        iid, irec = next(iter(infra.items()))
+        mac("InfraId", str(iid))
+        mac("InfraAlc", fmt(irec.get("alc")))
+        mac("InfraNPairs", fmt_int(irec.get("n_pairs")))
+        mac("InfraCode", MISSING if not mr else mr.group(1))
+        mac("InfraRetryId", retry[0] if retry else MISSING)
+        mac("RetryNoteTime", MISSING if not mt else f"{mt.group(1)} {mt.group(2)} UTC")
+        mac("InfraFootnote", f"\\footnote{{W2 run {iid} was scored (its log is complete, {fmt_int(irec.get('n_pairs'))} pairs) but ended "
+            f"with the platform's infrastructure archival error (\\texttt{{{mr.group(1) if mr else '??'}}}), so the platform recorded no score. Under the retry note added to \\texttt{{SWITCH\\_RULE.md}} "
+            f"before the retry's result was retrieved, it was retried once with the same ZIP as {retry[0] if retry else '??'}; its log-only ALC ({fmt(irec.get('alc'))}) is not counted (Appendix~\\ref{{app:formative}}).}}")
     else:
-        s1 = "\\textbf{condition 1 FAILS: a run ended with a platform error}"
-    mac("RuleCOneSentence", s1)
-    mac("ArWtwoPending", "" if not missing else f" ({', '.join(str(m) for m in missing)} still running)")
-    # what the remaining draws would need to score to overturn conditions 2 and 3 (one remaining draw each)
+        for n in ("InfraId", "InfraAlc", "InfraNPairs", "InfraCode", "InfraRetryId", "RetryNoteTime"):
+            mac(n, "--")
+        mac("InfraFootnote", "")
+    # provisional vs final selection (selected_submission.json "status", set by the coordinator)
+    final = str(get(ss, "status") or "").lower().startswith("final")
+    mc = re.search(r"if by (Oct \d+ \d{2}:\d{2} PDT)", rt)
+    mac("RuleContingencyTime", MISSING if not mc else mc.group(1))
     wv = [get(dr, "draws", str(i), "alc") for i in w2draws]
-    bmean = get(arms, "xp_level_m050", "alc", "mean")
-    if missing and tol2 is not None and wv and bmean is not None and nrule:
+    bmean, bsd = get(arms, "xp_level_m050", "alc", "mean"), get(arms, "xp_level_m050", "alc", "sd")
+    nb = get(arms, "xp_level_m050", "alc", "n")
+    if not missing and not failed:
+        s1 = f"condition 1 holds: all {nrule} counted runs finished without a platform error"
+    elif missing and not failed and not final:
+        s1 = (f"condition 1 is pending: {len(w2draws)} of the {nrule} counted runs have finished without a platform error, and "
+              f"{', '.join(str(m) for m in missing)} is still running")
+    elif missing and not failed and final:
+        s1 = (f"{', '.join(str(m) for m in missing)} had not finished by the rule's contingency time "
+              f"({mc.group(1) if mc else '??'}), so the contingency replaces condition 1")
+    else:
+        s1 = "\\textbf{condition 1 FAILS: a counted run ended with a platform error}"
+    mac("RuleCOneSentence", s1)
+    mac("ArWtwoPending", "" if not missing else
+        (f" ({', '.join(str(m) for m in missing)} had not finished by the rule's contingency time)" if final
+         else f" ({', '.join(str(m) for m in missing)} still running)"))
+    if missing and not final and tol2 is not None and wv and bmean is not None:
+        # what the remaining run(s) would need to score to overturn conditions 2 and 3
         k = len(wv) + len(missing)
         need = (k * (tol2 + bmean) - sum(wv)) / len(missing)
         mac("RuleFlipAlc", fmt(need, 3))
@@ -2065,15 +2097,26 @@ def w2_macros() -> None:
             mb = get(arms, "xp_level_m050", "brier_by_budget", b, "mean")
             flips.append((k * (tol3 + mb) - sum(wb)) / len(missing))
         mac("RuleFlipBudget", fmt(min(flips), 3))
-        mac("RuleSelectSentence", f"The remaining run would have to score an ALC above {fmt(need, 3)}, or a per-budget Brier above "
-            f"{fmt(min(flips), 3)}, to overturn conditions 2 or 3, far worse than the constant 0.5 (0.25); so we select "
-            f"\\SubId, final once that run finishes without an error.")
+        sel = (f"The remaining run would have to score an ALC above {fmt(need, 3)}, or a per-budget Brier above "
+               f"{fmt(min(flips), 3)}, to overturn conditions 2 or 3, far worse than the constant 0.5 (0.25); so we select "
+               f"\\SubId, provisionally until that run finishes.")
+    elif missing and final and not failed:
+        # contingency: conditions 2 and 3 on the finished runs, standard error recomputed for the actual count
+        tol2c = 2 * math.sqrt(bsd ** 2 / nb + bsd ** 2 / len(w2draws)) if bsd and nb and w2draws else None
+        c2c = tol2c is not None and get(ad, "alc", "mean") <= tol2c
+        mac("RuleFlipAlc", "--")
+        mac("RuleFlipBudget", "--")
+        sel = (f"Under the contingency, conditions 2 (tolerance recomputed for {len(w2draws)} runs: {fmt(tol2c, 3)}) and 3 are applied to "
+               f"the {len(w2draws)} finished runs and " + ("both hold, so we select \\SubId." if c2c and c3 else
+               "\\textbf{do not both hold; the switch rule does not select W2 and the report must be revised.}"))
     else:
         mac("RuleFlipAlc", "--")
         mac("RuleFlipBudget", "--")
         ok = (not missing and not failed and c2 and c3)
-        mac("RuleSelectSentence", "All three conditions hold, so we select \\SubId." if ok else
-            "\\textbf{The switch rule does not select W2; the report must be revised.}")
+        sel = ("All three conditions hold, so we select \\SubId." if ok else
+               "\\textbf{The switch rule does not select W2; the report must be revised.}")
+    mac("RuleSelectSentence", sel)
+    mac("SubStatus", "final" if final else "provisional")
     alld = list((get(dr, "draws") or {}).values())
     mac("ArPairsMin", fmt_int(min(d["n_pairs"] for d in alld)) if alld else MISSING)
     mac("ArPairsMax", fmt_int(max(d["n_pairs"] for d in alld)) if alld else MISSING)
@@ -2164,9 +2207,15 @@ def w2_macros() -> None:
     elif st_ == "pending":
         sent = ("A second pre-registered rating study with Qwen3-14B (4-bit, local) was still running when this report was written; "
                 "it cannot change the submission.")
+    elif st_ == "not_evaluated":
+        a6 = _doc_time(RESULTS / "deep_dive" / "items" / "PREREG_items_AMENDMENT_6.md", r"written (\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}) PDT")
+        sent = (f"A larger local rater, Qwen3-14B (4-bit), was pre-registered (Amendment~6, {a6 or MISSING}) but not evaluated: "
+                f"rating stopped at {fmt_int(get(q, 'rated_prompts'))} of {fmt_int(get(q, 'total_prompts'))} prompts because of "
+                "contention on the shared machine before the deadline, so its gate never ran; the partial ratings are kept.")
     else:
         sent = MISSING
     mac("QwenFourteenSentence", sent)
+    mac("QwenFourteenStatus", MISSING if st_ is None else str(st_).replace("_", " "))
 
 
 def leaderboard_macros() -> None:

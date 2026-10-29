@@ -10,9 +10,12 @@ Compute and editing:
 - Item rating ran on the Mac GPU under `~/neurips/GPU_LOCK` (§10).
 - The paper was not edited by this work.
 
-**Status (final, 2026-10-29):**
-- **Selected submission: 1010717** (`xp_level_m050`, sha256 `cda9fe9c…`), chosen by the coordinator on the
-  recommendation in §9.
+**Status (final, 2026-10-29 15:30 PDT):**
+- **The PAIEC submission is now 1019682 (W2's online item layer on top of m050).** The coordinator switched to it
+  under `SWITCH_RULE.md` after 4 of 5 draws. Before that the selected submission was 1010717 (`xp_level_m050`,
+  sha256 `cda9fe9c…`), chosen on the recommendation in §9. W2 is not part of this deep dive.
+- The Qwen3-14B route (§17) was stopped before completion because of host contention, with its gate not evaluated.
+  The Groq and Gemini routes (§15–16) were prepared and never run.
 - Four formative runs are analysed in §9.
 - The deployment probes (§11) showed that a 4B model loads and runs on the scoring GPU.
 - The pre-registered LLM item-rating study **failed its gate** (§10):
@@ -693,3 +696,13 @@ The route is viable only if the key's own limits, read from the pilot's headers,
   of writing.
 - Nothing is relaunched without the coordinator's all-clear.
 - On the ratings so far the gate is **not evaluable**: the inventory set is incomplete. 1010717 stays.
+
+**Final state of §17 (2026-10-29 15:21 PDT): stopped before completion because of host contention under the deadline.**
+- The Mac was never down. It had been up since the 13:08 reboot. The user's own Bazel builds drove load to 44–57 and
+  swap to 26 GB. SSH stopped answering, and mem_guard paused the rating at 15:20.
+- With 4,865 of 20,655 prompts done, the inventory set could not finish in time for W2 to integrate it and for a real
+  Codabench run before the Oct 30 18:00 PDT cutoff. Holding about 11 GB of GPU memory beside those builds also recreated
+  the crash pattern.
+- The coordinator stopped the job at 15:21 (SIGCONT, then SIGTERM). The wrapper exited 0 and released the lock.
+- **The gate was not evaluated.** The ratings file `~/neurips/paiec/ratings_qwen3_14b.jsonl` (4,865 lines, intact) is
+  kept for possible use after the deadline under `PREREG_items_AMENDMENT_6.md`.

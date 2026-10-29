@@ -19,6 +19,17 @@ regressions; the selection rests on the pre-registered simulator gate.
 Otherwise 1010717 stays, and the report presents W2 as a simulator result that did not hold up in
 deployment.
 
+**Infrastructure failure and retry (recorded 2026-10-29 at about 22:28 UTC, the file's save time, before the
+retry's result was retrieved at 22:38 UTC; an earlier version of this line said "23:00 UTC", which was an
+estimate, corrected 2026-10-29).** W2 run 1019686
+ended with status Failed and "[PAIEC-INFRA-ARCHIVE-001] Infrastructure archival error: the platform could not
+preserve run artifacts. What to try: Retry once." Its scoring log is complete (formative feedback for 8 pairs),
+so prediction and scoring ran; only archiving failed, and the platform recorded no score. That is not a failure
+of the submission, which is what condition 1 screens for, but the condition as worded counts any platform error
+code. Rather than reinterpret it, the run was retried once, as the platform instructs: same zip (sha256
+`d6d1c6a0...`), submission **1019903**. The five W2 runs for condition 1 are 1019682, 1019683, 1019685,
+1019688 and 1019903. 1019686's log-parsed score is reported separately and does not count toward the rule.
+
 **Contingency (added 2026-10-29 19:30 UTC, still before any W2 draw has finished: the Codabench queue
 had not started them after about an hour):** if by Oct 30 12:00 PDT fewer than five W2 runs have finished
 but at least two have, conditions 2 and 3 are applied to those, with the standard error recomputed for
