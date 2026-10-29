@@ -514,3 +514,182 @@ item-rating candidate. `build_rater.py` refuses to build unless both gates pass.
 - smoke test, including its 62,000-label timing check;
 - official loop check, where predictions equal m050 exactly because there is no GPU on the laptop;
 - a fake-cache functional test, which applies the expected offset exactly at budget 0.
+
+## 14. W1 (2026-10-29): exact-posterior early-budget predictor — no-go
+
+**Question.** Is m050's cross-pair model leaving Brier on the table at budgets 0–3? Two forms of the question:
+- Would an exact Bayes posterior under a realistic pair-rate prior do better than its Gaussian-MAP-plus-probit
+  approximation?
+- Should the estimate move faster after one label, as the coordinator suggested?
+
+**Setup** (`deep_dive/npeb.py`, `npeb_explore.py`, `w1_tau_explore.py`; results in
+`experiments/results/deep_dive/w1/`; the dev seed was 1, so no confirmation seed was spent):
+- New simulator config **H7**, mimicking the hidden runs' structure as read from counts in our own logs:
+  - 9 pairs on 7 distinct benchmarks, with 2 of the benchmarks carrying 2 pairs;
+  - every subject used once;
+  - a 120-item cap.
+- H7-INV is the same on the inventory benchmarks.
+- No formative aggregate and no externally recovered pair rate was used to set any value. The rules forbid
+  extracted test data, and tuning on formative aggregates is too close to tuning on the test set.
+- **NPEB predictor.** An exact grid posterior over a benchmark level b, shared by the pairs on a benchmark, and a pair
+  deviation d. Its priors are kernel-smoothed empirical distributions from the training folds, nested by outer fold,
+  using either all benchmarks or inventory benchmarks only. It uses the binomial likelihood of each pair's labels.
+  Its prediction is E[σ(b + d + item offset)].
+
+**Results** (ALC minus m050, 95% cluster CI over benchmarks; R = 100 test sets per fold):
+
+| Variant | H7-INV | H7 | INV | A |
+|---|---|---|---|---|
+| NPEB (all-benchmark prior), all budgets | +0.0017 [−0.0024, +0.0058] | −0.0019 [−0.0035, −0.0003] | +0.0025 | +0.0025 |
+| NPEB (inventory prior), all budgets | +0.0027 | −0.0007 | +0.0028 | +0.0028 [+0.0005, +0.0049] |
+| NPEB at B1/B3 only, m050 elsewhere | +0.0013 / +0.0019 | −0.0005 / +0.0002 | +0.0003 / +0.0006 | +0.0002 / +0.0004 |
+| m050 with faster early updates (benchmark sd 2.5, pair sd 1.2) | +0.0017 [+0.0002, +0.0033], B1 +0.0049 | +0.0006 | +0.0003 | +0.0007 |
+| best of an 18-setting grid of sds | m050's own setting | m050's (±0.0000) | −0.0002 (n.s.) | m050's own setting |
+
+(Each "/" cell is the two NPEB priors, all-benchmark / inventory.)
+
+**Reading.**
+- The exact posterior does not beat m050 at B1–B3 in any scenario.
+- Updating faster after one label is significantly worse in the hidden-like structure.
+- The one NPEB gain (H7, all-benchmark prior) comes from B0 alone: 0.247 vs 0.267. That is the same level choice §5
+  already weighed: NPEB's level is the release mean, m050's is −0.5. It reverses on H7-INV.
+- With 1–2 pairs per benchmark and no subject shared across benchmarks, a pair at B1 has almost nothing to learn from
+  except its own label. m050's prior sds were already tuned for that (nested CV), so it sits at the information limit
+  for label-only rate learning.
+- **No pre-registered confirmation was run, because no dev variant was worth confirming. No zip was built.**
+  1010717 stays.
+- **Conclusion: under the hidden-run structure (H7), the rate-learning part of m050 is at its information limit.**
+  Neither an exact Bayes posterior nor any other prior setting improves budgets 1–3, so further early-budget gains
+  would need information beyond the labels (item-level signals).
+
+**Formative check of the baseline.** Four draws of `xp_level_m050` so far: 0.1628, 0.1920, 0.2143, 0.1967. Mean
+0.191, sd 0.022.
+
+## 15. Gemini route (prepared 2026-10-29; nothing sent)
+
+**Why it waits.** No competition item may go through a free-tier key: Google may use free-tier inputs for training,
+with human review. The rating script therefore refuses to send items without `--paid-tier-confirmed`.
+
+**The pieces:**
+- **Rating script** `deep_dive/rate_items_gemini.py` (stdlib only):
+  - `gemini-2.5-flash`, temperature 0. It tries `thinkingConfig.thinkingBudget = 0` first, and falls back to the
+    default thinking config if that is rejected or does not parse on 3 probe items.
+  - It uses the same verbalised-probability prompt and SHA-1 caching convention as the Claude script.
+  - It runs 8 threads under a token-bucket rate limit (600 RPM by default), with exponential backoff on 429/5xx, and
+    is resumable.
+  - Key handling stays inside `gemini_key.py`: the script calls the helper's own REST function, which puts the key in a
+    header. `generate()` itself drops `usageMetadata`, which the cost accounting needs.
+  - Checks so far: a dry run (20,720 unique prompts, mean 1,431 characters), plus a mocked end-to-end pilot covering
+    config fallback, 429 retries and the guard.
+- **Pre-registration** `PREREG_items_AMENDMENT_4.md`, written before any Gemini output:
+  - **Signal:** the verbalised probability, chosen over answer confidence because (a) Tian et al., EMNLP 2023, find
+    stated confidences better calibrated than token probabilities for RLHF-tuned models, (b) many items have no
+    checkable answer, and (c) it stays comparable with the Qwen route.
+  - **Gate:** the same as the Qwen route (vs base and vs intercept-only, on INV and AS), plus an extra check that H7-INV
+    is not significantly worse.
+  - **Practical bar for building a zip:** at least 0.003 ALC gained vs the intercept-only control on INV.
+  - `eval_items.py --h7` implements the extra check. Run on the Qwen ratings it gives −0.0003 [−0.0011, +0.0007] at
+    0.82 coverage.
+- **Scoring-time integration** `deep_dive/rater_gemini_appendix.py.txt` + `deep_dive/build_rater_gemini.py`:
+  - The key comes only from `submission_config.json`. The archive ships that file with an empty key, so the rater is
+    off and the archive equals m050. The user fills in the key and uploads.
+  - Calls use stdlib HTTPS with a 20 s timeout, 2 retries and a rate limit of 40 RPM per process.
+  - Ratings go to a disk cache shared across workers and checkpoints.
+  - One background leader per labelled list rates its entries. Targets are rated on demand, at most 2 per call.
+  - The wall budget is 5 h. After 20 consecutive errors the rater switches off.
+  - Until the first successful rating the archive is plain m050, including when the API fails throughout.
+  - The builder refuses to build unless the gate, the H7 check and the 0.003 bar all pass.
+  - **Plumbing test:** made-up constants and a mocked API, with the test archive deleted afterwards. All of these pass:
+    the validator, the smoke test, the official loop check (empty key gives m050 exactly), and five mock tests (the
+    budget-0 offset is exact; the leader rates 12 of 12 entries; an API failing everywhere gives m050 exactly; no calls
+    after the wall budget; the rate limit holds).
+
+**Pilot plan** (50 prompts spread over the inventory-first order; config probe on the first 3):
+- Measure: parse rate, prompt, output and thought tokens, latency and errors.
+- Projection before the pilot, at paid prices of $0.30 / $2.50 per MTok:
+  - with thinking off: about 400 input and 2–3 output tokens, about $0.00013 per prompt. So the pilot costs about
+    $0.01, the full 20,720 prompts about $2.7, and about 35 min at 600 RPM.
+  - if thinking cannot be turned off: about 200–500 thought tokens more per prompt, about $13–28 in total.
+- Scoring-time cost: about 800–1,500 unique items per run, so about $0.1–0.2 per run with thinking off.
+
+## 16. Groq route (prepared 2026-10-29; nothing sent). The Gemini route is on hold: free-tier key.
+
+**The pieces:**
+- **Rating script** `deep_dive/rate_items_groq.py` (stdlib only; the key stays in `groq_key.py`):
+  - `models` lists what the key sees, using no tokens.
+  - `pilot` sends 50 prompts to the first visible model and 10 to the second. It records parse rate, tokens, latency
+    and the rate-limit headers (`x-ratelimit-limit-requests` = RPD, `x-ratelimit-limit-tokens` = TPM, plus
+    remaining/reset), computes how many prompts are ratable before the deadline, and picks the model by the
+    pre-registered rule.
+  - `full` paces requests to the observed TPM, honours `retry-after` on 429, stops at the deadline and is resumable.
+  - It was tested with a mocked API: 429 retries, header parsing and model choice all work.
+- **Pre-registration** `PREREG_items_AMENDMENT_5.md`, written before any Groq output:
+  - **Model rule:** `openai/gpt-oss-120b` (reasoning effort low, reasoning not returned) if it parses ≥ 90% and fits the
+    window, else `llama-3.3-70b-versatile`.
+  - **Signal:** the same verbalised probability as before.
+  - **If the limits cut the run short,** only fully rated benchmarks enter the gate. There must be at least 15
+    inventory benchmarks and 5 AS benchmarks, otherwise the gate fails.
+  - **Gate:** the same as before, plus the same 0.003 bar.
+  - `eval_items.py --complete-only` implements this. Tested: a partial file is reported as not evaluable, and the full
+    Qwen file reproduces its earlier numbers.
+- **Scoring-time integration** `deep_dive/rater_groq_appendix.py.txt` + `deep_dive/build_rater_groq.py`:
+  - It is the same design as the Gemini one, with the key in `submission_config.json` under `groq_api_key`, shipped
+    empty.
+  - The per-process request rate is set from the pilot's measured limit ÷ 16 workers.
+  - **Plumbing test** with a mocked API: all of these pass — the validator, the smoke test, the official loop check
+    (empty key gives m050 exactly), and the five mock tests.
+
+**Feasibility warning.** Groq's rate-limit page lists base limits for `openai/gpt-oss-120b`/`-20b` of 30 RPM, 1K RPD,
+8K TPM and 200K TPD. At those limits:
+- the 20,720 prompts need about 21 days by the request cap, and 45–60 days by the token cap;
+- one scoring run needs about 1,000–1,500 requests, which is above a 1K-RPD cap.
+
+The route is viable only if the key's own limits, read from the pilot's headers, are far higher.
+
+## 17. Qwen3-14B route (2026-10-29; interrupted)
+
+**Setup:**
+- Pre-registration: `PREREG_items_AMENDMENT_6.md`, written before any output. Three signals:
+  - s1: the original P(Yes) prompt;
+  - s3: mean content-token log-prob;
+  - smc: multiple-choice option confidence. A fixed regex flags 4,279 of 24,199 items (17.7%) as multiple-choice.
+- Gate:
+  - Bonferroni 98.33% intervals for the gain conditions (a)/(a');
+  - 95% for (b), (b′) and the H7-INV check (c);
+  - the 0.003 bar;
+  - the partial-run rule from Amendment 5.
+- A pass would hand the ratings to the W2 item layer. I would build no zip.
+- Code:
+  - `deep_dive/rate_items_mlx.py`: mlx-lm 0.32.2 in its own venv `~/neurips/mlx_venv`, model
+    `mlx-community/Qwen3-14B-4bit` at rev `a4d9b2df` loaded from the local snapshot path;
+  - `deep_dive/run_rating_mlx.sh`: waits for the lock and for ≥ 30% free memory, then runs a 20-prompt smoke test
+    before the full run;
+  - `deep_dive/eval_items_a6.py`: the gate. A dry run on the Qwen3-VL ratings works end to end.
+- Prompt counts:
+  - inventory benchmarks: 12,363 unique prompts;
+  - the first 5 / 10 / 25 AS benchmarks: 1,387 / 2,824 / 8,357 prompts.
+
+**Run.**
+- The lock was taken at 13:01:59 PDT, after the coordinator paused VistaQA. The smoke test passed (20 of 20) at
+  3.3 s per prompt, and the full run started at 13:03.
+- The agreed plan: stop once the inventory set plus 10 AS benchmarks are rated (about 04:00), then run the gate and
+  give go/no-go by 05:00.
+- Soon after the start, the Mac began thrashing and SSH timed out. The coordinator is stopping the job.
+- No batching test and no second process were started. A lightweight auto-stop watcher failed to deploy because SSH
+  was down.
+- The output `~/neurips/paiec/ratings_qwen3_14b.jsonl` is resumable. Nothing will be relaunched until the
+  coordinator's all-clear.
+
+**Resume after the 13:08 panic.**
+- The job restarted at 13:12:50, alone on the Mac. Changes from the first launch:
+  - memory is checked every 20 prompts;
+  - threads are capped at 4;
+  - mem_guard_v2 runs beside it.
+- Speed was 1.0–1.7 s per prompt.
+- The auto-stop rule changed: stop once the inventory set plus 10 AS benchmarks are rated, if the full-set ETA (pauses
+  included) is later than 23:00. Otherwise run the full set.
+- At 14:58 PDT, 4,600 of 20,655 prompts were done.
+- From about 15:05 the Mac stopped answering: SSH timed out and ping lost every packet. The cause is unknown at the time
+  of writing.
+- Nothing is relaunched without the coordinator's all-clear.
+- On the ratings so far the gate is **not evaluable**: the inventory set is incomplete. 1010717 stays.

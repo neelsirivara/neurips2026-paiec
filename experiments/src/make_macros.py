@@ -1736,8 +1736,8 @@ def probe_macros() -> None:
         mac("Probe" + code + "Error", MISSING if r is None else (", ".join(r["platform_error_codes"]) or "none"))
         mac("Probe" + code + "Mode", MISSING if r is None else str(r.get("mode")))
     base = {r.get("base_zip_sha256") for r in pr.values()}
-    mac("ProbeBaseIsSel", "the selected ZIP" if base == {get(load("deep_dive/formative_runs.json"), "selected_submission", "sha256")}
-        else "NOT the selected ZIP")
+    mac("ProbeBaseIsSel", "the base ZIP" if base == {get(load("deep_dive/formative_runs.json"), "selected_submission", "sha256")}
+        else "NOT the base ZIP")
 
 
 DRAW_IDS = ((1010717, "xp_level_m050"), (1010835, "probe_A"), (1010837, "probe_B"))
@@ -1879,6 +1879,296 @@ def selected_draws_macros() -> None:
     (PAPER / "results_fig_formative_draws.tex").write_text("\n".join(plot) + "\n", encoding="utf-8")
 
 
+W2 = RESULTS / "w2_items"
+W2_SCEN = (("INV", "Inv"), ("A", "A"), ("SPARSE", "Sparse"), ("MID", "Mid"), ("HARD", "Hard"))
+W2_LABEL = "F0.5s1+K1q2"
+
+
+def _doc_time(path: Path, pat=r"[Ww]ritten (\d{4}-\d{2}-\d{2}),? (\d{2}:\d{2}) PDT"):
+    if not path.exists():
+        return None
+    m = re.search(pat, path.read_text(encoding="utf-8"))
+    return None if not m else f"{m.group(1)} {m.group(2)} PDT"
+
+
+def w2_macros() -> None:
+    """Selected submission (W2 = xp_level_m050 + online item layer): simulator tuning/confirmation, checks, real draws,
+    the switch rule, and the W2-sem / W1 / Qwen3-14B negative or pending results.  Sources: results/w2_items/*.json,
+    PREREG.md, PREREG_SEM.md, SWITCH_RULE.md, results/deep_dive/w1/w1_summary.json, results/selected_submission.json,
+    results/qwen3_14b_status.json."""
+    import statistics as st
+    wr, cf, dr = load("w2_items/w2_results.json"), load("w2_items/confirm.json"), load("w2_items/draws.json")
+    ss = load("selected_submission.json")
+    # ---- selected submission and its ZIP
+    sid = get(ss, "selected_codabench_id")
+    mac("SubId", MISSING if sid is None else str(sid))
+    mac("PrevSelId", MISSING if ss is None else str(get(ss, "previous_selection")))
+    zp = HERE.parents[1] / str(get(ss, "zip") or "")
+    zsha = hashlib.sha256(zp.read_bytes()).hexdigest() if ss and zp.is_file() else None
+    mac("SubZipSha", MISSING if zsha is None else zsha)
+    mac("SubZipKB", MISSING if zsha is None else f"{zp.stat().st_size / 1000:.1f}")
+    mac("SubShaVerified", "verified" if zsha and zsha == get(ss, "sha256") == get(wr, "candidate", "sha256") else "MISMATCH")
+    c = _zip_constants(zp) if zsha else {}
+    mac("SubMembers", MISSING if not c else ", ".join(f"\\texttt{{{m}}}" for m in c["_members"]))
+    for k, code in (("W2_TAU_FEAT", "TauFeat"), ("W2_FEAT_SHARE", "FeatShare"), ("W2_TAU_KERN", "TauKern"), ("W2_KERN_Q", "KernQ"),
+                    ("W2_GRAM_N", "GramN")):
+        mac("Wt" + code, _num(c.get(k)) if c else MISSING)
+    base = _zip_constants(RUN_ZIPS["xp_level_m050"])
+    same_base = bool(c and base and all(c.get(k) == base.get(k) for k in ("SUBJECT_SHRINK", "PRIOR_INTERCEPT", "XP_TAUS", "XP_TAU_ITEM")))
+    mac("SubBaseConstantsSame", "unchanged" if same_base else "CHANGED")
+    mac("SubLabelingSame", MISSING if not (c and base) else ("byte-identical" if c["_labeling"] == base["_labeling"] else "DIFFERENT"))
+    # ---- pre-registrations and the switch rule
+    pre, sem, rule = W2 / "PREREG.md", W2 / "PREREG_SEM.md", W2 / "SWITCH_RULE.md"
+    for p, code, rec in ((pre, "Wp", get(wr, "prereg", "sha256")), (sem, "Ws", get(wr, "w2_sem", "prereg_sha256"))):
+        sha = hashlib.sha256(p.read_bytes()).hexdigest() if p.exists() else None
+        mac(code + "Sha", MISSING if sha is None else sha[:12])
+        mac(code + "Time", _doc_time(p) or MISSING)
+        mac(code + "Consistent", "consistent" if sha and sha == rec else "INCONSISTENT")
+    rt = rule.read_text(encoding="utf-8") if rule.exists() else ""
+    m2 = re.search(r"not worse than the m050 mean by more than ([0-9]+\.[0-9]+)", rt)
+    m3 = re.search(r"exceeds the m050 mean at the same budget by more than ([0-9]+\.[0-9]+)", rt)
+    mac("RuleAlcTol", MISSING if not m2 else m2.group(1))
+    mac("RuleBudgetTol", MISSING if not m3 else m3.group(1))
+    ids_listed = re.findall(r"\b(10196\d\d)\b", rt)
+    mac("RuleNDraws", fmt_int(len(set(ids_listed))) if ids_listed else MISSING)
+    # ---- simulator: tuning (folds 0-1) and confirmation (folds 2-4)
+    crit = get(load("w2_items/tune.json"), "criterion") or {}
+    mac("WtNSettings", fmt_int(len(crit)) if crit else MISSING)
+    mac("WtNNeg", fmt_int(sum(1 for v in crit.values() if v < 0)) if crit else MISSING)
+    mac("WtCrit", fmt(crit.get(W2_LABEL), 4, sign=True))
+    mac("WtCritF", fmt(crit.get("F0.5s1"), 4, sign=True))
+    mac("WtCritK", fmt(crit.get("K1q2"), 4, sign=True))
+    mac("WtSelectedIsBest", "the best" if crit and min(crit, key=crit.get) == W2_LABEL else "NOT the best")
+    for s, code in (("A", "A"), ("INV", "Inv"), ("MID", "Mid"), ("HARD", "Hard")):
+        mac("WtTune" + code, fmt(get(wr, "tune", "per_scenario_selected", s, "mean"), 4, sign=True))
+    gate = get(cf, "gate") or {}
+    mac("WcGate", MISSING if "pass" not in gate else ("passes" if gate["pass"] else "fails"))
+    lines = []
+    for s, code in W2_SCEN:
+        r = get(cf, "scenarios", s)
+        v = get(r, "variants", W2_LABEL)
+        d = get(v, "minus_m050")
+        mac("Wc" + code + "NBench", fmt_int(get(r, "n_bench")))
+        mac("Wc" + code + "BaseAlc", fmt(get(r, "base_alc")))
+        mac("Wc" + code + "Alc", fmt(get(v, "alc")))
+        cluster_macros("Wc" + code, d)
+        bb = get(v, "brier_minus_m050") or []
+        mac("Wc" + code + "DBZero", fmt(bb[0], 4, sign=True) if bb else MISSING)
+        for i, (_, w) in enumerate(BUD_IDX[1:], 1):
+            mac("Wc" + code + "DB" + w, fmt(bb[i], 4, sign=True) if len(bb) > i else MISSING)
+        role = {"INV": "(a) CI $<0$", "A": "(b) not worse", "SPARSE": "(c) not worse"}.get(s, "reported")
+        cells = [fmt_int(get(r, "n_bench")), fmt(get(r, "base_alc")), fmt(get(v, "alc")), _cell(d)] + \
+                [fmt(bb[i], 4, sign=True) if len(bb) > i else MISSING for i in range(1, 6)] + [role]
+        lines.append(f"{s} & " + " & ".join(cells) + r" \\")
+    (PAPER / "results_table_w2_confirm.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    means = [get(cf, "scenarios", s, "variants", W2_LABEL, "minus_m050", "mean") for s, _ in W2_SCEN]
+    means = [m for m in means if m is not None]
+    mac("WcSmallest", fmt(max(means), 4, sign=True) if means else MISSING)   # least negative = smallest gain
+    mac("WcLargest", fmt(min(means), 4, sign=True) if means else MISSING)
+    b0s = [abs((get(cf, "scenarios", s, "variants", W2_LABEL, "brier_minus_m050") or [1])[0]) for s, _ in W2_SCEN]
+    mac("WcBZeroMaxAbs", fmt(max(b0s), 4) if b0s else MISSING)
+    mac("WcConfirmVsTune", "larger" if (get(cf, "scenarios", "INV", "variants", W2_LABEL, "minus_m050", "mean") or 0) <
+        (get(wr, "tune", "per_scenario_selected", "INV", "mean") or 0) else "smaller")
+    # ---- why: infinite-label within-benchmark R^2 of the item effect, by signal
+    dc, dch = load("w2_items/diag_ceiling.json"), load("w2_items/diag_cheap.json")
+    mac("WdRsqCat", fmt(get(dc, "aggregate", "r2_feat", "bench_mean"), 3))
+    mac("WdRsqText", fmt(get(dc, "aggregate", "r2_text_q2_l0.5", "bench_mean"), 3))
+    mac("WdRsqCheap", fmt(get(dch, "aggregate", "r2_l100", "bench_mean"), 3))
+    r2 = get(wr, "w2_sem", "diag_infinite_label_r2_bench_mean") or {}
+    mac("WdRsqCatChar", fmt(r2.get("r2_comb_cat+char"), 3))
+    mac("WdRsqCatCharSem", fmt(r2.get("r2_comb_cat+char+minilm"), 3))
+    mac("WdRsqSem", fmt(r2.get("r2_minilm_q8_l0.5"), 3))
+    # ---- checks on the ZIP
+    ch = get(wr, "checks") or {}
+    mac("WkValidator", "passes" if ch.get("validator_exit") == 0 else MISSING if not ch else "FAILS")
+    mac("WkSmoke", "passes" if ch.get("smoke_exit") == 0 else MISSING if not ch else "FAILS")
+    mac("WkLoopMode", str(ch.get("official_loop_acquisition_mode", MISSING)))
+    mac("WkLoopAlc", fmt(ch.get("official_loop_alc_real_testbed")))
+    mac("WkEquivMaxDiff", _sci(ch.get("equivalence_max_abs_diff")))
+    mac("WkEquivN", fmt_int(ch.get("equivalence_n_predictions")))
+    mac("WkZeroEqualsBase", MISSING if "zero_strength_equals_m050" not in ch else ("equals" if ch["zero_strength_equals_m050"] else "DIFFERS FROM"))
+    mac("WkBigFit", fmt(ch.get("smoke_big_first_call_s"), 1))
+    mac("WkBigMs", fmt(ch.get("smoke_big_ms_per_call"), 1))
+    lp = load("w2_items/candidates/w2_f05s1_k1q2/official_loop_check.json")
+    mac("WkLoopAcqPredCalls", fmt_int(get(lp, "acquisition_prediction_calls")))
+    # ---- real formative draws (draws.json; aggregates only)
+    arms = get(dr, "arms") or {}
+    allv = []
+    for arm, code in (("xp_level_m050", "Base"), ("w2_f05s1_k1q2", "Wtwo")):
+        a = arms.get(arm) or {}
+        mac("Ar" + code + "N", fmt_int(get(a, "alc", "n")))
+        mac("Ar" + code + "Mean", fmt(get(a, "alc", "mean")))
+        mac("Ar" + code + "Sd", fmt(get(a, "alc", "sd"), 4))
+        mac("Ar" + code + "Se", fmt(get(a, "alc", "se"), 4))
+        vals = [get(dr, "draws", str(i), "alc") for i in (get(a, "draws") or [])]
+        vals = [v for v in vals if v is not None]
+        allv += vals
+        mac("Ar" + code + "Min", fmt(min(vals)) if vals else MISSING)
+        mac("Ar" + code + "Max", fmt(max(vals)) if vals else MISSING)
+        mac("Ar" + code + "BZeroMean", fmt(get(a, "brier_by_budget", "0", "mean")))
+        mac("Ar" + code + "FirstId", str(min(get(a, "draws") or [0])) if get(a, "draws") else MISSING)
+    ad = get(dr, "arm_difference_w2_minus_m050") or {}
+    mac("ArDiffMean", fmt(get(ad, "alc", "mean"), 4, sign=True))
+    mac("ArDiffSe", fmt(get(ad, "alc", "se_welch"), 4))
+    mac("ArDiffBZero", fmt(get(ad, "brier_by_budget", "0", "mean"), 4, sign=True))
+    pm = get(dr, "pair_matched_w2_minus_m050") or {}
+    mac("PmN", fmt_int(get(pm, "ALC", "n_pairs")))
+    mac("PmMean", fmt(get(pm, "ALC", "mean_diff"), 4, sign=True))
+    mac("PmSe", fmt(get(pm, "ALC", "se"), 4))
+    mac("PmImproved", fmt_int(get(pm, "ALC", "n_pairs_improved")))
+    mac("PmBZeroExact", "exactly 0" if get(pm, "0", "mean_diff") == 0 and get(pm, "0", "se") == 0 else "NOT 0")
+    mac("PmT", MISSING if not get(pm, "ALC", "se") else f"{get(pm, 'ALC', 'mean_diff') / get(pm, 'ALC', 'se'):+.2f}")
+    for b, w in BUD_IDX[1:]:
+        mac("PmB" + w + "Mean", fmt(get(pm, b, "mean_diff"), 4, sign=True))
+        mac("PmB" + w + "Se", fmt(get(pm, b, "se"), 4))
+    bmd = get(dr, "benchmark_matched_w2_minus_m050", "ALC") or {}
+    mac("BmMean", fmt(get(bmd, "mean_diff"), 4, sign=True))
+    mac("BmSe", fmt(get(bmd, "se"), 4))
+    missing = get(dr, "missing") or []
+    w2draws = get(arms, "w2_f05s1_k1q2", "draws") or []
+    mac("ArWtwoMissing", ", ".join(str(m) for m in missing) if missing else "none")
+    mac("ArWtwoNMissing", fmt_int(len(missing)))
+    # switch rule conditions on the finished draws
+    tol2 = float(m2.group(1)) if m2 else None
+    tol3 = float(m3.group(1)) if m3 else None
+    c2 = None if tol2 is None or get(ad, "alc", "mean") is None else bool(get(ad, "alc", "mean") <= tol2)
+    bud = [get(arms, "w2_f05s1_k1q2", "brier_by_budget", b, "mean") - get(arms, "xp_level_m050", "brier_by_budget", b, "mean")
+           for b, _ in BUD_IDX if get(arms, "w2_f05s1_k1q2", "brier_by_budget", b, "mean") is not None]
+    c3 = None if tol3 is None or not bud else bool(max(bud) <= tol3)
+    mac("RuleCTwo", MISSING if c2 is None else ("holds" if c2 else "FAILS"))
+    mac("RuleCThree", MISSING if c3 is None else ("holds" if c3 else "FAILS"))
+    mac("RuleMaxBudgetDiff", fmt(max(bud), 4, sign=True) if bud else MISSING)
+    failed = get(dr, "failed") or []
+    mac("RuleCOne", "holds" if not missing and not failed and w2draws else
+        ("pending" if missing and not failed else "FAILS"))
+    mac("ArWtwoNFinished", fmt_int(len(w2draws)))
+    nrule = len(set(ids_listed)) if ids_listed else None
+    if not missing and not failed:
+        s1 = f"condition 1 holds: all {nrule} runs finished without a platform error"
+    elif missing and not failed:
+        s1 = (f"condition 1 is pending: {len(w2draws)} of {nrule} runs have finished, none with a platform error, and "
+              f"{', '.join(str(m) for m in missing)} is still running")
+    else:
+        s1 = "\\textbf{condition 1 FAILS: a run ended with a platform error}"
+    mac("RuleCOneSentence", s1)
+    mac("ArWtwoPending", "" if not missing else f" ({', '.join(str(m) for m in missing)} still running)")
+    # what the remaining draws would need to score to overturn conditions 2 and 3 (one remaining draw each)
+    wv = [get(dr, "draws", str(i), "alc") for i in w2draws]
+    bmean = get(arms, "xp_level_m050", "alc", "mean")
+    if missing and tol2 is not None and wv and bmean is not None and nrule:
+        k = len(wv) + len(missing)
+        need = (k * (tol2 + bmean) - sum(wv)) / len(missing)
+        mac("RuleFlipAlc", fmt(need, 3))
+        flips = []
+        for b, _ in BUD_IDX:
+            wb = [get(dr, "draws", str(i), "brier_by_budget", b) for i in w2draws]
+            mb = get(arms, "xp_level_m050", "brier_by_budget", b, "mean")
+            flips.append((k * (tol3 + mb) - sum(wb)) / len(missing))
+        mac("RuleFlipBudget", fmt(min(flips), 3))
+        mac("RuleSelectSentence", f"The remaining run would have to score an ALC above {fmt(need, 3)}, or a per-budget Brier above "
+            f"{fmt(min(flips), 3)}, to overturn conditions 2 or 3, far worse than the constant 0.5 (0.25); so we select "
+            f"\\SubId, final once that run finishes without an error.")
+    else:
+        mac("RuleFlipAlc", "--")
+        mac("RuleFlipBudget", "--")
+        ok = (not missing and not failed and c2 and c3)
+        mac("RuleSelectSentence", "All three conditions hold, so we select \\SubId." if ok else
+            "\\textbf{The switch rule does not select W2; the report must be revised.}")
+    alld = list((get(dr, "draws") or {}).values())
+    mac("ArPairsMin", fmt_int(min(d["n_pairs"] for d in alld)) if alld else MISSING)
+    mac("ArPairsMax", fmt_int(max(d["n_pairs"] for d in alld)) if alld else MISSING)
+    mac("ArItemsMin", fmt_int(min(d["n_eval_subject_items"] for d in alld)) if alld else MISSING)
+    mac("ArItemsMax", fmt_int(max(d["n_eval_subject_items"] for d in alld)) if alld else MISSING)
+    mac("ArBenchAll", fmt_int(get(dr, "structure", "shared_benchmark_ids")))
+    mac("ArNDraws", fmt_int(len(alld)) if alld else MISSING)
+    # leaderboard places of the arm means
+    sc = get(load("leaderboard_context.json"), "scores_sorted") or []
+    for arm, code in (("xp_level_m050", "Base"), ("w2_f05s1_k1q2", "Wtwo")):
+        mu = get(arms, arm, "alc", "mean")
+        mac("LbRank" + code + "Mean", fmt_int(1 + sum(1 for v in sc if v < mu)) if sc and mu is not None else MISSING)
+    # per-arm table (main text): mean (sd) per budget, plus the two differences
+    lines = []
+    for arm, lab in (("xp_level_m050", f"base (\\texttt{{xp\\_level\\_m050}}), {fmt_int(get(arms, 'xp_level_m050', 'alc', 'n'))} draws"),
+                     ("w2_f05s1_k1q2", f"\\textbf{{selected (W2), {fmt_int(get(arms, 'w2_f05s1_k1q2', 'alc', 'n'))} draws}}")):
+        a = arms.get(arm) or {}
+        cells = [fmt(get(a, "brier_by_budget", b, "mean")) for b, _ in BUD_IDX]
+        cells.append(f"{fmt(get(a, 'alc', 'mean'))} (sd {fmt(get(a, 'alc', 'sd'), 3)})")
+        lines.append(f"{lab} & " + " & ".join(cells) + r" \\")
+    lines.append(r"\midrule")
+    cells = [fmt(get(ad, "brier_by_budget", b, "mean"), 4, sign=True) for b, _ in BUD_IDX]
+    cells.append(f"{fmt(get(ad, 'alc', 'mean'), 4, sign=True)} (se {fmt(get(ad, 'alc', 'se_welch'), 3)})")
+    lines.append("difference of arm means & " + " & ".join(cells) + r" \\")
+    cells = [fmt(get(pm, b, "mean_diff"), 4, sign=True) for b, _ in BUD_IDX]
+    cells.append(f"\\textbf{{{fmt(get(pm, 'ALC', 'mean_diff'), 4, sign=True)}}} (se {fmt(get(pm, 'ALC', 'se'), 3)})")
+    lines.append(f"pair-matched difference ({fmt_int(get(pm, 'ALC', 'n_pairs'))} pairs) & " + " & ".join(cells) + r" \\")
+    sp = get(cf, "scenarios", "SPARSE", "variants", W2_LABEL, "brier_minus_m050") or [None] * 6
+    cells = [fmt(sp[i], 4, sign=True) for i in range(6)]
+    cells.append(fmt(get(cf, "scenarios", "SPARSE", "variants", W2_LABEL, "minus_m050", "mean"), 4, sign=True))
+    lines.append("simulator, SPARSE (expected difference) & " + " & ".join(cells) + r" \\")
+    (PAPER / "results_table_arms.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    # appendix: every draw
+    lines = []
+    for i, d in sorted((get(dr, "draws") or {}).items()):
+        arm = "W2 (selected)" if d.get("arm") == "w2_f05s1_k1q2" else "base"
+        note = " (probe)" if i in ("1010835", "1010837") else ""
+        cells = [arm + note, fmt_int(d.get("n_pairs"))] + [fmt(get(d, "brier_by_budget", b)) for b, _ in BUD_IDX] + [fmt(d.get("alc"))]
+        lines.append(f"{i} & " + " & ".join(cells) + r" \\")
+    (PAPER / "results_table_draws_all.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    plot = []
+    for i, d in sorted((get(dr, "draws") or {}).items()):
+        style = "blue!70, mark=square*, mark size=1pt" if d.get("arm") == "w2_f05s1_k1q2" else "red!60, mark=triangle*, mark size=1pt"
+        pts = " ".join(f"({j},{float(d['brier_by_budget'][b]):.4f})" for j, (b, _) in enumerate(BUD_IDX))
+        plot.append(f"\\addplot[{style}, forget plot] coordinates {{{pts}}};")
+    for arm, style in (("xp_level_m050", "red, very thick"), ("w2_f05s1_k1q2", "blue, very thick")):
+        a = arms.get(arm) or {}
+        if a:
+            pts = " ".join(f"({j},{float(a['brier_by_budget'][b]['mean']):.4f})" for j, (b, _) in enumerate(BUD_IDX))
+            plot.append(f"\\addplot[{style}] coordinates {{{pts}}};")
+            plot.append("\\addlegendentry{" + ("base mean" if arm == "xp_level_m050" else "W2 mean") + "}")
+    plot.append("\\addplot[gray, dashed, domain=0:5] {0.25};")
+    plot.append("\\addlegendentry{constant 0.5}")
+    (PAPER / "results_fig_draws_all.tex").write_text("\n".join(plot) + "\n", encoding="utf-8")
+    # ---- W2-sem (negative): semantic MiniLM kernel over W2
+    ws = get(wr, "w2_sem") or {}
+    for s, code in (("INV", "Inv"), ("A", "A"), ("MID", "Mid")):
+        cluster_macros("Ws" + code + "VsWtwo", get(load("w2_items/confirm_sem.json"), "scenarios", s, "selected_minus_W2"))
+    mac("WsGate", MISSING if not ws else ("passes" if get(ws, "gate", "pass") else "fails"))
+    mac("WsGateD", MISSING if not ws else ("holds" if get(ws, "gate", "d_INV_vs_W2_ci_below_0") else "fails"))
+    # ---- W1 (negative): exact Bayes pair-rate posterior under the hidden-run structure (H7)
+    w1 = load("deep_dive/w1/w1_summary.json")
+    for s, code in (("H7INV", "HsInv"), ("H7", "Hs")):
+        d = get(w1, "npeb_vs_m050", s, "npeb_all")
+        mac("Wo" + code + "Mean", fmt(get(d, "alc_diff"), 4, sign=True))
+        ci = get(d, "ci") or [None, None]
+        mac("Wo" + code + "Lo", fmt(ci[0], 4, sign=True))
+        mac("Wo" + code + "Hi", fmt(ci[1], 4, sign=True))
+    cluster_macros("WoFast", get(w1, "faster_B1_bench2.5_pair1.2", "H7INV"))
+    tg = get(w1, "tau_grid_best") or {}
+    mac("WoGridMaxGain", fmt(max(v["m050"] - v["alc"] for v in tg.values()), 4) if tg else MISSING)
+    mac("WoGridN", fmt_int(len(tg)) if tg else MISSING)
+    ne = get(load("deep_dive/w1/npeb_explore_seed1.json"), "scenarios", "H7", "methods") or {}
+    bb, bn = get(ne, "m050", "brier"), get(ne, "npeb_all", "brier")
+    mac("WoHsBZeroBase", fmt(bb[0], 4) if bb else MISSING)
+    mac("WoHsBZeroNpeb", fmt(bn[0], 4) if bn else MISSING)
+    da = (get(ne, "npeb_all", "alc") or 0) - (get(ne, "m050", "alc") or 0)
+    mac("WoHsBZeroShare", _pct(0.1 * (bn[0] - bb[0]) / da) if bb and bn and da else MISSING)
+    # ---- Qwen3-14B rating study (pending; the coordinator fills results/qwen3_14b_status.json)
+    q = load("qwen3_14b_status.json")
+    st_ = get(q, "status")
+    if st_ == "failed":
+        d = get(q, "inv_vs_control") or {}
+        sent = (f"A second pre-registered rater, Qwen3-14B (4-bit, local), also failed its gate (INV against the intercept-only control "
+                f"{fmt(d.get('mean'), 4, sign=True)} [{fmt(d.get('ci_lo'), 4, sign=True)}, {fmt(d.get('ci_hi'), 4, sign=True)}]).")
+    elif st_ == "passed":
+        sent = r"\textbf{Qwen3-14B rating study: PASSED; the report has not been updated for this outcome.}"
+    elif st_ == "pending":
+        sent = ("A second pre-registered rating study with Qwen3-14B (4-bit, local) was still running when this report was written; "
+                "it cannot change the submission.")
+    else:
+        sent = MISSING
+    mac("QwenFourteenSentence", sent)
+
+
 def leaderboard_macros() -> None:
     """Public Codabench leaderboard of the PAIEC competition phase (29785): best draw per user.
 
@@ -1972,6 +2262,7 @@ def main() -> None:
     item_study_macros()
     probe_macros()
     selected_draws_macros()
+    w2_macros()
     vpath = RESULTS / "validator_output.txt"
     zip_macros(load("submission_zip_info.json"), vpath.read_text(encoding="utf-8") if vpath.exists() else None)
     text = "% generated by experiments/src/make_macros.py -- do not edit\n" + "\n".join(macros) + "\n"

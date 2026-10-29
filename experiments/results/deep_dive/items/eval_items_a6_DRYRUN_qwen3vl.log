@@ -1,0 +1,25 @@
+12:59:03 ratings 20720; {'n_rated_items': 24199, 'n_mc_items': 0}
+12:59:04 fit b_only: [0.506]; [0.339]; [0.529]; [0.534]; [0.413]
+12:59:07 fit s1: [0.225 0.528]; [0.142 0.344]; [0.211 0.549]; [0.192 0.548]; [0.167 0.423]
+12:59:09 fit s3: [0.158 0.503]; [0.204 0.329]; [0.124 0.522]; [0.091 0.53 ]; [0.124 0.403]
+C:\Users\neels\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\numpy\_core\fromnumeric.py:3824: RuntimeWarning: Mean of empty slice
+  return _methods._mean(a, axis=axis, dtype=dtype,
+C:\Users\neels\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\numpy\_core\_methods.py:142: RuntimeWarning: invalid value encountered in scalar divide
+  ret = ret.dtype.type(ret / rcount)
+C:\Users\neels\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\numpy\_core\_methods.py:219: RuntimeWarning: Degrees of freedom <= 0 for slice
+  ret = _var(a, axis=axis, dtype=dtype, out=out, ddof=ddof,
+C:\Users\neels\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\numpy\_core\_methods.py:178: RuntimeWarning: invalid value encountered in divide
+  arrmean = um.true_divide(arrmean, div, out=arrmean,
+C:\Users\neels\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\numpy\_core\_methods.py:211: RuntimeWarning: invalid value encountered in scalar divide
+  ret = ret.dtype.type(ret / rcount)
+12:59:12 fit smc: [0.    0.506]; [0.    0.339]; [0.    0.529]; [0.    0.534]; [0.    0.413]
+12:59:38 [INV] s1: vs base +0.0005 [-0.0015, +0.0024]  vs ctrl -0.0006 [-0.0017, +0.0005] (98.3%)
+12:59:45 [INV] s3: vs base +0.0008 [-0.0016, +0.0031]  vs ctrl -0.0003 [-0.0013, +0.0009] (98.3%)
+12:59:52 [INV] smc: vs base +0.0011 [-0.0011, +0.0030]  vs ctrl +0.0000 [-0.0000, +0.0000] (98.3%)
+13:00:16 [AS] s1: vs base -0.0022 [-0.0050, +0.0010]  vs ctrl +0.0001 [-0.0013, +0.0017] (98.3%)
+13:00:23 [AS] s3: vs base -0.0020 [-0.0045, +0.0009]  vs ctrl +0.0003 [-0.0009, +0.0018] (98.3%)
+13:00:31 [AS] smc: vs base -0.0023 [-0.0045, +0.0003]  vs ctrl -0.0000 [-0.0000, +0.0000] (98.3%)
+13:00:46 [H7INV] s1: vs base +0.0003 [-0.0020, +0.0028]  vs ctrl -0.0002 [-0.0014, +0.0012] (98.3%)
+13:00:50 [H7INV] s3: vs base +0.0004 [-0.0019, +0.0028]  vs ctrl -0.0001 [-0.0015, +0.0012] (98.3%)
+13:00:54 [H7INV] smc: vs base +0.0005 [-0.0015, +0.0026]  vs ctrl +0.0000 [-0.0000, +0.0000] (98.3%)
+13:00:55 DECISION: {'s1': {'a': False, 'b': True, 'a_prime': False, 'b_prime': True, 'c': True, 'bar_0.003': False, 'pass': False}, 's3': {'a': False, 'b': True, 'a_prime': False, 'b_prime': True, 'c': True, 'bar_0.003': False, 'pass': False}, 'smc': {'a': False, 'b': True, 'a_prime': False, 'b_prime': True, 'c': False, 'bar_0.003': False, 'pass': False}}; any pass: False (113s)

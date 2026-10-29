@@ -1,0 +1,10 @@
+{
+ "study": "Qwen3-14B item rating (PREREG_items_AMENDMENT_6.md)",
+ "status": "pending",
+ "inv_vs_control": {
+  "mean": null,
+  "ci_lo": null,
+  "ci_hi": null
+ },
+ "note": "set status to 'failed' (or 'passed') and fill inv_vs_control from the gate result; make_macros.py then writes the sentence \\QwenFourteenSentence. While 'pending' the report says the study was still running."
+}

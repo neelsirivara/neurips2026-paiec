@@ -1,0 +1,5 @@
+13:52:47 world: 95773 items with text/features, 170 keys, 20003 (key, value) pairs
+13:53:14 grams: nnz 45013026
+13:53:14 embeddings minilm: 95773 rows attached
+13:55:41 [tune HARD] 504 settings (146s)
+13:55:41 done

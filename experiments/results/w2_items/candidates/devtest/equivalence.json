@@ -1,0 +1,20 @@
+{
+ "candidate": "devtest",
+ "scenario": "INV",
+ "constants": {
+  "W2_TAU_FEAT": 0.5,
+  "W2_FEAT_SHARE": 0.5,
+  "W2_TAU_KERN": 1.0,
+  "W2_KERN_Q": 4.0
+ },
+ "n_testsets": 12,
+ "n_predictions": 29450,
+ "n_changed_vs_m050": 29420,
+ "max_abs_diff_vs_numpy": 1.1537678434869747e-05,
+ "m050_max_abs_diff_vs_numpy": 1.372282427603011e-05,
+ "passes_1e-3": true,
+ "featurisation_identical": true,
+ "grams_identical": true,
+ "zero_strength_equals_m050": true,
+ "seconds": 53.660866022109985
+}

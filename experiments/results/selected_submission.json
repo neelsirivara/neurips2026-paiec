@@ -1,0 +1,9 @@
+{
+ "selected_codabench_id": 1019682,
+ "zip": "submission/candidates/w2_f05s1_k1q2.zip",
+ "sha256": "d6d1c6a00e72b8aaf9e6628de6f03e50274a1d8f547883a0c0d70300aab969bf",
+ "previous_selection": 1010717,
+ "decided_by": "experiments/results/w2_items/SWITCH_RULE.md (written before any W2 draw returned)",
+ "status": "provisional: set by the coordinator on 2026-10-29 with 4 of 5 W2 draws in; to be confirmed when 1019688 lands",
+ "note": "edit selected_codabench_id/status here and rerun make_macros.py; the report reads the ID only from this file"
+}

@@ -1,0 +1,691 @@
+\documentclass{article}
+
+\usepackage[final]{neurips_2026}
+% The [final] option alone defines no track; set the footer notice to the competition.
+\makeatletter
+\providecommand{\@trackname}{Technical report, Predictive AI Evaluation Competition (PAIEC), \@neuripsordinal\ Conference on Neural Information Processing Systems (NeurIPS \@neuripsyear).}
+\makeatother
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{nicefrac}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{alltt}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.16}
+
+\input{results_macros}
+% Generated table bodies are read with the primitive \input: the LaTeX wrapper's file hooks
+% leave non-expandable tokens after the file, which breaks \bottomrule inside tabular.
+\makeatletter\let\rawinput\@@input\makeatother
+% Public code repository (private until the author releases it before the OpenReview upload).
+\newcommand{\codeurl}{\url{https://github.com/neelsirivara/neurips2026-paiec}}
+
+\title{Calibrate the Level, Borrow Across Pairs: A Random-Effects Predictor for the Predictive AI Evaluation Competition}
+
+\author{%
+  Neel Sirivara\\
+  University of Washington\\
+  \texttt{nsiriv@cs.washington.edu}
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+We describe our selected submission to the Predictive AI Evaluation Competition (PAIEC), Codabench submission \SelId. It predicts whether an AI system answers a benchmark item correctly by fitting a random-effects logistic model, once per label-budget checkpoint, to the evaluator's \emph{global} list of acquired labels: benchmark, subject and subject--benchmark effects, plus an exact-item effect learned from other subjects' labels on the same item. It differs from our previous submission (\FmShipId) in three constants of the prior level only: the hand-set subject terms (release year, reasoning effort, model size, harness) are switched off, the prior logit is shifted by \SelIntercept, and the prior standard deviation of the global level is raised from \ShipTauMu{} to \SelTauMu. The change came from the organisers' formative feedback: on the hidden test pool the previous budget-0 prior was worse than predicting 0.5 (Brier \FmShipBZero{} against 0.25). In benchmark-held-out simulations of the official protocol on the training release, the cross-pair model changes the Brier area under the learning curve (ALC) by \XpCADiffSZeroMean{} [\XpCADiffSZeroLo, \XpCADiffSZeroHi] relative to a per-pair predictor, and the new level changes it by \DdSelGainBest{} to \DdSelGainWorstHidden{} in harder, inventory-like populations and by \DdSelCostMin{} to \DdSelCostMax{} in release-like ones. Each formative run scores a fresh draw of \FmNPairsMin--\FmNPairsMax{} subject--benchmark pairs on the same \FmNBenchAll{} hidden benchmarks, and the draw dominates. The selected predictor itself scored \SdDrawOneAlc, \SdDrawTwoAlc{} and \SdDrawThreeAlc{} on \SdN{} draws (mean \SdAlcMean, standard deviation \SdAlcSd); single draws of the previous submission and two other variants scored \FmShipAlc, \FmNosubjAlc{} and \FmMhundAlc. The gaps of up to \FmAlcRange{} between our submissions' runs are draw noise: all variants have about the same expected score, and we keep \SelId{} because the simulator favours it. Budget 0 improved on average (\SdBZeroMean{} over the selected predictor's draws, against \FmShipBZero), but one of its draws was still above 0.25. A pre-registered test of LLM-rated item difficulty as an extra offset failed its gate and is reported as a negative result. The predictor is standard-library Python. This work was done with an AI coding assistant (Claude).
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+
+Evaluating every new AI system on every benchmark is expensive, and the number of benchmarks keeps growing~\citep{liang2022helm}. Recent work therefore predicts performance instead of measuring it: from a few informative items selected with item response theory (IRT)~\citep{polo2024tinybenchmarks,kipnis2025metabench,perlitz2024efficient}, adaptively per model~\citep{hofmann2025fluid,zhuang2025position}, from other models' scores~\citep{ruan2024observational,ye2023predictable}, or from a few labelled instances of the new model~\citep{pacchiardi2024hundred}. PAIEC~\citep{paiec2026} makes this a forecasting task with a fixed interface: \texttt{predict([subject, item], labeled)} returns $\Pr(\text{correct})$ for an item of a benchmark from the private test pool, where \texttt{labeled} holds the labels acquired so far, at budgets of $n\in\{0,1,3,7,15,31\}$ labels per subject--benchmark pair.
+
+Our selected submission (\SelId) has two parts. \emph{Cross-pair pooling} (Section~\ref{sec:method}): the evaluator passes one list with the labels of \emph{all} sampled pairs to every prediction, and a random-effects model fitted to that list learns benchmark difficulty from other subjects and item difficulty from other subjects' labels on the same item. \emph{A recalibrated budget-0 level} (Section~\ref{sec:why}): at budget 0 the list is empty and only a prior on visible attributes is available. Our earlier prior encoded ``newer, larger, reasoning-enabled systems do better'' with hand-set coefficients. The formative feedback showed that on the hidden pool this made budget 0 \emph{worse} than the constant 0.5, and the submission switches those terms off and lowers the level.
+
+\paragraph{Contributions.} (1)~A cross-pair random-effects predictor for the evaluator's global label list, selected by pre-registered, benchmark-held-out simulation of the official protocol on the training release (Sections~\ref{sec:method}, \ref{sec:dev}). (2)~A diagnosis of the budget-0 prior from formative feedback, and a three-constant fix chosen with simulated populations that bracket the hidden pool (Section~\ref{sec:why}). (3)~An honest reading of our formative runs, including three draws of the selected predictor: what they show (budget 0, on average) and what they cannot show (which of the variants is better), with draw noise measured directly (Section~\ref{sec:formative}). (4)~A pre-registered negative result: a local LLM's rating of item difficulty does not improve the predictor on held-out benchmarks (Section~\ref{sec:items}). (5)~Exact rerun instructions and a generated, audited report: every number is produced from result files by a script (Section~\ref{sec:repro}). Earlier rounds and their negative results are in the appendices.
+
+\paragraph{Related work.} Item response models, with a subject ability and an item difficulty on a logit scale, are widely used for LLM benchmark data, to rank systems, find informative items and estimate full-benchmark scores from few items~\citep{rodriguez2021evaluation,polo2024tinybenchmarks,kipnis2025metabench}. They fit item parameters offline on hundreds of models. In PAIEC the test benchmarks are new, so difficulty must be learned \emph{during} evaluation from a few labels of a few subjects. We keep the Rasch structure~\citep{lord1980} but replace free parameters by random effects with Gaussian priors, a generalised linear mixed model~\citep{breslow1993}: a benchmark's difficulty is shrunk towards the prior when it has one or three labels and is learned when it has hundreds. Work that predicts a model's scores from other models' scores~\citep{ruan2024observational,ye2023predictable} motivates pooling across subjects; our model does this at the item level, inside one evaluation run.
+
+\section{Task, data and the evaluation interface}
+\label{sec:task}
+
+\paragraph{Task and metric.} A \emph{subject} is a dictionary of strings (\texttt{normalized\_name}, \texttt{provider}, \texttt{release\_date}, \texttt{access\_date}, \texttt{harness}, \texttt{harness\_version}, \texttt{reasoning\_effort}, \texttt{subject\_features\_extra}). An \emph{item} has \texttt{item\_content}, \texttt{item\_features}, \texttt{interactors} and an anonymous \texttt{benchmark\_id}. Each subject--benchmark pair with at least 80 distinct items is split 50/50 into an acquisition and an evaluation pool, fixed across submissions. Acquisition candidates arrive in a fixed random order. An optional \texttt{acquisition\_function} returns \texttt{True} to reveal a label (at most 31 per pair); otherwise labels are drawn at random. After 0, 1, 3, 7, 15 and 31 labels per pair, every evaluation item is predicted, giving Brier scores~\citep{brier1950} $B_0,\dots,B_{31}$ and
+\begin{equation}
+\mathrm{ALC} = 0.1\,B_0 + 0.2\,B_1 + 0.2\,B_3 + 0.2\,B_7 + 0.2\,B_{15} + 0.1\,B_{31},
+\label{eq:alc}
+\end{equation}
+averaged over pairs (lower is better). Predicting 0.5 gives $B_n=0.25$ on any data.
+
+\paragraph{The global label list.} In the organisers' streaming client (\texttt{tools/streaming\_ingestion.py}, \texttt{run\_streaming}), all predictions of a checkpoint receive the \emph{same} \texttt{labeled} list, and the competition page states that it ``contains [[subject, item], label] entries across sampled subject--benchmark pairs''. At budget $n$ the list holds up to $n$ labels of \emph{every} pair; at budget 0 it is empty. The rules allow this evidence: ``the submitted program may use the attributes and acquired labels supplied through the evaluation interface to adapt during evaluation''. The model uses only anonymous keys (the full attribute dictionary, \texttt{benchmark\_id}, item text) inside one run and keeps nothing across runs.
+
+\paragraph{Data.} \emph{Training release.} The official \texttt{aims-foundations/measurement-db} (revision \texttt{\FitRevisionShort}) gives \XpFrNPairs{} pairs of (subject, test condition) on \XpFrNBench{} benchmarks with at least 20 items (\XpFrNPairsEighty{} with 80), \XpFrNRows{} item-level labels (mean over trials) and \XpFrNItems{} distinct items. We use it only to simulate the protocol and to select a few constants; no regression coefficient of the submission is fitted to it. It differs from the hidden population in ways that matter for the prior: \XpFrShareNameBench\% of pairs share (model name, benchmark) with another pair, \DdPopEmptyName\% of eligible pairs have an empty \texttt{normalized\_name}, and the \DdPopNInvBench{} release benchmarks that are rows of the organisers' benchmark inventory are harder than the rest (mean pair success rate \DdPopInvRate{} vs.\ \DdPopNonInvRate). The organisers' curation guidelines restrict competition-eligible base models to 2025--2026 releases~\citep{paiec2026}. \emph{Hidden test pool.} Our four submission runs (Section~\ref{sec:formative}) each scored \FmNPairsMin--\FmNPairsMax{} pairs with \FmNItemsMin--\FmNItemsMax{} evaluation subject--items, always on the same \FmNBenchAll{} benchmark IDs; across them \FmNSubjAll{} distinct subject IDs appeared and no pair was repeated. Two probe uploads that return the selected predictor's predictions (Section~\ref{sec:items}) drew pairs on the same \SdSharedBenchMin{} benchmarks. \emph{Local testbed.} \XpRealNPairs{} pairs of four small open models run locally on GSM8K, SVAMP and BIG-Bench-Hard (Appendix~\ref{app:olddata}) serve as an engineering check inside the organisers' client.
+
+\section{The submitted predictor}
+\label{sec:method}
+
+\begin{table}[t]
+\caption{The only differences between the previous submission and the selected one, read from \texttt{model.py} inside each ZIP (\SelNChangedLines{} changed lines; all other constants \SelOtherConstantsSame, \texttt{labeling.py} \SelLabelingIdentical). Columns are Codabench submission IDs; \FmNosubjId{} and \FmMhundId{} are the two other variants we scored.}
+\label{tab:constants}
+\centering\footnotesize\setlength{\tabcolsep}{4pt}
+\begin{tabular}{llcccc}
+\toprule
+Constant & Role & \FmShipId{} & \FmNosubjId{} & \textbf{\SelId{}} & \FmMhundId{} \\
+\midrule
+\rawinput results_table_constants.tex
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Budget-0 prior.} The prior logit is $o(s,i)=\mathrm{clip}\big(\lambda\,z_{\mathrm{subj}}(s)+\delta+z_{\mathrm{item}}(i),\pm\CPriorCap\big)$, and at budget 0 the prediction is $\sigma(o)$. The item part $z_{\mathrm{item}}$ reads tier, level and points cues in \texttt{item\_features} and the item length; the hand-set subject part $z_{\mathrm{subj}}$ rewards a recent release date, a high reasoning effort, a large parameter count or size word in the name, and a non-default harness (Appendix~\ref{app:perpair}). The selected submission sets $\lambda=\texttt{SUBJECT\_SHRINK}=\SelSubjectShrink$ and $\delta=\texttt{PRIOR\_INTERCEPT}=\SelIntercept$ (Table~\ref{tab:constants}): every subject starts from the same level, so an item without cues receives $\sigma(\SelIntercept)=\SelPZeroNoCue$, and only item cues move the prior.
+
+\paragraph{Cross-pair random-effects model.} From budget 1 on, for a label $y_e$ of subject $s$ on item $i$ of benchmark $b$ in the global list,
+\begin{equation}
+\mathrm{logit}\,\Pr(y_e=1) = o(s,i) + \mu + v_b + u_s + w_{sb},
+\label{eq:xp}
+\end{equation}
+with independent priors $\mu\sim\mathcal N(0,\tau_\mu^2)$, $v_b\sim\mathcal N(0,\tau_b^2)$, $u_s\sim\mathcal N(0,\tau_s^2)$, $w_{sb}\sim\mathcal N(0,\tau_{sb}^2)$. Subjects are identified by their complete attribute dictionary and benchmarks by \texttt{benchmark\_id}. The MAP estimate is computed by backfitting: one Newton step per effect type and sweep, $\theta_g \leftarrow \theta_g + \big(\sum_{e\in g}(y_e-p_e)-\theta_g/\tau^2\big)/\big(\sum_{e\in g}p_e(1-p_e)+1/\tau^2\big)$, at most \XpSweeps{} sweeps (penalised quasi-likelihood~\citep{breslow1993}). The target's latent logit $m=o+\hat\mu+\hat v_b+\hat u_s+\hat w_{sb}$ (zero for groups without labels) has approximate posterior variance $V=\sum_g 1/(H_g+\tau_g^{-2})$ ($\tau_g^2$ for an unseen group), and $p=\sigma\big(m/\sqrt{1+\pi V/8}\big)$~\citep{mackay1992}. \emph{Exact-item effect.} If the target item (same \texttt{benchmark\_id} and text) was labelled for other subjects, an item effect $d\sim\mathcal N(0,\tau_d^2)$ is estimated from those labels by \XpItemNewton{} Newton steps on the conditional scale (their stage-1 logits multiplied by $c=\sqrt{1+\pi\tau_d^2/8}$), and $p=\sigma\big((c\,m'+\hat d)/\sqrt{1+\pi\,\mathrm{Var}(d)/8}\big)$ with $m'$ the probit-scaled stage-1 logit. Prior standard deviations: $\tau_b=\XpTauBench$, $\tau_s=\XpTauSubj$, $\tau_{sb}=\XpTauPair$, $\tau_d=\XpTauItem$, selected in round 4 (Section~\ref{sec:dev}); $\tau_\mu=\SelTauMu$ in the selected submission (\ShipTauMu{} before). With the prior level lowered, a wide $\tau_\mu$ lets the global level be set by the labels from budget 1 on rather than held near the prior.
+
+\paragraph{Acquisition: fresh first.} A label on an item nobody has labelled can help every subject whose evaluation pool contains that item. \texttt{labeling.py} accepts candidates in stream order (a uniformly random sample, as the default policy) but skips a candidate whose item is already in the global list for another subject while $\text{labels\_remaining}<\text{items\_remaining}$, so the budget is always spent. It takes no \texttt{prediction} argument, so the client does not call \texttt{predict} during acquisition.
+
+\paragraph{Implementation.} \texttt{model.py} and \texttt{labeling.py} use only the Python standard library, need no data files, models or network, and are deterministic. \texttt{labeled} is identical for all calls of a checkpoint, so the fit is cached under a fingerprint of the list. For the selected files, a \CkSelBigEntries-label list is fitted in \CkSelBigFit{} s and a cached call takes \CkSelBigMs{} ms on one laptop core (Table~\ref{tab:xpruntime} for other sizes). Any failure falls back to the per-pair predictor of our earlier rounds (Appendix~\ref{app:perpair}), then to the prior, then to 0.5.
+
+\section{Why recalibrate the budget-0 level}
+\label{sec:why}
+
+\paragraph{What the formative feedback showed.} Codabench returns per-pair scores under anonymous IDs; we use only aggregates over pairs. For our previous submission \FmShipId, budget 0 scored $B_0=\FmShipBZero$, \emph{above} the constant's 0.25. Since 0.25 is the constant's score on any draw, this is a comparison within one draw. The budget-0 ECE was \FmShipEceBZero, above the \DdEceBZeroShipMin--\DdEceBZeroShipMax{} that the same predictor shows in all four simulated populations of Appendix~\ref{app:formative}. From $n=1$ on, the cross-pair model learns the level from the list, and the later budgets were in the range of the simulated inventory population ($B_1=\FmShipBOne$ and $B_3=\FmShipBThree$ against \DdInvShipBOne{} and \DdInvShipBThree). Two facts about the training release point the same way. On the \DdPopNInvBench{} inventory benchmarks, the hand-set prior is already worse than the constant at budget 0 ($B_0\approx\DdPopInvBZero$; \DdPopInvYBZero{} for subjects released in 2025 or later). And the release-year term raises the prior of every eligible test subject, since all are 2025--2026 releases, which is the wrong direction if the hidden benchmarks are harder than the release. A table of subject ability by model name, learned from the release, does not transfer to held-out benchmarks either (correlation \DdAbilityCorrMin{} to \DdAbilityCorrMax, $R^2\le\DdAbilityRsqMax$; Appendix~\ref{app:deepdive}). So the subject terms are removed rather than re-fitted.
+
+\paragraph{Simulated populations.} We do not know the hidden pool's composition, so we compare the variants in seven populations built from the training release with the round-4 simulator (Section~\ref{sec:dev}; formative-sized test sets of up to ten pairs on one to three benchmarks, benchmark-held-out). They range from release-like (A, and Y25 with only 2025+ subjects) to inventory-like (INV, INV25) and harder (MID, HARD), plus SHIFT, in which every prior offset is one logit too high (Table~\ref{tab:scenarios}). The level matters almost only at budget 0: from $n=1$ on, the global and benchmark effects take the level from the labels, so no later budget changes by more than \DdSelMaxDeltaLater{} in any population.
+
+\begin{table}[t]
+\caption{Simulated ALC change from the previous submission (\FmShipId) for each variant; negative is better. For \SelId: mean [95\% cluster-bootstrap CI over benchmarks, 2,000 resamples]; for the other two variants the mean (CIs in Table~\ref{tab:scenariosfull}). $^{*}$: CI excludes 0. Bench.: training benchmarks in the population; rate: median pair success rate (MID, HARD: benchmarks with mean rate $\le$ 0.5, 0.4; SHIFT: A with every prior offset 1 logit too high); $B_0$: budget-0 Brier, \FmShipId{} $\to$ \SelId.}
+\label{tab:scenarios}
+\centering\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{lccccccc}
+\toprule
+& & & ALC & & \multicolumn{3}{c}{ALC change from \FmShipId} \\
+\cmidrule(lr){6-8}
+Population & Bench. & Rate & \FmShipId & $B_0$ & \FmNosubjId{} & \textbf{\SelId} [95\% CI] & \FmMhundId{} \\
+\midrule
+\rawinput results_table_scenarios.tex
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{The choice.} Table~\ref{tab:scenarios}. Switching the subject terms off alone (\FmNosubjId{}) changes the ALC by only \DdNosubjGainWorst{} to \DdNosubjGainBest{} outside release-like data. Adding the \SelIntercept{} shift (\SelId{}) changes it by \DdMidSelMean{} [\DdMidSelLo, \DdMidSelHi] on MID, \DdHardSelMean{} [\DdHardSelLo, \DdHardSelHi] on HARD and \DdShiftSelMean{} on SHIFT; it is not significantly different on INV (\DdInvSelMean) and INV25 (\DdInvYSelMean) and costs \DdASelMean{} [\DdASelLo, \DdASelHi] on A and \DdYSelMean{} on Y25. A shift of \MhundIntercept{} (\FmMhundId{}) changes the ALC relative to \SelId{} by \DdMhundMinusSelBest{} to \DdMhundMinusSelWorst{} in those five populations but more than doubles the release-like cost (\DdAMhundMean{} on A, \DdYMhundMean{} on Y25). Because the feedback indicates that, at budget 0, the hidden pool does not behave like the release, we chose \SelId: significant gains in \DdSelNSigGain{} of the five non-release-like populations, no significant loss in any of them, and a bounded cost if we are wrong. The choice was recorded in our deep-dive notes (\texttt{DEEP\_DIVE.md}) while the candidates' formative runs were pending, together with a rule for revising it: switch only if the selected run looked release-like at budget 0 \emph{and} its budget-0 Brier, matched by benchmark, were worse than the previous submission's. It was \FmSelRuleBZero{} (\FmMatchSelShipBZeroMean, se \FmMatchSelShipBZeroSe), so the choice stood.
+
+\section{Results}
+\label{sec:results}
+
+\subsection{Formative runs on the hidden pool}
+\label{sec:formative}
+
+\begin{table}[t]
+\caption{Organiser-scored formative runs (Codabench Scoring output; means over pairs). Each run is a fresh draw of pairs on the same \FmNBenchAll{} hidden benchmarks, so rows are \emph{not} paired comparisons. \SdDrawTwoId{} and \SdDrawThreeId{} are deployment probes whose predictions are those of \SelId{} (Section~\ref{sec:items}): with \SelId{} they are \SdN{} draws of the selected predictor, whose mean is the best estimate of its level. ECE: budget-weighted summary ECE; ECE$_0$: at budget 0. The constant 0.5 scores 0.25 at every budget on any draw.}
+\label{tab:formative}
+\centering\footnotesize\setlength{\tabcolsep}{3pt}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lcccccccccc}
+\toprule
+Submission & Pairs & $B_0$ & $B_1$ & $B_3$ & $B_7$ & $B_{15}$ & $B_{31}$ & ALC & ECE & ECE$_0$ \\
+\midrule
+\rawinput results_table_formative.tex
+\midrule
+\rawinput results_table_formative_draws.tex
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.62\linewidth, height=4.1cm, xlabel={label budget $n$ (axis: $\log_2(n+1)$)}, ylabel={Brier score},
+  xtick={0,1,2,3,4,5}, xticklabels={0,1,3,7,15,31}, ymin=0.13, ymax=0.30, grid=major, grid style={gray!20},
+  legend style={font=\scriptsize, at={(1.03,1)}, anchor=north west}, tick label style={font=\scriptsize}, label style={font=\small}]
+\rawinput results_fig_formative.tex
+\rawinput results_fig_formative_draws.tex
+\end{axis}
+\end{tikzpicture}
+\caption{Formative learning curves (Table~\ref{tab:formative}). Red: the selected predictor on three draws (solid: \SelId; dashed: the probes \SdDrawTwoId{} and \SdDrawThreeId). The spread of the red curves is draw noise. Only the budget-0 points can be compared with a fixed reference (the constant, grey dashed).}
+\label{fig:formative}
+\end{figure}
+
+\paragraph{Budget 0.} Table~\ref{tab:formative}, Figure~\ref{fig:formative}. The previous submission's budget-0 Brier (\FmShipBZero) exceeded the constant's 0.25. The recalibrated predictors scored \SdRecalBZeroMin--\SdRecalBZeroMax{} on \SdRecalNRuns{} draws; \SdRecalNAbove{} of them, a draw of the selected predictor, was also above 0.25, and the selected predictor's mean over its \SdN{} draws is \SdBZeroMean. Every recalibrated draw had a lower budget-0 ECE (at most \SdRecalEceBZeroMax) than the previous submission's \FmShipEceBZero. The change moved budget 0 in the intended direction on average, but not far enough to beat the constant on every draw.
+
+\paragraph{The gaps between runs are draw noise.} The selected predictor scored \SdDrawOneAlc, \SdDrawTwoAlc{} and \SdDrawThreeAlc{} on three draws: mean \SdAlcMean, standard deviation \SdAlcSd, range \SdAlcRange. This is our most direct measure of draw noise, and it exceeds every gap between the four submission runs (range \FmAlcRange). The gaps of that size between our runs are therefore draw noise, not differences between predictors. Likewise, the simulator expects the three constants to change the ALC by \DdSelGainBest{} to \DdSelCostMax{} and any budget $n\ge1$ by at most \DdSelMaxDeltaLater; yet the raw difference \SelId{} $-$ \FmShipId{} averages \FmSelMinusShipLaterMean{} over $n\ge1$. Matching runs by benchmark gives the same picture: averaged over the \FmMatchSelShipN{} shared benchmarks, \SelId{} $-$ \FmShipId{} is \FmMatchSelShipAlcMean{} ALC (se \FmMatchSelShipAlcSe), while two draws of the \emph{same} predictor differ by up to \SdMatchThreeOneMean{} (se \SdMatchThreeOneSe). None of the six comparisons between submissions reaches two standard errors (largest $|t|=\FmMatchMaxAbsT$ with \FmMatchDf{} degrees of freedom; Appendix~\ref{app:formative}). The runs therefore do not rank the variants: all have about the same expected score, and the choice of \SelId{} rests on the simulator (Section~\ref{sec:why}). The best estimate of the selected predictor's formative level is the mean of its draws, \SdAlcMean{} (standard error \SdAlcSe), not its best draw. The final ranking uses one common test subset for all teams, where only the expected score matters.
+
+\paragraph{Leaderboard context.} The public board for this phase (snapshot \LbDate) has \LbN{} entries: \#1 \LbFirst, \#10 \LbTenth, median \LbMedian; the entry of the organisers' account (AIMS Foundations) scores \LbAims. Each entry is a user's \emph{best} draw, and up to 50 uploads per day are allowed, so board positions mix skill and selection. The selected predictor's mean over its three draws (\SdAlcMean, standard deviation \SdAlcSd) would sit at about place \LbRankSelMean, its best draw (\FmSelAlc), which is what the board would show, at \LbRankSel, and the previous submission's single draw (\FmShipAlc) at \LbRankShip. Even our best draw is far from the leaders; in simulation, most of the remaining headroom is item-level difficulty (Appendix~\ref{app:deepdive}), which our attempt with an LLM rater did not capture (Section~\ref{sec:items}).
+
+\subsection{Development evidence for the cross-pair model}
+\label{sec:dev}
+
+\paragraph{Protocol.} The round-4 simulator rebuilds the official protocol on the training release with five benchmark-held-out folds. A \emph{test set} is a set of pairs of one fold sharing one global list. Per pair, items are split 50/50 and the acquisition pool is permuted; at budget $n$ every prediction of the test set receives the union of all its pairs' first $n$ labels. The primary configuration A draws 1--3 random benchmarks and 10 pairs with 100 items each ($\le$1,000 subject--item pairs, as in formative runs), 300 test sets per fold. Configurations B--E vary the composition (Appendix~\ref{app:round4}). The design, the grid of \XpGridN{} prior settings, nested selection and a ship rule were pre-registered (\texttt{experiments/results/round4/PREREG.md}, SHA-256 prefix \texttt{\XpPreregSha}) before any outcome was computed.
+
+\begin{table}[t]
+\caption{Round-4 simulation on the training release: Brier ALC by test-set configuration, units (test set, pair), 95\% cluster-bootstrap CIs over benchmarks. S0: our rounds 1--3 per-pair predictor as the evaluator runs it; S1: the same with the target pair's labels only; XP: cross-pair model (nested selection; level constants of \FmShipId); oracle: each pair's evaluation success rate as a constant.}
+\label{tab:xpconfigs}
+\centering\footnotesize\setlength{\tabcolsep}{3pt}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lccccccc}
+\toprule
+Configuration & units/bench. & S0 & S1 & XP & oracle & XP $-$ S0 [95\% CI] & XP $-$ S1 [95\% CI] \\
+\midrule
+\rawinput results_table_xp_configs.tex
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\paragraph{Cross-pair gain.} Table~\ref{tab:xpconfigs}. In configuration A the cross-pair model reaches \XpCAXpAlc{} against \XpCASZeroAlc{} for the per-pair predictor (\XpCADiffSZeroMean{} [\XpCADiffSZeroLo, \XpCADiffSZeroHi], lower on \XpCADiffSZeroFracNeg\% of units), closing \XpCAGapClosed\% of the gap to the pair-rate oracle. The gain holds when cross-pair evidence only comes from different models (E: \XpCEDiffSZeroMean{} [\XpCEDiffSZeroLo, \XpCEDiffSZeroHi]) and grows when more pairs share the list (B: \XpCBDiffSZeroMean; C: \XpCCDiffSZeroMean). Removing the benchmark effect costs \XpCompABenchMean{} [\XpCompABenchLo, \XpCompABenchHi] and removing the exact-item effect \XpCompAItemMean{} [\XpCompAItemLo, \XpCompAItemHi]: benchmark difficulty, invisible at budget 0, and item difficulty, invisible from a pair's own 31 labels, contribute about equally (Appendix~\ref{app:round4}). The fresh-first rule changes the ALC by \XpAcqMean{} [\XpAcqLo, \XpAcqHi], almost all at $n\ge15$.
+
+\paragraph{Inside the organisers' client.} Driven by a mock coordinator on the local testbed, the organisers' \texttt{run\_streaming} runs the selected files in \texttt{\CkSelLoopMode} acquisition mode with \CkSelLoopAcqPredCalls{} \texttt{predict} calls during acquisition and \CkSelLoopLabels{} labels on each of the \CkSelLoopNPairs{} pairs; the ALC is \CkSelLoopAlc{} against \CkShipLoopAlc{} for the previous files (the testbed's small 2024 models hardly feel the level change). The selected \texttt{model.py} matches the vectorised simulator to \CkSelEquivMaxDiff, and the organisers' validator and our smoke test pass (Appendix~\ref{app:formative}).
+
+\subsection{A pre-registered negative result: LLM-rated item difficulty}
+\label{sec:items}
+
+In simulation most of the remaining headroom is item difficulty (Appendix~\ref{app:deepdive}), so we tested whether a small open LLM can supply it at scoring time. \emph{Pre-registration.} \texttt{PREREG\_items.md} (written \ItPreregTime, SHA-256 prefix \texttt{\ItPreregSha}) fixed the signal, items, offset model and gate before any item was rated. Three amendments followed, each before any rating was analysed: Amendment~1 (\ItAmOneTime) let the rating model be chosen between two 4B models by speed alone; Amendment~2 (\ItAmTwoTime) added an intercept-only control, after a dry run on stub ratings showed that the fitted intercept alone moves the ALC; Amendment~3 (\ItAmThreeTime) registered an API rating route with the same analysis, which was built and never run. \emph{Signal.} \ItModel{} (snapshot \texttt{\ItSnapshot}), run locally, read each item and answered whether a state-of-the-art 2025--26 AI system would most likely complete it; the signal is $s_1=\log P(\text{Yes})-\log P(\text{No})$ from one forward pass without generation. It rated all \ItNItems{} items (\ItNPrompts{} distinct prompts) of two populations: INV (\ItInvNBench{} inventory benchmarks, the proxy for the hidden pool) and AS (\ItAsNBench{} seeded non-inventory benchmarks, a release-like check). \emph{Gate.} The candidate adds $w\,z(s_1)+b$ to the prior offset of \SelId, with $w$ and $b$ fitted leave-benchmark-out in each fold. It ships only if (a) on INV its ALC difference has a 95\% cluster-bootstrap CI below 0 and (b) on AS it is not significantly worse, both against the base and against the intercept-only control.
+
+\emph{The gate fails} (Table~\ref{tab:items}): (a) \ItGateBaseA{} in both comparisons, (b) \ItGateBaseB. Against the base the ALC changes by \ItInvSOneMean{} [\ItInvSOneLo, \ItInvSOneHi] on INV and \ItAsSOneMean{} [\ItAsSOneLo, \ItAsSOneHi] on AS; against the control by \ItInvCtrlMean{} [\ItInvCtrlLo, \ItInvCtrlHi] on INV. The signal is real but weak. Its slope is positive in \ItNFoldsWPos{} of \ItNFolds{} folds (\ItWMin--\ItWMax{} per standard deviation), so unlike our round-3 text prior its sign transfers across benchmarks. But its within-benchmark correlation with the empirical item effect is only \ItCorrInvMedian{} on INV and \ItCorrAsMedian{} on AS (medians over benchmarks). The differences to the base are mostly the level effect of $b$ at budget 0 (\ItInvSOneDBZero{} on INV, \ItAsSOneDBZero{} on AS), which the control isolates. \SelId{} therefore stays the submission and contains no model. We still checked deployment, with three uploads that add the rating model to \texttt{models.txt} of \ProbeBaseIsSel{} (\ProbeAId, \ProbeBId, \ProbeCId). Probes \ProbeAId{} and \ProbeBId{} return the selected predictor's predictions, so their scores are the two extra draws in Table~\ref{tab:formative}. Probe \ProbeBId{} \ProbeBScored, which by its design means that the model loaded from the prefetched cache and ran a forward pass on the scoring GPU, unless the probe did not run at all. Probe \ProbeCId{} stopped with the platform's invalid-output error (\texttt{PAIEC-PREDICT-002}), which it returns only after a successful load on a GPU of at least 70 GB.
+
+\section{Limitations}
+\label{sec:limitations}
+
+\emph{The choice rests on simulation and one budget-0 observation.} The hidden pool's composition is unknown. The seven populations bracket it, but they are all built from the training release, whose subjects (many test-condition variants of one model, many without names or release dates) differ from the 2025--2026 competition subjects. If the hidden pool were release-like, \SelId{} would cost about \DdSelCostMin--\DdSelCostMax{} ALC. \emph{Formative noise.} Each formative run is one draw of \FmNPairsMin--\FmNPairsMax{} pairs, and the selected predictor's own draws span \SdAlcMin--\SdAlcMax; our runs cannot rank the variants (Section~\ref{sec:formative}), and three draws estimate the selected predictor's level only to a standard error of \SdAlcSe. We did not estimate how often the previous prior would exceed 0.25 at budget 0 on a release-like draw. Choosing the level after seeing formative feedback is a mild form of tuning on the test pool; we changed three constants once, on the strength of one aggregate and the simulations. \emph{The level is global.} One intercept cannot fix benchmark-specific difficulty at budget 0. In simulation, knowing each test benchmark's mean difficulty would change the ALC by \DdOrcABenchMean{} (release-like) to \DdOrcHardBenchMean{} (hard), and knowing item difficulty by \DdOrcAItemMean{} to \DdOrcHardItemMean{} (Appendix~\ref{app:deepdive}). Nothing in the submission estimates either before labels arrive, and our pre-registered attempt to estimate item difficulty with a local 4B LLM failed its gate (Section~\ref{sec:items}); a stronger rater might do better, but we did not test one. \emph{Cross-pair assumptions.} The gain depends on how many pairs share a list; item identity is exact text match within a benchmark; pairs with fewer than 80 items are handled under one assumed rule (Appendix~\ref{app:round4}). \emph{Local testbed.} \XpRealNPairs{} pairs of small models on three benchmarks give wide CIs; it checks engineering, not accuracy on frontier systems.
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+We submit \SelId: the round-4 cross-pair random-effects predictor with its budget-0 level recalibrated by three constants. Its formative level is best summarised by the mean of its three draws, \SdAlcMean{} (standard deviation \SdAlcSd; draws \SdAlcMin--\SdAlcMax), not by its best draw. Within this noise the variants we scored have about the same expected score; \SelId{} is the one the simulator favours in harder, inventory-like populations. Most of the remaining headroom is item-level difficulty, which a pre-registered local-LLM rater did not capture.
+
+\section{Reproducing the submission}
+\label{sec:repro}
+
+\emph{Code, results and this report:} \codeurl. \emph{The submission} is \texttt{submission/candidates/xp\_level\_m050.zip} (\SelZipKB{} kB; members \SelMembers), uploaded as Codabench submission \SelId; its SHA-256 (\SelShaVerified{} against our run record) is
+\begin{center}\footnotesize\texttt{\SelZipSha}\end{center}
+Uploading it unchanged reproduces a formative run; scores vary between runs because every run draws new pairs. The commands below run from \texttt{experiments/src} with Python~3 (standard library for the submission, numpy for the simulator; \texttt{-I} because the simulator reads downloaded data).
+\begin{alltt}\scriptsize
+# 1. Rebuild the selected ZIP from submission/paiec_submission.zip (three constant lines), then run the
+#    organisers' validator (commit cc88a959), our smoke test and official_loop_check.py (run_streaming).
+python -I deep_dive/build_candidate.py xp_level_m050 --intercept \SelInterceptRaw \textbackslash
+       --subject-shrink \SelSubjectShrinkRaw --tau-mu \SelTauMuRaw
+#    The same checks with the organisers' starting kit (in the kit's directory):
+python tools/check_submission_zip.py xp_level_m050.zip;  python tools/run_smoke_test.py xp_level_m050/
+# 2. Simulator: download the training release (Hugging Face login, dataset terms accepted),
+#    rebuild round 4 (about 20 min on 4 cores), rerun the deep dive.
+python -I fit_prior_from_measurement_db.py plan --payload DIR
+python -I fit_prior_from_measurement_db.py download --payload DIR
+python -I xpair_sim.py build --payload DIR   # then: cv, addendum, acq, realtest, runtime, equivalence
+python -I deep_dive/proto_level3.py          # Table \ref{tab:scenarios}; also ece_check, decision_stat,
+                                             # proto_oracle, grid_inv, candidate_equivalence
+# Negative item study (Section \ref{sec:items}): extract the items, rate them locally (GPU), test the gate.
+python -I deep_dive/items_extract.py
+python -I deep_dive/rate_items.py --items deep_dive_items.jsonl --out ratings.jsonl --backend hf \textbackslash
+       --model Qwen/Qwen3-VL-4B-Instruct
+python -I deep_dive/eval_items.py ratings.jsonl
+# 3. Formative aggregates from saved Codabench scoring logs (private to the submitter); the report.
+python -I deep_dive/formative_summary.py
+bash build_paper.sh                          # every number, table, figure and the claim audit
+\end{alltt}
+\texttt{plan} lists the \emph{current} head of the dataset and records its revision; our results used revision \texttt{\FitRevisionShort}, and a later revision may hold more benchmarks. The deep-dive scripts currently set absolute paths in \texttt{deep\_dive/dd\_common.py}, which must be edited on another machine. Seeds are fixed. Hardware: one laptop CPU (8 cores, 34 GB RAM, no GPU); the item ratings ran on a Mac GPU (MPS).
+
+\section{Disclosure}
+\label{sec:disclosure}
+
+\emph{Training sources.} \texttt{aims-foundations/measurement-db}, revision \texttt{\FitRevisionShort} (\texttt{subjects}, \texttt{items} and \texttt{responses} of the \FitNEligible{} competition-eligible directories, downloaded 2026-10-22 with the author's account), and the organisers' benchmark inventory, used only to mark which release benchmarks are inventory rows. They were used to simulate the protocol and to select the cross-pair prior standard deviations and the three level constants; the item study rated its item texts. Earlier rounds also fitted two unshipped priors on it. No other data source; the submitted files contain no data. \emph{Formative feedback.} The aggregate scores of our four runs guided the level change, as the rules allow. We did not invert per-pair rows into success rates or try to identify subjects or benchmarks. \emph{Pretrained models.} None in the selected submission (no \texttt{models.txt}, no network calls). During development, Qwen2.5-Instruct 1.5B/3B/7B and Llama-3.2-3B-Instruct (via Ollama) were evaluation subjects of the local testbed, and \texttt{all-MiniLM-L6-v2} was used in one unshipped ablation. \texttt{\ItModel} rated the training-release items of the negative study (Section~\ref{sec:items}) and was listed in \texttt{models.txt} of the three deployment probes (\ProbeAId, \ProbeBId, \ProbeCId); \texttt{Qwen/Qwen3.5-4B} was used only in the speed comparison of Amendment~1. A Claude-API rater (Message Batches, Amendment~3) was built but never run: no item was rated through an API. \emph{Evaluation data.} GSM8K, SVAMP and ten BIG-Bench-Hard subtasks, only to label the local models. \emph{Reused code.} Verbatim copies of the organisers' \texttt{check\_submission\_zip.py} and \texttt{streaming\_ingestion.py} from their public baseline repository~\citep{paiec_baselines_2026}, for local checks only. \emph{Compute.} A CPU-only laptop, except the item ratings, which took \ItRatingHours{} h of model time on a Mac GPU (bf16, MPS backend). \emph{LLM coding assistant.} This work was done with an AI coding assistant: Anthropic's Claude, through Claude Code, wrote the code, ran the experiments and drafted this report under the author's direction. The author is responsible for the submission and the report.
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\appendix
+
+\section{Formative runs and the selected submission: details}
+\label{app:formative}
+
+\paragraph{Benchmark-matched differences.} The anonymous benchmark IDs recur across runs (the page states that matching IDs denote the same benchmark), while no subject or pair recurred. For two runs we average each run's per-pair scores within each shared benchmark and take the mean and standard error over benchmarks of the difference (Table~\ref{tab:matched}). Only aggregates are stored (\texttt{experiments/results/deep\_dive/formative\_runs.json}); the parser checks that the ALC recomputed from the per-budget means equals the organisers' ALC (\FmSelAlcConsistent).
+
+\begin{table}[htbp]
+\caption{Benchmark-matched differences between formative runs: mean (standard error) over the \FmMatchSelShipN{} shared benchmarks. Negative favours the first run. In the ALC column no entry reaches two standard errors (largest $|t|=\FmMatchMaxAbsT$). Of all \FmMatchNEntries{} entries, \FmMatchNAboveTwo{} reaches two standard errors (largest $|t|=\FmMatchMaxAbsTAll$), and \FmMatchNAboveCrit{} reach the two-sided 5\% critical value of $t$ with \FmMatchDf{} degrees of freedom (\FmMatchTCrit), before any correction for the \FmMatchNEntries{} comparisons.}
+\label{tab:matched}
+\centering\footnotesize\setlength{\tabcolsep}{3pt}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lccccccc}
+\toprule
+Runs & $B_0$ & $B_1$ & $B_3$ & $B_7$ & $B_{15}$ & $B_{31}$ & ALC \\
+\midrule
+\rawinput results_table_matched.tex
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\paragraph{Three draws of the selected predictor.} The probe ZIPs' \texttt{model.py} begins with the selected \texttt{model.py} byte for byte and appends a wrapper that returns the selected predictor's prediction; \texttt{labeling.py} is identical (\SdSameCode; \texttt{experiments/results/deep\_dive/selected\_predictor\_draws.json}, parsed from the saved Scoring output with \texttt{parse\_feedback.py}). Their draws used the same \SdSharedBenchMin{} benchmark IDs as \SelId{} and shared at most \SdSharedPairsMax{} pair with it. Benchmark-matched ALC differences between the draws are \SdMatchTwoOneMean{} (se \SdMatchTwoOneSe; \SdDrawTwoId{} $-$ \SdDrawOneId), \SdMatchThreeOneMean{} (se \SdMatchThreeOneSe; \SdDrawThreeId{} $-$ \SdDrawOneId) and \SdMatchThreeTwoMean{} (se \SdMatchThreeTwoSe; \SdDrawThreeId{} $-$ \SdDrawTwoId). The largest of these differences between draws of one predictor exceeds \SdMatchNBetweenBelow{} of the \SdMatchNBetween{} ALC differences between submissions in Table~\ref{tab:matched}, as expected if those are draw noise.
+
+\paragraph{Budget-0 calibration in simulation.} Budget-0 ECE (mean over pairs) of the previous predictor in four simulated populations: A \DdEceBZeroShipA, INV \DdEceBZeroShipInv, HARD \DdEceBZeroShipHard, SHIFT \DdEceBZeroShipShift. The formative run of \FmShipId{} gave \FmShipEceBZero. For the selected constants the simulated values are A \DdEceBZeroSelA, INV \DdEceBZeroSelInv{} and HARD \DdEceBZeroSelHard, and its formative run gave \FmSelEceBZero, also above every simulated value: the recalibrated level is closer, but probably still not right for the hidden pool. Per-pair ECE from about \FmSelItemsPerPair{} evaluation items is noisy and biased upwards; the organisers report ECE only as a diagnostic. \emph{A within-draw statistic.} $D=B_0-B_{31}$ compares two budgets of the same draw. Simulated means for the previous predictor are \DdDA{} (A), \DdDInv{} (INV), \DdDMid{} (MID) and \DdDHard{} (HARD), with single-draw standard deviations \DdDSdMin--\DdDSdMax; the formative value was \FmShipD. Alone it separates the populations only weakly.
+
+\begin{table}[htbp]
+\caption{Simulated populations (Table~\ref{tab:scenarios}) with all three variants: ALC and difference to the previous predictor, mean [95\% cluster-bootstrap CI over benchmarks]. Oracle: each pair's evaluation success rate as a constant. Source: \texttt{experiments/results/deep\_dive/proto\_level3.json}.}
+\label{tab:scenariosfull}
+\centering\footnotesize\setlength{\tabcolsep}{2.5pt}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lcccccccc}
+\toprule
+& & & \multicolumn{2}{c}{\FmNosubjId{}} & \multicolumn{2}{c}{\SelId{}} & \multicolumn{2}{c}{\FmMhundId{}} \\
+Population & Oracle & \FmShipId & ALC & $\Delta$ [95\% CI] & ALC & $\Delta$ [95\% CI] & ALC & $\Delta$ [95\% CI] \\
+\midrule
+\rawinput results_table_scenarios_full.tex
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\paragraph{Checks on the three variants.} For each variant ZIP (\SelId, \FmMhundId, \FmNosubjId): the organisers' validator \CkSelValidator, \CkMhundValidator, \CkNosubjValidator; the smoke test \CkSelSmokeOk, \CkMhundSmokeOk, \CkNosubjSmokeOk{} (\CkSelSmokeCases, \CkMhundSmokeCases, \CkNosubjSmokeCases{} cases); the stdlib \texttt{model.py} matches the numpy simulator with the same constants (max.\ difference \CkSelEquivMaxDiff, \CkMhundEquivMaxDiff, \CkNosubjEquivMaxDiff{} for \SelId{}, \FmMhundId{}, \FmNosubjId{}), \texttt{labeling.py} is identical to the previous submission's, and the previous ZIP was \CkSelShipZipUnchanged{} by the build. Local-testbed ALC in the organisers' client: \CkSelLoopAlc{} (\SelId{}), \CkMhundLoopAlc{} (\FmMhundId{}), \CkNosubjLoopAlc{} (\FmNosubjId{}) and \CkShipLoopAlc{} (\FmShipId{}).
+
+\section{Deep-dive analyses of the previous submission}
+\label{app:deepdive}
+
+All analyses use the round-4 simulator unchanged, configuration A unless stated (\DdDiagNTestsets{} test sets).
+
+\paragraph{Where the Brier is lost.} The previous predictor reaches ALC \DdDiagAlc{} against \DdDiagOracle{} for the pair-rate oracle. The budget-weighted gap is \DdGapBZero, \DdGapBOne, \DdGapBThree, \DdGapBSeven, \DdGapBFifteen{} and \DdGapBThirtyOne{} at $n=0,\dots,31$ (total \DdGapTotal), so \DdGapShareLow\% of it is at $n\le3$. Extreme pairs cost most: pairs with success rate below 0.1 have ALC \DdBinLowAlc{} (oracle \DdBinLowOracle) and a budget-0 bias of \DdBinLowBiasBZero; above 0.9, \DdBinHighAlc{} (\DdBinHighOracle) and \DdBinHighBiasBZero. A single formative-sized test set has ALC standard deviation \DdDiagTestsetSd{} in this configuration (one to three benchmarks per set).
+
+\paragraph{What did not help.} Re-tuning the cross-pair prior standard deviations on the inventory population (\DdGridN{} settings, nested by fold) changes the ALC by \DdGridInvMean{} [\DdGridInvLo, \DdGridInvHi] on INV and \DdGridInvOnAMean{} on A. A subject-ability table keyed by \texttt{normalized\_name} and learned on the training benchmarks has held-out within-benchmark correlation \DdAbilityCorrMin{} to \DdAbilityCorrMax{} with the pair rate ($R^2\le\DdAbilityRsqMax$).
+
+\paragraph{Ceilings for side information.} Table~\ref{tab:oracle} adds oracle offsets to the previous predictor: the true benchmark mean logit (computed with the test pairs), and a fraction of each item's leave-pair-out effect estimated from all other release subjects. These are upper bounds for any difficulty estimate available at scoring time (for example from an item-rating model). They show that item-level difficulty, not the level, holds most of the remaining headroom.
+
+\begin{table}[htbp]
+\caption{Simulated ALC with oracle side information inside the previous predictor (A: release-like, HARD: mean rate $\le0.4$); difference to the previous predictor (A: \DdOrcAShipAlc, HARD: \DdOrcHardShipAlc) with 95\% cluster-bootstrap CI.}
+\label{tab:oracle}
+\centering\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{lcccc}
+\toprule
+& \multicolumn{2}{c}{A} & \multicolumn{2}{c}{HARD} \\
+Oracle offset & ALC & $\Delta$ [95\% CI] & ALC & $\Delta$ [95\% CI] \\
+\midrule
+\rawinput results_table_oracle.tex
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{LLM-rated item difficulty: details.} Table~\ref{tab:items} gives every comparison of the study in Section~\ref{sec:items} (source: \texttt{experiments/results/deep\_dive/items/eval\_items\_qwen3vl\_4b.json}, which records the hashes of the pre-registration and of Amendments 1 and 2, \ItPreregConsistent{} with the files; ratings file SHA-256 prefix \texttt{\ItRatingsSha}). Every needed item was rated (coverage \ItInvCoverage\% on INV and \ItAsCoverage\% on AS; \ItRatingSecPerPrompt{} s per prompt on average). The fitted maps per fold have slope $w$ from \ItWMin{} to \ItWMax{} and intercept $b$ from \ItBMin{} to \ItBMax{}, close to the intercept-only control's \ItBOnlyMin--\ItBOnlyMax; on INV the rating changes $B_1$--$B_{31}$ by at most \ItInvSOneDLaterMax. The within-benchmark correlation of $s_1$ with the leave-pair-out empirical item effect has median \ItCorrInvMedian{} (mean \ItCorrInvMean, positive on \ItCorrInvFracPos\% of \ItCorrInvNBench{} benchmarks) on INV and median \ItCorrAsMedian{} (mean \ItCorrAsMean, \ItCorrAsFracPos\% of \ItCorrAsNBench) on AS. The exploratory signal $s_3$, the mean log-probability of the item text, and the combination $s_1+s_3$ also have CIs that include 0 on INV. Amendment~3 (SHA-256 prefix \texttt{\ItAmThreeSha}) registered rating by the Claude API with a verbalised probability; the script exists, but no API rating was ever made, so that candidate has no result.
+
+\begin{table}[htbp]
+\caption{Pre-registered item-difficulty study (\ItModel, $s_1=\log P(\text{Yes})-\log P(\text{No})$): ALC of each variant, its difference to the base (\SelId; INV \ItInvBaseAlc, AS \ItAsBaseAlc) with 95\% cluster-bootstrap CI over benchmarks, and the budget-0 part of that difference. The last row is the Amendment-2 comparison against the intercept-only control. Gate: (a) INV CI below 0 \ItGateBaseA{} against the base and \ItGateCtrlA{} against the control; (b) AS not significantly worse \ItGateBaseB.}
+\label{tab:items}
+\centering\footnotesize\setlength{\tabcolsep}{3pt}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lcccccc}
+\toprule
+& \multicolumn{3}{c}{INV (\ItInvNBench{} inventory benchmarks)} & \multicolumn{3}{c}{AS (\ItAsNBench{} release-like benchmarks)} \\
+Comparison & ALC & $\Delta$ [95\% CI] & $\Delta B_0$ & ALC & $\Delta$ [95\% CI] & $\Delta B_0$ \\
+\midrule
+\rawinput results_table_items.tex
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\section{Round 4: details}
+\label{app:round4}
+
+\begin{table}[htbp]
+\caption{Brier score per budget and ALC (configurations A and E) and the paired difference XP $-$ S0 with its 95\% cluster-bootstrap CI (level constants of \FmShipId).}
+\label{tab:xpbudget}
+\centering\footnotesize\setlength{\tabcolsep}{2.5pt}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{llccccccc}
+\toprule
+& Method & $B_0$ & $B_1$ & $B_3$ & $B_7$ & $B_{15}$ & $B_{31}$ & ALC \\
+\midrule
+\rawinput results_table_xp_budget.tex
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.85\linewidth]{figures/xp_budget}
+\caption{Brier score per budget on the training release (benchmark-held-out). Bands: marginal 95\% cluster-bootstrap CIs over benchmarks; the paired differences, which are much tighter, are in Table~\ref{tab:xpbudget}. XP falls below the pair-rate oracle at $n=31$ because it learns item difficulty from other subjects.}
+\label{fig:xpbudget}
+\end{figure}
+
+\begin{table}[htbp]
+\caption{Components (all-fold setting; configurations A and E): ALC and paired difference to the shipped setting (positive: removing the component hurts).}
+\label{tab:xpcomponents}
+\centering\footnotesize\setlength{\tabcolsep}{3pt}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lcccc}
+\toprule
+& \multicolumn{2}{c}{A: formative-like} & \multicolumn{2}{c}{E: distinct models} \\
+Variant & ALC & $\Delta$ [95\% CI] & ALC & $\Delta$ [95\% CI] \\
+\midrule
+\rawinput results_table_xp_components.tex
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\begin{table}[htbp]
+\caption{Runtime of the round-4 \texttt{model.py} on one laptop core (synthetic global lists of 250-word items, 31 labels and 50 evaluation items per pair): first call of a checkpoint (parse and fit), later calls, and the whole checkpoint. The selected file differs only in constants.}
+\label{tab:xpruntime}
+\centering\footnotesize
+\begin{tabular}{rrrccc}
+\toprule
+Pairs & Labels & Predictions & Fit (s) & Per call (ms) & Checkpoint (s) \\
+\midrule
+\rawinput results_table_xp_runtime.tex
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Configurations.} \textbf{A} (primary, formative-like): 1--3 random benchmarks, 10 random pairs with at least 80 items split over them, 100 items per pair, 300 test sets per fold; \textbf{E}: as A but no two pairs share a model name, so cross-pair evidence comes only from different models; \textbf{B}: all pairs of one benchmark (up to 300, 200 items each); \textbf{C}: up to 2,000 pairs of a whole fold in one list; \textbf{D}: A plus up to two pairs with 20--79 items that are evaluated on all items and never acquired (the page does not say how such pairs are handled). Per-pair ALC; means over (test set, pair) units. Units, benchmarks, test sets and labels at budget 31: A \XpCANUnits/\XpCANBench/\XpCANTestsets/\XpCANLabels; E \XpCENUnits/\XpCENBench/\XpCENTestsets/\XpCENLabels; B \XpCBNUnits/\XpCBNBench/\XpCBNTestsets/\XpCBNLabels; C \XpCCNUnits/\XpCCNBench/\XpCCNTestsets/\XpCCNLabels; D \XpCDNUnits/\XpCDNBench/\XpCDNTestsets/\XpCDNLabels. In D the acquired pairs gain \XpCDAcquiredMean{} [\XpCDAcquiredLo, \XpCDAcquiredHi] and evaluation-only pairs \XpCDEvalOnlyMean{} [\XpCDEvalOnlyLo, \XpCDEvalOnlyHi]. Frame structure: median \XpFrPairsPerBenchMedian{} pairs and \XpFrNamesPerBenchMedian{} model names per benchmark (maximum \XpFrPairsPerBenchMax{} pairs), \XpFrNamesMulti{} names on two or more benchmarks; \XpFrItemShared\% of labels are on an item that at least two pairs answered. Each pair keeps its \XpFrMaxItems{} answered items with the lowest benchmark-level hash rank, so subjects of a benchmark share items as far as their answered sets allow.
+
+\paragraph{Pre-registration and selection.} \texttt{PREREG.md} (\XpPreregConsistent{} with every result file) fixed configurations A--D, predictors, the grid of \XpGridN{} settings ($\tau_b$, $\tau_{\mathrm{name}}$, $\tau_s$, $\tau_{\mathrm{name},b}$, $\tau_{sb}$, $\tau_d$, probit on/off; $\tau_\mu=\XpTauMu$), nested selection (for each outer fold, the best setting on the other four folds' config-A test sets), the primary outcome and the ship rule: ship iff (a) the config-A ALC difference to S0 has a CI below zero, (b) the real testbed is not significantly worse, (c) no other configuration is significantly worse, and (d) engineering gates hold (never raises, smoke test and validator pass, a 62,000-label checkpoint in $\le$60 s). Rule (a) \XpRuleA, (b) \XpRuleB, (c) \XpRuleC. The model also has slots for a model-name effect and a name--benchmark effect, which the selection switched off. The selected setting lay on the grid boundary in $\tau_b$ and $\tau_d$; an addendum written after the primary result (\XpAddendumConsistent) added configuration E and an extended grid of \XpGridExtN{} settings, selected on A and E jointly; it returned \XpRobSameAsPrereg. The stdlib \texttt{model.py} and the vectorised simulator agree to \XpEquivMaxDiff{} on \XpEquivN{} predictions.
+
+\paragraph{Results in more detail.} Per budget (Table~\ref{tab:xpbudget}, Figure~\ref{fig:xpbudget}), budget 0 is unchanged (the list is empty); the difference is significant at every budget from $n=1$ (\XpCADiffSZeroBOneMean{} [\XpCADiffSZeroBOneLo, \XpCADiffSZeroBOneHi] in A) and largest at $n=31$ (\XpCADiffSZeroBThirtyOneMean{} [\XpCADiffSZeroBThirtyOneLo, \XpCADiffSZeroBThirtyOneHi]), where XP (\XpCAXpBThirtyOne) is below the pair-rate oracle (\XpCAOrBThirtyOne). Against S1, i.e.\ a correct per-pair filter, the gains are \XpCADiffSOneMean{} (A) to \XpCCDiffSOneMean{} (C). Components (Table~\ref{tab:xpcomponents}): the subject--benchmark effect (\XpCompAPairMean), the subject effect (\XpCompASubjMean) and probit integration (\XpCompAProbitMean) are small; the subject effect rarely transfers because full attribute dictionaries rarely repeat across benchmarks (\XpFrSubjMulti{} of \XpFrNSubjKeys{} do). Benchmark and pair effects alone recover more than half of the gain (\XpCompABenchPairAlc{} against \XpCASZeroAlc{} for S0), whereas item and pair effects alone recover none (\XpCompAPairItemAlc): the item effect becomes useful only together with the benchmark effect, which puts the other subjects' labels on a common scale. The best ALC per $\tau_d$ is \XpProfItemZeroA, \XpProfItemOneFiveA, \XpProfItemTwoTwoFiveA, \XpProfItemThreeA, \XpProfItemFourA{} for $\tau_d=0,1.5,2.25,3,4$ (A). Real testbed (seed 0): XP \XpRealXpAlc{} against \XpRealShipGlobalAlc{} for the per-pair predictor as deployed; against a correct per-pair filter \XpRealDiffPerPairMean{} [\XpRealDiffPerPairLo, \XpRealDiffPerPairHi]; at $n=1$ XP is worse there (\XpRealXpBOne{} vs.\ \XpRealShipGlobalBOne). Fresh-first on the real testbed: \XpRealAcqMean{} [\XpRealAcqLo, \XpRealAcqHi] (\XpRealAcqSig). If the evaluator passed only the target pair's labels, XP would still be slightly better on the release (\XpPerPairMean{} [\XpPerPairLo, \XpPerPairHi] against S1) but worse on the real testbed (\XpRealXpPerPairVsPerPairMean{} [\XpRealXpPerPairVsPerPairLo, \XpRealXpPerPairVsPerPairHi]).
+
+\paragraph{Selection.} The nested selection picked the all-fold setting in \XpSelNFoldsSame{} of \XpSelNFolds{} outer folds; the per-fold config-A differences XP $-$ S0 range from \XpCAFoldMin{} to \XpCAFoldMax{} (negative in \XpCAFoldNNeg{} of \XpSelNFolds). All-fold setting (shipped): $\tau_\mu=\XpTauMu$, $\tau_b=\XpTauBench$, $\tau_{\mathrm{name}}=\XpTauName$, $\tau_s=\XpTauSubj$, $\tau_{\mathrm{name},b}=\XpTauNamebench$, $\tau_{sb}=\XpTauPair$, $\tau_d=\XpTauItem$, probit \XpProbit; with it the config-A difference to S0 is \XpCAAllfoldDiffMean{} [\XpCAAllfoldDiffLo, \XpCAAllfoldDiffHi] (nested estimate: \XpCADiffSZeroMean).
+
+\paragraph{Amendment and addendum.} One amendment was made to \texttt{PREREG.md} before any outcome was computed: the acquisition rule's skip threshold (registered as $\text{labels\_remaining}/\text{items\_remaining}<0.5$, which with 50-item pools would never skip) was replaced by the minimal one that still spends the budget. Addendum 1 was written at 20:58 PDT after the primary result and before any further outcome: configuration E, the extended grid ($\tau_b\in\{0.5,1,1.5,2,3\}$, $\tau_d\in\{0,0.75,1.5,2.25,3,4\}$), and a ``robust pick'' minimising the average of the A and E ALCs, to be shipped only if not significantly worse than the pre-registered pick on A and better than S0 on E. It selected \XpRobSameAsPrereg{} (\XpRobNFoldsSame{} of 5 folds; nested difference to the pre-registered nested XP on A \XpCARobVsPreMean{} [\XpCARobVsPreLo, \XpCARobVsPreHi]); shipped: \XpShipSource. Best ALC per $\tau_d$ on E: \XpProfItemZeroE, \XpProfItemZeroSevenFiveE, \XpProfItemOneFiveE, \XpProfItemTwoTwoFiveE, \XpProfItemThreeE, \XpProfItemFourE{} for $\tau_d=0,0.75,1.5,2.25,3,4$.
+
+\paragraph{Checks.} Pre-registered equivalence: \XpEquivNTestsets{} config-A test sets re-predicted by the stdlib \texttt{model.py} from dictionary inputs with binary labels: maximum absolute difference \XpEquivMaxDiff. Real-testbed per-budget Brier (seed 0) for XP / S0-deployed / per-pair: $B_1$ \XpRealXpBOne/\XpRealShipGlobalBOne/\XpRealShipPerPairBOne, $B_7$ \XpRealXpBSeven/\XpRealShipGlobalBSeven/\XpRealShipPerPairBSeven, $B_{31}$ \XpRealXpBThirtyOne/\XpRealShipGlobalBThirtyOne/\XpRealShipPerPairBThirtyOne. Fresh-first skipped \XpAcqSkips{} candidates in configuration A (ALC \XpAcqFreshAlc{} vs.\ \XpAcqRandomAlc).
+
+
+\section{Per-pair predictor (rounds 1--3; now the fallback and the budget-0 prior)}
+\label{app:perpair}
+
+
+All constants below are hand-set and are still in \texttt{model.py}: the budget-0 prior is the offset of the cross-pair model, the rest is its fallback. Values are those of the round-4 file (\FmShipId); the selected submission (\SelId) differs only in \texttt{SUBJECT\_SHRINK} (\SelSubjectShrink{} instead of \ShipSubjectShrink, which removes the whole subject part below) and \texttt{PRIOR\_INTERCEPT} (\SelIntercept{} instead of \ShipIntercept), besides $\tau_\mu$ of the cross-pair model (Table~\ref{tab:constants}). The few whose values were adjusted after looking at the local testbeds are marked $^\dagger$ and have sensitivity analyses in Appendix~\ref{app:oldresults}.
+
+\paragraph{Budget-0 prior.}
+A logistic prior $p_0=\sigma(z)$ with $z=\mathrm{clip}(z_{\mathrm{subj}}+z_{\mathrm{item}},\pm\CPriorCap)$, so $p_0\in[\CPriorPLo,\CPriorPHi]$. The subject part is $z_{\mathrm{subj}}=\CSubjectShrink\cdot(\CYearSlope\,\mathrm{clip}(t-2024.5,\pm2) + e + \CSizeSlope\,\mathrm{clip}(\log_2(N/30\mathrm{B}),\pm4) + \CHarness\,\mathbb 1[\text{non-default harness}])$, where $t$ is the release year (fractional), $e\in\{0,\CEffortLow,\CEffortMid,\CEffortHigh\}$ encodes an empty, low, other or high \texttt{reasoning\_effort}, and $N$ is a parameter count parsed from the name (``7b'', ``70B''); when no count is present, name tokens such as \emph{mini/nano/flash} contribute \CSmallName{} and \emph{pro/opus/ultra} contribute \CLargeName. A per-provider table (\CNProvider{} entries, inside the multiplier) and an intercept $\delta$ added after it (\texttt{PRIOR\_INTERCEPT}: \ShipIntercept{} in round 4, \SelIntercept{} in the selected submission) complete the subject part; the provider table is empty and is the slot a fitted coefficient table would fill. The item part parses \texttt{key=value} pairs in \texttt{item\_features}: a tier/difficulty/level value matching \emph{hard/expert/\dots} adds \CTierHard, \emph{easy/basic/\dots} adds \CTierEasy, a numeric level $\ell\in[1,5]$ adds $-\CTierNum(\ell-3)$, and points above one subtract \CPoints{} each (capped at five); finally the item length adds $-\CLength\,\mathrm{clip}(\log_2(L/600),\pm3)$ for $L$ characters. The directions encode common knowledge (newer, larger, reasoning-enabled subjects do better; harder, longer, higher-value items are failed more often); the magnitudes were chosen to move the prior by at most a few tenths of a logit per attribute and were not tuned on either testbed.
+
+\paragraph{Pair-level shrinkage.}
+Given $n$ acquired labels $y_1,\dots,y_n$ of the same pair with item logits $z_{\mathrm{item}}^{(j)}$ and mean $\bar z$, the prior rate is $r=\sigma(\mathrm{clip}(z_{\mathrm{subj}}+\bar z))$ and the posterior mean of a Beta--binomial model with prior strength $\alpha_0=\CAlpha^\dagger$ pseudo-counts is $\rho=(\alpha_0 r+\sum_j y_j)/(\alpha_0+n)$~\citep{efron1975}. The pair estimate for a target item is $p_{\mathrm{pair}}=\sigma(\mathrm{logit}\,\rho + z_{\mathrm{item}}-\bar z)$, i.e.\ the item cues shift the pair rate on the logit scale.
+
+\paragraph{Item-level component 1: ridge features.}
+From $n\ge\CRidgeMinN$ labels, three cheap features of the item text---log length, digit density and log(1+number of sentences)---are standardised over the acquired items and a logistic regression with offset $\mathrm{logit}\,p_{\mathrm{pair}}$ and ridge penalty $\lambda=\CRidgeLambda$ is fitted by six Newton steps; its adjustment $\mathrm{clip}(\beta^\top \tilde f,\pm\CRidgeCap)$ is added to the target's logit.
+
+\paragraph{Item-level component 2: TF-IDF nearest neighbours.}
+Item texts (content, features and interactors, truncated to \CMaxTextChars{} characters) are tokenised into lower-case words and numbers; the acquired set defines the vocabulary and document frequencies, with sublinear term frequency, smoothed idf and $\ell_2$ normalisation (bigram weight \CBigramWeight; target terms absent from the acquired vocabulary are dropped: \CRestrictOov). With cosine similarities $s_j$ between the target and acquired item $j$ and weights $w_j=(\kappa s_j)^2$, the correction is a shrunken kernel-weighted residual,
+\begin{equation}
+p = \mathrm{clip}\Big(a + \frac{n}{n+N_0}\cdot\frac{\sum_j w_j\,(y_j-a)}{\tau+\sum_j w_j}\Big),\qquad N_0=\CKnnN,\ \tau=\CTau,
+\end{equation}
+where the anchor $a$ is the pair estimate (optionally including the ridge adjustment) and $\kappa=\CKappa$ by default. With at most 31 short documents most bigrams are unique, so cosine similarities are small (typically below 0.15 even for related items), which deliberately keeps the correction small unless items share many terms; Appendix~\ref{app:ablations} compares a sharper unigram-only representation.
+
+\paragraph{Leave-one-out gating.}
+From $n\ge\CLooMinN$ labels, every configuration in $\{\text{ridge off, on}\}\times\{\kappa\in\{0,\CKappas\}\}$ ($\kappa=0$ means no $k$NN) is scored by its leave-one-out Brier score on the acquired labels themselves: label $j$ is predicted from the other $n-1$ labels, including a leave-one-out shrinkage estimate and a leave-one-out ridge fit. The best configuration replaces plain shrinkage only if its mean per-item improvement exceeds \CLooSeMult{} standard error(s) of that mean$^\dagger$; otherwise the predictor returns $p_{\mathrm{pair}}$. This makes adaptation \emph{opt-in per pair and budget}: a pair whose labels show no exploitable structure is predicted by shrinkage alone. Below \CLooMinN{} labels no item-level component is used at all (in preliminary runs an always-on $k$NN from one or three labels only added noise at $B_1$ and $B_3$).
+
+\paragraph{Acquisition policy.}
+\texttt{labeling.py} implements the streaming interface and never raises. Candidates are accepted in stream order (uniformly random, hence the same label distribution as the evaluator's default) except that a candidate whose maximum TF-IDF cosine similarity to an already acquired item exceeds \CDedupSim{} is skipped while fewer than 90\% of the remaining candidates are needed; it always accepts when the remaining candidates are needed to spend the budget. We compare this \emph{novelty} filter with the evaluator's random policy, plain stream order, the organisers' uncertainty band $|p-0.5|\le0.15$~\citep{paiec_baselines_2026}, and a novelty-plus-uncertainty variant (skip $|p-0.5|>\CUncSkip$ once \CUncMinN{} labels are known).
+
+
+\paragraph{Implementation (round-4 and selected files).} Predictions are clipped to $[\CClipLo,\CClipHi]$; \texttt{predict} is wrapped in a fallback chain (cross-pair model $\to$ per-pair full model $\to$ shrinkage only $\to$ smoothed label mean $\to$ 0.5), accepts labels given as booleans, numbers or strings, tolerates missing fields, malformed entries and non-dictionary inputs, and is deterministic. The round-4 ZIP (\FmShipId; \ZipKB{} kB; members \ZipMembers) contains no \texttt{models.txt} and no \texttt{requirements.txt}: both files import only standard-library modules (\texttt{model.py}: \texttt{array}, \texttt{base64}, \texttt{hashlib}, \texttt{json}, \texttt{math}, \texttt{os}, \texttt{re}, \texttt{sys}, \texttt{threading}, \texttt{zlib}; the round-3 item-text-prior hooks stay inactive because no weight file is shipped; \texttt{labeling.py} loads its sibling \texttt{model.py} by path) and make no network calls. The organisers' \texttt{check\_submission\_zip.py} (commit \texttt{cc88a959}) \ValidatorStatus{} on the ZIP. Our smoke test calls \texttt{predict} with the organisers' sample inputs at every budget and with malformed labels and inputs (\SmokeNCases{} cases), plus \XpSmokeXpCases{} cross-pair cases, and checks determinism; with the cross-pair model enabled the mean latency is \SmokeMsShort{} ms per call on short items and \SmokeMsLong{} ms at budget 31 with 300-word items (maximum \SmokeMaxMsLong{} ms), about \SmokeCallsPerSec{} calls per second on one laptop core.
+
+\section{Rounds 1--3: data, testbeds and the training release}
+\label{app:olddata}
+
+
+\paragraph{What we could and could not use.} The official training data (\texttt{measurement-db}: item-level responses of many subjects on curated benchmarks) require accepting terms with a Hugging Face account. For most of the project we had no credentials and did not try to obtain the data in any other way; the per-pair predictor and all its constants were fixed before any of it was seen. Its public file listing (2026-10-22, revision \texttt{\MdbRevisionShort}) held \MdbNDirs{} benchmark directories: \MdbCoreGb{} GB of \texttt{benchmarks}, \texttt{subjects}, \texttt{items} and \texttt{responses} tables plus \MdbTracesGb{} GB of traces and \MdbAssetsGb{} GB of assets. On that day the author's login became available and we downloaded the \FitNEligible{} competition-eligible directories (binary, item-level responses; the eligibility flags live inside the \texttt{benchmarks} tables) without traces or assets, and used them as described next. We also inspected the organisers' inventory of eligible benchmarks (1,261 entries) but fitted nothing on any of them. The two local testbeds below only evaluate design choices; the few constants they influenced are marked in Appendix~\ref{app:perpair} and probed in Appendix~\ref{app:oldresults}.
+
+\paragraph{The training release: validation and a fit that was not shipped.} \texttt{fit\_prior\_from\_measurement\_db.py} builds one row per (subject, test condition, item) with the mean response over trials as label---\FitNPairs{} pairs with at least 20 distinct items from \FitNBench{} benchmarks, \FitNRows{} rows (pairs capped at \FitMaxItemsPerPair{} items; \FitRelNPairsAlc{} pairs have the 80 items the protocol requires)---and does two things (Appendix~\ref{app:fit}). First, it evaluates the rounds 1--3 prior-plus-shrinkage rule with the protocol in closed form (50/50 split, 31 random acquisitions, Eq.~\ref{eq:alc}; without the item-level components, which change the ALC by $<0.001$ locally): ALC \FitRelHandAlc{} [\FitRelHandAlcLo, \FitRelHandAlcHi] against \FitRelEmpAlc{} [\FitRelEmpAlcLo, \FitRelEmpAlcHi] for the organisers' empirical mean and \FitRelConstAlc{} for the constant, with $\alpha_0=4$ the best of $\{2,4,8\}$. The ordering and the size of the gain measured locally thus transfer to real systems on real benchmarks. Second, it fits an $L_2$-penalised logistic regression on exactly the feature terms of the hand-set prior plus a provider table and benchmark fixed effects (nuisance parameters; the shipped intercept is their mean), pairs weighted equally, with five-fold cross-validation over whole benchmarks. The fitted prior \emph{loses} to the hand-set one on held-out benchmarks at every penalty (budget-0 Brier \FitCMinBZero{}--\FitCMaxBZero{} against \FitRelHandBZero; paired differences at the selected setting \FitPairBZeroMean{} [\FitPairBZeroLo, \FitPairBZeroHi] at budget 0 and \FitPairAlcMean{} [\FitPairAlcLo, \FitPairAlcHi] in ALC), and an intercept-only prior is worse still (\FitRelIntOnlyBZero). The ship-only-if-better rule therefore kept the hand-set constants; in rounds 1--3 no coefficient of the submission derived from the release (round 4 selects the cross-pair model's prior standard deviations on it, Section~\ref{sec:dev}). Where the data speak, the fitted signs agree with the hand-set values; what held-out benchmarks punish is the provider table (Appendix~\ref{app:fit}).
+
+\paragraph{An item-text difficulty prior (pre-registered; not shipped).} Benchmark difficulty dominates the pair rate (benchmark means have standard deviation \FitBenchRateSd) and the attribute prior cannot see it. We therefore tested, with design and ship rule fixed in \texttt{PREREG.md} (SHA-256 \texttt{\TpPreregSha}\dots) before any fit, whether the item text predicts difficulty on \emph{unseen} benchmarks: a ridge regression on \TpBits{} signed-hashed buckets (words, bigrams, character trigrams, \texttt{item\_features}) and 16 text statistics (length, \LaTeX, code, answer choices, \dots), trained on the item logit the hand-set prior leaves unexplained (\TpNTargetItems{} items, benchmarks weighted equally) and stacked onto the prior as $T=Ws+B$ with $W,B$ fitted on out-of-fold scores; shrinkage is unchanged. On the same benchmark-held-out folds, every choice nested inside the training benchmarks, the ALC changes by \TpDiffAlcMean{} [\TpDiffAlcLo, \TpDiffAlcHi] (cluster bootstrap over \TpNClusters{} benchmarks), closing \TpGapZero\%, \TpGapOne\% and \TpGapThree\% of the gap to the pair-rate oracle at $n=0,1,3$. The inner CV chose the largest penalty of the grid in \TpNFoldsAlphaMax{} of \TpNFolds{} folds and the out-of-fold slope $W$ was \emph{negative} in all \TpNFoldsNegW{} (\TpFoldWMin{} to \TpFoldWMax): text patterns learned on some benchmarks point the wrong way on others. Exploratory variants registered afterwards (penalties up to $10^4$; statistics alone) give \TpEOneDiffMean{} and \TpETwoDiffMean, the local testbeds \TpRPairFullMean{} (real, \TpRPairFullSig) and \TpSPairFullMean{} (synthetic, \TpSPairFullSig). Headroom exists---knowing each held-out benchmark's mean rate would gain \TpDiffBenchOracleMean{} ALC---but item text in this form does not reach it; the rule fails and the submission is unchanged (Appendix~\ref{app:textprior}).
+
+\paragraph{Real Ollama testbed.}
+To obtain item-level correctness labels of real language models we ran four small open-weight models locally with Ollama (Q4\_K\_M quantisation, greedy decoding, CPU only): Qwen2.5-Instruct 1.5B, 3B and 7B and Llama-3.2-3B-Instruct. Three public benchmarks were used, none of which appears in the PAIEC inventory (only a derived variant, \texttt{mr\_gsm8k}, does): the first 200 GSM8K test items, the first 200 SVAMP test items (with the SVAMP problem type as \texttt{item\_features}), and a 300-item mix of ten BIG-Bench-Hard subtasks (30 items each, subtask name as \texttt{item\_features}). Two harnesses are represented: a direct-answer prompt (``reply with only the final answer''; exact match after numeric or option normalisation) and, for GSM8K/SVAMP, an earlier 8-shot chain-of-thought run of the Qwen models whose greedy answers we re-used. Each (model, harness, benchmark) triple with at least 80 items is one pair, giving \RNPairsMeta{} pairs, \RNItemsTotal{} labelled items, and success rates from \RAccMin\% to \RAccMax\% (Table~\ref{tab:testbed} in the appendix). The subject dictionaries carry the real model names, providers, release dates and harness names, so the budget-0 prior sees realistic inputs; the raw records are released with the code.
+
+\paragraph{Synthetic IRT testbed.}
+Because the real testbed is small (small models, three benchmarks), we complement it with a generator that follows a two-parameter item response model~\citep{lord1980,embretson2000}. Subject $s$ has ability $\theta_s$ correlated with its visible attributes (release year, reasoning effort, parameter count) plus noise; benchmark $b$ has a location $\mu_b$, a discrimination $a_b$ and $K=5$ topic clusters with difficulty offsets $c_k\sim\mathcal N(0,\sigma_{\mathrm{topic}}^2)$; item $i$ in cluster $k(i)$ has difficulty $b_i=\mu_b+c_{k(i)}+\gamma\,z_{\mathrm{len}}(i)+\varepsilon_i$ and $\Pr(y_{si}=1)=\sigma(a_b(\theta_s-b_i))$. Item texts mix cluster-specific vocabulary (35\% of tokens), benchmark template words, ambient vocabulary and numbers, so that lexical similarity carries difficulty information exactly when $\sigma_{\mathrm{topic}}>0$; half of the benchmarks expose a \texttt{tier=easy/medium/hard} feature derived from difficulty terciles. The main setting uses \SNSubjects{} subjects $\times$ \SNBenchmarks{} benchmarks $=$ \SNPairs{} pairs with 100--240 items each, $\sigma_{\mathrm{topic}}=\SSigma$ and $\gamma=\SGamma$; a sweep varies both. Because the true probabilities are known, we can report two oracle references: the Brier score of the true item probabilities (the floor of any predictor) and that of the evaluation-set success rate used as a constant (the floor of any predictor without item-level information).
+
+
+\paragraph{Experimental setup.} Our rounds 1--3 harness reproduces the protocol of Section~\ref{sec:task} with \emph{per-pair} label lists (round 4 replaces this by the global list, Section~\ref{sec:dev}): items of each pair are split 50/50 with a seeded shuffle, the acquisition pool is streamed in a seeded random order, the policy under test selects up to 31 labels, and the nested prefixes of that one trajectory are passed to every predictor for every evaluation item, so all methods are compared on identical labels. The evaluator's default policy is reproduced as accept-with-probability $\text{labels\_remaining}/\text{items\_remaining}$. We report Brier ALC with 95\% bootstrap confidence intervals over pairs (\NBoot{} resamples), paired bootstrap differences between methods (same pairs, same trajectories), per-budget Brier scores and pooled ECE. Baselines: the constant 0.5; the organisers' empirical mean (their code: 0.5 without matching labels, the raw mean otherwise); our prior alone; shrinkage alone; shrinkage with each item-level component always on; the LOO-gated model (shipped in rounds 1--3).
+
+\section{Rounds 1--3: results of the per-pair predictor}
+\label{app:oldresults}
+
+
+\begin{table}[t]
+\caption{Brier ALC (lower is better) with 95\% bootstrap CIs over pairs and pooled ECE on the two local testbeds, all methods evaluated on identical random-policy acquisition trajectories. Oracles are references, not predictors.}
+\label{tab:main}
+\centering\footnotesize
+\begin{tabular}{l@{\hskip 5pt}l@{\hskip 3pt}c@{\hskip 7pt}l@{\hskip 3pt}c}
+\toprule
+& \multicolumn{2}{c}{Synthetic IRT (\SNPairs{} pairs)} & \multicolumn{2}{c}{Real Ollama (\RNPairs{} pairs)} \\
+Method & ALC [95\% CI] & ECE & ALC [95\% CI] & ECE \\
+\midrule
+\rawinput results_table_main.tex
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/brier_vs_budget}
+\caption{Brier score per budget (the ALC of Eq.~\ref{eq:alc} is the trapezoidal area under these curves on the $\log_2(n{+}1)$ axis). The empirical mean is worse than the constant at $n=1$; shrinkage removes that penalty; the full model separates from shrinkage only at $n\ge15$. Dashed/dotted lines are the oracle references.}
+\label{fig:budget}
+\end{figure}
+
+\paragraph{Main comparison.}
+Table~\ref{tab:main} and Figure~\ref{fig:budget} give the headline numbers. On the real testbed the per-pair predictor (shipped in rounds 1--3) reaches \RFullAlc{} [\RFullAlcLo, \RFullAlcHi] against \REmpAlc{} [\REmpAlcLo, \REmpAlcHi] for the empirical mean and 0.25 for the constant; the paired difference to the empirical mean is \RPairFullEmpMean{} [\RPairFullEmpLo, \RPairFullEmpHi] (\RPairFullEmpSig; the full model is better on \RPairFullEmpFrac{} of pairs) and to the constant \RPairFullConstMean{} [\RPairFullConstLo, \RPairFullConstHi] (\RPairFullConstSig). On the synthetic testbed the corresponding ALCs are \SFullAlc{} [\SFullAlcLo, \SFullAlcHi] versus \SEmpAlc{} and 0.25, with paired differences \SPairFullEmpMean{} [\SPairFullEmpLo, \SPairFullEmpHi] and \SPairFullConstMean{} [\SPairFullConstLo, \SPairFullConstHi] (both \SPairFullConstSig). The empirical mean is \emph{worse} than the constant at $n=1$ on both testbeds ($B_1=\SEmpBOne$ and \REmpBOne) and only overtakes it from $n=\SEmpOvertake$ (synthetic) and $n=\REmpOvertake$ (real); on the real testbed its ALC (\REmpAlc) is \emph{above} the constant's 0.25 (paired difference \RPairEmpConstMean{} [\RPairEmpConstLo, \RPairEmpConstHi], \RPairEmpConstSig).
+
+\paragraph{Where the gain comes from.}
+Decomposing the ablation rows of Table~\ref{tab:main}: the prior alone improves on the constant by \SPairPriorConstMean{} (synthetic) and \RPairPriorConstMean{} (real) ALC; shrinkage adds \SPairShrinkPriorMean{} [\SPairShrinkPriorLo, \SPairShrinkPriorHi] and \RPairShrinkPriorMean{} [\RPairShrinkPriorLo, \RPairShrinkPriorHi] on top (the real-testbed difference is \RPairShrinkPriorSig{} with \RNPairs{} pairs). The item-level components are a much smaller effect. Against shrinkage, always-on $k$NN changes the ALC by \SPairKnnShrinkMean{} (synthetic) and \RPairKnnShrinkMean{} (real), always-on ridge by \SPairRidgeShrinkMean{} and \RPairRidgeShrinkMean, and the LOO-gated full model by \SPairFullShrinkMean{} [\SPairFullShrinkLo, \SPairFullShrinkHi] (\SPairFullShrinkSig) and \RPairFullShrinkMean{} [\RPairFullShrinkLo, \RPairFullShrinkHi] (\RPairFullShrinkSig); at $n=31$ alone the gated model changes the Brier score by \SPairFullShrinkBThirtyOneMean{} and \RPairFullShrinkBThirtyOneMean. Replacing TF-IDF by \texttt{\REmbModel} embeddings changes the full model's ALC by \REmbPairFullMean{} [\REmbPairFullLo, \REmbPairFullHi] (\REmbPairFullSig), so we ship TF-IDF; Appendix~\ref{app:ablations} adds the LOO gate against always-on components and a sharper unigram TF-IDF, which makes the $k$NN worse. We report these as what they are: item-level adaptation from at most 31 labels is a marginal gain whose sign has to be protected by the gate.
+
+\paragraph{Headroom.}
+The oracle rows explain why. On the synthetic testbed, knowing the true probability of every item gives an ALC of \SOrPAlc, knowing only the evaluation-set success rate \SOrRateAlc: perfect item-level discrimination is worth \SHeadroomItem{} ALC, to be recovered from 15--31 labels at budgets that carry 30\% of the weight. Shrinkage (\SShrinkAlc) is \SHeadroomRate{} above the rate oracle; that gap is the price of estimating a rate from few labels, concentrated at $n\le 3$ ($B_1$: \SHeadroomRateBOne; $B_{31}$: \SHeadroomRateBThirtyOne), and only a better prior, i.e.\ training data, can reduce it. On the real testbed the gap is \RHeadroomRate{} (\RShrinkAlc{} vs.\ \ROrRateAlc). The two parts of the headroom are of similar size but call for different remedies: a prior fitted to real subjects and benchmarks, and item difficulty information from outside the pair.
+
+\paragraph{Prior strength and text signal.}
+Figure~\ref{fig:sens} gives the ALC for $\alpha_0\in\{1,2,4,8\}$ (shrinkage is best at \SAlphaBestShrink{} on synthetic and \RAlphaBestShrink{} on real; full-model range \SAlphaFullRange{} and \RAlphaFullRange; we ship $\alpha_0=\CAlpha$, the smallest worst-case regret and the best of $\{2,4,8\}$ on the training release) and the synthetic sweep over $\sigma_{\mathrm{topic}}$, where the item-level effect stays two orders of magnitude below the item-level headroom (\SSweepAHeadroomItem{} to \SSweepEHeadroomItem): the gate protects against harm, it cannot create information.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.38\linewidth]{figures/alpha0_sensitivity}\hfill
+\includegraphics[width=0.59\linewidth]{figures/signal_sweep}
+\caption{Left: Brier ALC vs.\ prior strength $\alpha_0$ (dashed: shrinkage, solid: full model). Right: synthetic sweep of the topic-difficulty spread $\sigma_{\mathrm{topic}}$ at $\gamma=0.3$: (a) ALC of shrinkage, the full model and the two oracles; (b) paired difference full $-$ shrinkage with its 95\% CI over pairs (negative favours the full model).}
+\label{fig:sens}
+\end{figure}
+
+\paragraph{Acquisition policies.}
+None of the five policies we compared is significantly different from the evaluator's random policy on either testbed (Appendix~\ref{app:ablations}, Table~\ref{tab:policies}): the novelty filter shipped in rounds 1--3 gives \SPolNoveltyVsRandomMean{} [\SPolNoveltyVsRandomLo, \SPolNoveltyVsRandomHi] (synthetic) and \RPolNoveltyVsRandomMean{} [\RPolNoveltyVsRandomLo, \RPolNoveltyVsRandomHi] (real), the organisers' uncertainty band \SPolBleVsRandomMean{} and \RPolBleVsRandomMean. Selecting by $|p-0.5|$ distorts the pair-rate estimate that carries most of the metric; we ship the policy closest to random that removes near-duplicates.
+
+\paragraph{Frontier-like subjects.}
+The official test set has subjects our testbeds lack (2025--2026 releases, long reasoning efforts, very large models, agent harnesses); over \SensNGrid{} such descriptions the budget-0 prior ranges from \SensPMin{} to \SensPMax{} (the cap; Appendix~\ref{app:frontier}). What a wrong prior costs is exact under shrinkage (Table~\ref{tab:miscal}): a prior of $0.7$ on a pair whose true rate is $0.3$ costs \MiscalRThreePSeven{} ALC and loses to the constant (excess \MiscalConstRThreeExcess), whereas shrinkage beats the constant whenever $|r-0.5|\ge0.2$ and $|p_0-r|\le0.3$. On the real testbed an optimistic shift of every subject's prior logit costs significantly ($+0.5$: \ROffPlusHalfFullVsZeroMean), a pessimistic one does not ($-0.5$: \ROffMinusHalfFullVsZeroMean, \ROffMinusHalfFullVsZeroSig); on the training release the hand-set prior averages \FitHandPMean{} against a mean pair rate of \FitRateMean, so rounds 1--4 kept the intercept at zero (the selected submission changes it after the formative feedback, Section~\ref{sec:why}).
+
+\paragraph{Replication and calibration.}
+Appendix~\ref{app:replication} reports replication over generator seeds and acquisition trajectories (the full model beats the empirical mean significantly in \RSeedsNFullEmpSig{} of \RSeedsN{} further real trajectories). Pooled ECE (Table~\ref{tab:main}) is \SFullEce/\RFullEce{} (synthetic/real) for the full model against \SEmpEce/\REmpEce{} for the empirical mean and \SConstEce/\RConstEce{} for the constant: shrinkage towards a sensible prior also fixes calibration at small budgets.
+
+
+\section{Additional ablations}
+\label{app:ablations}
+
+\paragraph{Prior strength.}
+Table~\ref{tab:alpha} gives the ALC for $\alpha_0\in\{1,2,4,8\}$. The best value differs between testbeds (shrinkage: \SAlphaBestShrink{} on synthetic, \RAlphaBestShrink{} on real), reflecting the wider spread of pair rates in the synthetic generator; the ALC of the full model varies by \SAlphaFullRange{} (synthetic) and \RAlphaFullRange{} (real) over the range, so the choice matters at the third decimal. On the training release $\alpha_0=4$ gives \FitRelHandAlphaFourAlc{} against \FitRelHandAlphaTwoAlc{} (2) and \FitRelHandAlphaEightAlc{} (8).
+
+\paragraph{When does text help?}
+The synthetic sweep (Figure~\ref{fig:sens}, right; Table~\ref{tab:sweep}) varies how much difficulty is explained by topic. With no topic or length signal ($\sigma_{\mathrm{topic}}=\SSweepASigma$, $\gamma=\SSweepAGamma$) the full model's paired difference to shrinkage is \SSweepAPairFullShrinkMean{} [\SSweepAPairFullShrinkLo, \SSweepAPairFullShrinkHi], the gate's cost when there is nothing to find; at the strongest setting ($\sigma_{\mathrm{topic}}=\SSweepESigma$) it is \SSweepEPairFullShrinkMean{} [\SSweepEPairFullShrinkLo, \SSweepEPairFullShrinkHi], while the item-level headroom (rate oracle minus true-probability oracle) grows from \SSweepAHeadroomItem{} to \SSweepEHeadroomItem.
+
+\paragraph{Gating.}
+Replacing the LOO gate by always-on components at their default settings gives \SLooAlwaysFullAlc{} versus \SLooGatedFullAlc{} (synthetic; paired gated$-$always \SLooPairGatedAlwaysMean{} [\SLooPairGatedAlwaysLo, \SLooPairGatedAlwaysHi], \SLooPairGatedAlwaysSig) and \RLooAlwaysFullAlc{} versus \RLooGatedFullAlc{} (real; \RLooPairGatedAlwaysMean{} [\RLooPairGatedAlwaysLo, \RLooPairGatedAlwaysHi], \RLooPairGatedAlwaysSig). The gate pays where always-on components overfit (the synthetic ridge) and costs a little where a component carries real signal (on the real testbed longer GSM8K problems are failed more often, which the always-on ridge exploits at $n\ge 15$); the second effect is within noise. Requiring 0, 1 or 2 standard errors of LOO improvement gives full-model ALCs of \SLooMultZeroFullAlc, \SLooMultOneFullAlc{} and \SLooMultTwoFullAlc{} (synthetic) and \RLooMultZeroFullAlc, \RLooMultOneFullAlc{} and \RLooMultTwoFullAlc{} (real); we ship the most conservative setting.
+
+\paragraph{Sentence embeddings.}
+The embeddings were computed offline for the real testbed (the model is on the validator's allow-list via \texttt{models.txt}, so it could have been shipped). They change the full model's ALC from \REmbTfidfFullAlc{} to \REmbMinilmFullAlc{} (paired \REmbPairFullMean{} [\REmbPairFullLo, \REmbPairFullHi], \REmbPairFullSig) and the always-on $k$NN variant from \REmbTfidfKnnAlc{} to \REmbMinilmKnnAlc{} (\REmbPairKnnMean{} [\REmbPairKnnLo, \REmbPairKnnHi], \REmbPairKnnSig), at the cost of a neural dependency, model loading and about 10~ms per embedding on CPU.
+
+\paragraph{Sharper lexical similarity does not help.}
+A unigram-only TF-IDF whose target terms are restricted to the acquired vocabulary separates same-topic from other-topic synthetic items far better (mean cosine about 0.3 versus 0.1 in the generator) but makes the always-on $k$NN \emph{worse}: paired against the shipped representation, the always-on $k$NN changes by \STfidfUniKnnVsShippedMean{} [\STfidfUniKnnVsShippedLo, \STfidfUniKnnVsShippedHi] (synthetic) and \RTfidfUniKnnVsShippedMean{} [\RTfidfUniKnnVsShippedLo, \RTfidfUniKnnVsShippedHi] (real), and the gated full model by \STfidfUniFullVsShippedMean{} [\STfidfUniFullVsShippedLo, \STfidfUniFullVsShippedHi] and \RTfidfUniFullVsShippedMean{} [\RTfidfUniFullVsShippedLo, \RTfidfUniFullVsShippedHi]. With a handful of neighbours per topic the kernel-weighted residual is dominated by label noise; the bigram-diluted similarity acts as a regulariser. Item-level signal exists (the oracles show it) but 31 labels are too few to exploit it through similarity alone.
+
+\paragraph{Acquisition policies.}
+Table~\ref{tab:policies} compares policies for the full predictor on identical pools and streams. Plain stream order differs from the evaluator's random policy by \SPolFirstVsRandomMean{} [\SPolFirstVsRandomLo, \SPolFirstVsRandomHi] (synthetic, \SPolFirstVsRandomSig) and \RPolFirstVsRandomMean{} [\RPolFirstVsRandomLo, \RPolFirstVsRandomHi] (real, \RPolFirstVsRandomSig)---both are uniform samples, so this is the trajectory-to-trajectory noise floor of the comparison. The shipped novelty filter gives \SPolNoveltyVsRandomMean{} [\SPolNoveltyVsRandomLo, \SPolNoveltyVsRandomHi] and \RPolNoveltyVsRandomMean{} [\RPolNoveltyVsRandomLo, \RPolNoveltyVsRandomHi]. It does fire on the real testbed: on \RNovPairsFired{} of \RNovNPairs{} pairs (\RNovSkipped{} candidates skipped in total, at most \RNovMaxSkipped{} per pair; templated BIG-Bench-Hard items such as \emph{navigate} and \emph{boolean expressions}, and SVAMP word problems sharing a template, reach cosine \RNovMaxSim), and on none of the \SNovNPairs{} synthetic pairs, whose pseudo-word items never get that similar---yet its ALC equals that of plain stream order to four decimals (\RPolNoveltyFullAlc{} vs.\ \RPolFirstFullAlc): skipping a near-duplicate changes which uniformly random items are labelled, not their distribution. The organisers' uncertainty band gives \SPolBleVsRandomMean{} [\SPolBleVsRandomLo, \SPolBleVsRandomHi] and \RPolBleVsRandomMean{} [\RPolBleVsRandomLo, \RPolBleVsRandomHi], and the novelty-plus-uncertainty variant \SPolNoveltyUncVsRandomMean{} and \RPolNoveltyUncVsRandomMean: selecting by $|p-0.5|$ reorders a near-random sample at small budgets and, once item-level corrections exist, biases it towards items of intermediate predicted difficulty, distorting the pair-rate estimate that carries most of the metric. None of the policies is significantly different from random on either testbed; we ship the one that is closest to random while removing redundant items.
+
+\section{Replication}
+\label{app:replication}
+Regenerating the synthetic testbed with two further seeds gives full-model ALCs of \SSeedOneFullAlc{} and \SSeedTwoFullAlc{} (empirical mean \SSeedOneEmpAlc{} and \SSeedTwoEmpAlc; shrinkage \SSeedOneShrinkAlc{} and \SSeedTwoShrinkAlc). On the real testbed, four further acquisition trajectories give full-model ALCs between \RSeedsFullAlcMin{} and \RSeedsFullAlcMax{} (empirical mean \RSeedsEmpAlcMin--\RSeedsEmpAlcMax), and the full model beats the empirical mean significantly in \RSeedsNFullEmpSig{} of \RSeedsN{} trajectories. A $3\times3$ grid over the $k$NN scale and anchor ($\kappa\in\{1,2,4\}$, $\tau\in\{1,2,4\}$) spans \SGridBestFullAlc--\SGridWorstFullAlc{} on a smaller synthetic generator, i.e.\ the kernel constants matter little.
+
+\section{Fitting pipeline details}
+\label{app:fit}
+
+\texttt{fit\_prior\_from\_measurement\_db.py} runs in five steps, each a sub-command. \emph{plan}: list the repository, download the small \texttt{benchmarks} table of every directory and keep those with \texttt{response\_type = binary} and \texttt{granularity = item} (the organisers' eligibility rule in \texttt{tools/prepare\_data.py}); record the bytes still to download and stop above a cap (30 GB by default). \emph{download}: fetch the eligible \texttt{subjects}, \texttt{items} and \texttt{responses} tables into the organisers' payload layout. \emph{fit}: build one row per (subject, test condition, item) with the mean response over trials as label (fractional labels enter as two weighted rows), each pair receiving total weight one; compute the subject and item terms with the shipped \texttt{model.subject\_terms} and \texttt{model.item\_terms}, so that fitted coefficients map one-to-one onto the constants of Appendix~\ref{app:perpair}; add a one-hot for providers with at least 15 pairs and one for each training benchmark; fit an $L_2$-penalised logistic regression. Five-fold cross-validation holds out whole benchmarks; the penalty $C$ and the logit cap are selected by the pair-weighted budget-0 Brier score of the prior on held-out pairs, and $\alpha_0\in\{2,4,8\}$ by the closed-form shrinkage ALC of the protocol (50/50 split, 31 random acquisitions, Eq.~\ref{eq:alc}) on held-out pairs with at least 80 items, paired against the hand-set prior on the same pairs. \emph{testbeds}: evaluate the fitted table inside the harness on both local testbeds against the shipped constants. \emph{dry-run}: generate tables with the release schema (shared pool of subjects, random subsets per benchmark, benchmark difficulty offsets with standard deviation one logit, labels from a known coefficient table over the prior's own terms, two ineligible benchmarks) and run \emph{fit} on them. The dry run used \DryNBench{} eligible benchmarks, \DryNPairs{} pairs and \DryNRows{} rows; a light-regularisation fit recovers all \DryNSlopes{} slope signs with maximum error \DryMaxAbsErr{} and mean error \DryMeanAbsErr{} logits, and the fitted benchmark effects have standard deviation \DryBenchSd. Its cross-validated selection chose $C=\DrySelC$ and $\alpha_0=\DrySelAlpha$ and did not beat the hand-set prior (budget-0 Brier \DryPairBZeroMean{} [\DryPairBZeroLo, \DryPairBZeroHi]; shrinkage ALC \DryPairAlcMean{} [\DryPairAlcLo, \DryPairAlcHi]), so on these tables the rule would have kept the hand-set constants.
+
+\paragraph{The run on the release.} Revision \texttt{\FitRevisionShort}; \FitNEligible{} eligible directories, \FitNBench{} with at least one pair of 20 or more distinct items; the pair unit is (benchmark directory, subject, test condition), since the release records several test conditions per subject on many benchmarks; \FitNPairs{} pairs, \FitNRows{} rows (each pair capped at \FitMaxItemsPerPair{} items); \FitNProviders{} providers with at least 15 pairs received a coefficient. Pair success rates have mean \FitRateMean{} and standard deviation \FitRateSd{} across pairs (benchmark means: standard deviation \FitBenchRateSd), while the hand-set $p_0$ has mean \FitHandPMean{} and standard deviation \FitHandPSd. The penalty grid ran from $C=\FitCMin$ to \FitCMax; the selection took $C=\FitSelC$, cap \FitSelCap{} and $\alpha_0=\FitSelAlpha$ (cross-validated budget-0 Brier \FitSelBZero, shrinkage ALC \FitSelAlc). The fitted benchmark effects have standard deviation \FitBenchEffectSd{} logits. Fitted vs.\ effective hand-set coefficients: release year \FitCoefYear{} vs.\ \HandEffCoefYear{} per year, size \FitCoefSize{} vs.\ \HandEffCoefSize{} per doubling, hard-tier cue \FitCoefTierHard{} vs.\ \HandEffCoefTierHard, easy-tier cue \FitCoefTierEasy{} vs.\ \HandEffCoefTierEasy, item length \FitCoefLength{} vs.\ \HandEffCoefLength; the reasoning-effort and harness terms shrink to about zero (\FitCoefEffortHigh, \FitCoefHarness; \FitFracPairsNoProvider{} of pairs carry no provider field and most carry no effort or harness field), and the provider table spans \FitProvMin{} (\texttt{\FitProvMinName}) to \FitProvMax{} (\texttt{\FitProvMaxName}). Inside the harness on the local testbeds the fitted table changes the full model's ALC by \FitRealPairFullMean{} [\FitRealPairFullLo, \FitRealPairFullHi] (real) and \FitSynPairFullMean{} [\FitSynPairFullLo, \FitSynPairFullHi] (synthetic); the result files are \texttt{prior\_fit.json} and \texttt{prior\_fit\_testbeds.json}, and the ship rule's verdict is recorded there (\FitShip).
+
+\section{Item-text difficulty prior: details}
+\label{app:textprior}
+
+\paragraph{Pre-registration and outcome.} \texttt{experiments/results/round3/PREREG.md} (SHA-256 prefix \texttt{\TpPreregSha}, recorded in every result file and \TpPreregConsistent{} at build time) fixed features, target, model, nested selection, evaluation and ship rule before any text model was fitted. \texttt{PREREG\_ADDENDUM\_1.md} (\TpAddendumConsistent) registered the two exploratory variants after the primary folds had run, explicitly without influence on the decision. The rule: ship iff (a) the benchmark-held-out ALC difference (text minus hand-set) has a 95\% cluster-bootstrap CI below zero, (b) the real testbed is not significantly worse, and the engineering gates hold ($\ge200$ calls/s on one core with a new target item per call, weights $\le5$~MB, validator and smoke test pass, never raises). Outcome: (a) \TpRuleA, (b) \TpRuleB, gates \TpGates; the text prior is \TpShip.
+
+\paragraph{Features and target.} JSON contents (the release stores many items as JSON objects) are flattened into \texttt{key: value} lines; words and word bigrams come from the first 2,000 characters (digit runs mapped to a length token), character trigrams from the first 500, and \texttt{item\_features} tokens form a fourth family; each family is sublinear-tf weighted and $\ell_2$-normalised, then hashed with \texttt{zlib.crc32} (sign from bit 31) into \TpBits{} buckets. The target of item $i$ is $\mathrm{logit}\,\frac{n_ir_i+0.5}{n_i+1}$ minus the mean hand-set subject logit of the $n_i$ pairs that evaluated it and minus its hand-set item logit, clipped to $\pm5$. At most 1,000 items per benchmark (\TpNTargetItems{} in total) are used for fitting; all \TpNItems{} items of the frame are scored (\TpNnz{} non-zeros). Exact duplicates of a test item's content in a training benchmark are rare (\TpDupMean\% of frame items on average), so shared items do not inflate the cross-validation.
+
+\paragraph{Nested selection and fits.} In each outer fold a four-fold benchmark-grouped inner CV chooses the ridge penalty from $\{0.03,0.1,0.3,1,3,\TpAlphaGridMax\}$ by weighted MSE of the target; the inner out-of-fold scores give $W,B$ (pair-weighted logistic likelihood), the cap ($\{1.5,2.5,3.5\}$, training budget-0 Brier) and the within-pair weight $\lambda$ of the text offset ($\{0,0.5,1\}$, training closed-form ALC). Selected: penalty \TpFoldAlphas{} in every fold (the grid maximum), caps \TpFoldCaps, $\lambda=\TpFoldLambdas$, $W$ from \TpFoldWMin{} to \TpFoldWMax{} and $B$ from \TpFoldBMin{} to \TpFoldBMax. The held-out $R^2$ of the residual target was \TpFoldRsqMin{} to \TpFoldRsqMax{} across folds (inner CV: \TpInnerRsqMin{} to \TpInnerRsqMax). The final fit on all \TpNBench{} benchmarks again selected penalty \TpFinalAlpha{} with $W=\TpFinalW$, $B=\TpFinalB$, cap \TpFinalCap{} and $\lambda=\TpFinalLambda$; it is kept as \texttt{text\_prior\_candidate.json} (\TpFinalMB{} MB) and not shipped.
+
+\begin{table}[htbp]
+\caption{Item-text prior: benchmark-held-out cross-validation on the training release (closed-form protocol, shrinkage with $\alpha_0=4$ unless stated, no item-level components). $B_0$ over all items of each of the \TpNPairsBZero{} pairs; $B_1$--$B_7$ and ALC on the evaluation half of the \TpNPairsAlc{} pairs with at least 80 items. Exploratory rows were registered after the primary result; the oracles are references.}
+\label{tab:textprior}
+\centering\footnotesize
+\begin{tabular}{lccccc}
+\toprule
+Method & $B_0$ & $B_1$ & $B_3$ & $B_7$ & ALC \\
+\midrule
+\rawinput results_table_textprior.tex
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Results.} Table~\ref{tab:textprior}. Per budget the paired differences are \TpDiffBudOneMean{} [\TpDiffBudOneLo, \TpDiffBudOneHi] at $n=1$ and \TpDiffBudThreeMean{} [\TpDiffBudThreeLo, \TpDiffBudThreeHi] at $n=3$ (gap to the pair-rate oracle closed: \TpGapOne\% [\TpGapOneLo, \TpGapOneHi] and \TpGapThree\% [\TpGapThreeLo, \TpGapThreeHi]); budget-0 Brier changes by \TpDiffBZeroMean{} [\TpDiffBZeroLo, \TpDiffBZeroHi]; the plain pair bootstrap gives \TpDiffAlcPairBootMean{} [\TpDiffAlcPairBootLo, \TpDiffAlcPairBootHi]. The text prior has the lower mean ALC in \TpFoldsBetter{} of \TpNFolds{} folds (significantly in \TpFoldsSigBetter) and on \TpBenchBetter{} of \TpBenchN{} benchmarks. Refitting only the intercept shift ($W=0$; a descriptive decomposition) gives \TpDiffIntShiftMean{} [\TpDiffIntShiftLo, \TpDiffIntShiftHi]: the hand-set prior's level is already right on held-out benchmarks. With the text prior, $\alpha_0=2$ gives \TpDiffAlphaTwoMean{} and $\alpha_0=8$ \TpDiffAlphaEightMean{} (\TpDiffAlphaEightSig) relative to the hand-set prior at $\alpha_0=4$. The exploratory variants (E1: grid \TpEOneGrid, selected \TpEOneAlphas; E2: statistics only, grid \TpETwoGrid, selected \TpETwoAlphas) changed the ALC by \TpEOneDiffMean{} [\TpEOneDiffLo, \TpEOneDiffHi] and \TpETwoDiffMean{} [\TpETwoDiffLo, \TpETwoDiffHi] and again had negative $W$ in \TpEOneNegW{} and \TpETwoNegW{} of \TpNFolds{} folds. The held-out benchmark-mean oracle closes \TpBenchOracleGapZero\%, \TpBenchOracleGapOne\% and \TpBenchOracleGapThree\% of the gap at $n=0,1,3$.
+
+\paragraph{Local testbeds.} Full harness, identical trajectories: real ALC \TpRFullHand{} (hand-set) vs.\ \TpRFullText{} (text), paired \TpRPairFullMean{} [\TpRPairFullLo, \TpRPairFullHi], text better on \TpRPairFullFrac{} of pairs; without the BIG-Bench-Hard pairs, whose items may overlap the \texttt{fewshot\_ttt\_bbh} training benchmark, \TpRNoBbhMean{} [\TpRNoBbhLo, \TpRNoBbhHi] (\TpRNoBbhN{} pairs). Synthetic: \TpSFullHand{} vs.\ \TpSFullText{} (\TpSPairFullMean{} [\TpSPairFullLo, \TpSPairFullHi]); its pseudo-word items carry no transferable text signal by construction.
+
+\paragraph{Engineering gates and the shipped file.} With the candidate loaded, \texttt{predict} runs at \TpCpsShort, \TpCpsMid{} and \TpCpsLong{} calls/s on one core with a new 15-, 300- and 2,000-word target item per call at budget 31 (the per-item text score is cached), the weights load in \TpLoadMs{} ms, and the smoke test passes \TpSmokeCases{} cases, including malformed JSON contents and a corrupted weight specification (which falls back to the hand-set prior); standard-library and numpy scores agree to \TpCheckMaxDiff. Since the rule failed, the round-3 submission ZIP was \TpZipUnchanged{} (SHA-256 prefix \texttt{\TpZipShaShort}); the development \texttt{model.py} kept the text-prior hooks, which are inactive without a weight file and reproduced the then-shipped file's predictions bit for bit on \TpEquivSame{} of \TpEquivN{} test cases.
+
+\paragraph{Benchmarks of the training release used (\TpNBench).} {\footnotesize \TpBenchList.}
+
+\section{Prior sensitivity for frontier-like subjects}
+\label{app:frontier}
+
+Table~\ref{tab:frontier} gives the budget-0 prior $p_0$ of the round-4 constants (\FmShipId; in the selected submission $p_0$ no longer depends on the subject) for subject descriptions that the official test set is likely to contain and our testbeds do not. Table~\ref{tab:miscal} gives the exact expected cost of a miscalibrated prior under the per-pair shrinkage rule, and Table~\ref{tab:offset} the measured effect of shifting every subject's prior logit on the two testbeds (\texttt{PRIOR\_INTERCEPT} in \texttt{model.py}; all other constants unchanged; identical trajectories; generated by \texttt{prior\_sensitivity.py}).
+
+\paragraph{Discussion.}
+The official test set has subjects our testbeds lack (2025--2026 releases, long reasoning efforts, very large models, agent harnesses). Appendix~\ref{app:frontier} tabulates the budget-0 prior over \SensNGrid{} such descriptions: $p_0$ ranges from \SensPMin{} to \SensPMax{} (the cap); the organisers' GPT-4o and 2026 medium-effort sample subjects receive \SensPSampleGptFourO{} and \SensPSmokeSubject, our testbed models \SensPTestbedQwenSmall--\SensPTestbedLlama. What a wrong prior costs is exact: with $\alpha_0=\MiscalAlpha$ and $n$ labels the expected Brier excess over the pair-rate oracle is $\mathbb E[(\rho_n-r)^2]$ with binomial successes (Table~\ref{tab:miscal}). A prior of $0.7$ on a pair whose true rate is $0.3$ costs \MiscalRThreePSeven{} ALC and loses to the constant (excess \MiscalConstRThreeExcess); shrinkage beats the constant whenever $|r-0.5|\ge0.2$ and $|p_0-r|\le0.3$, and never when $|r-0.5|<0.15$, where the constant is close to optimal. Shifting every subject's prior logit by $\pm0.5$ or $\pm1$ (Table~\ref{tab:offset}) is asymmetric on the real testbed: $+0.5$ and $+1$ cost \ROffPlusHalfFullVsZeroMean{} and \ROffPlusOneFullVsZeroMean{} ALC (both significant), whereas $-0.5$ changes it by \ROffMinusHalfFullVsZeroMean{} [\ROffMinusHalfFullVsZeroLo, \ROffMinusHalfFullVsZeroHi] (\ROffMinusHalfFullVsZeroSig)---small models at \RAccMin--\RAccMax\% accuracy tolerate a pessimistic prior; on the synthetic testbed zero is best and both $\pm0.5$ shifts cost significantly (\SOffMinusHalfFullVsZeroMean, \SOffPlusHalfFullVsZeroMean). On the training release the hand-set prior averages \FitHandPMean{} against a mean pair rate of \FitRateMean, i.e.\ it is not optimistic for real systems \emph{on average over the release}. Rounds 1--4 kept the intercept at zero and named it as the first constant to change if the official formative score pointed the other way. It did: on the hidden pool the budget-0 prior was worse than the constant, and the selected submission lowers the intercept and switches the subject terms off (Section~\ref{sec:why}).
+
+\begin{table}[htbp]
+\caption{Budget-0 prior $p_0$ (no item cues; 600-character item) by release year and \texttt{reasoning\_effort} for a subject with no size or name cue on the default harness (left), and for a high-effort subject on a non-default harness with a \emph{mini} name cue, a 70B or a 400B parameter count (right). The organisers' sample subjects receive \SensPSampleGptFourO{} (GPT-4o, 2024-05) and \SensPSmokeSubject{} (2026-01, medium effort, non-default harness).}
+\label{tab:frontier}
+\centering\small
+\begin{tabular}{lcccc|ccc}
+\toprule
+& \multicolumn{4}{c}{default harness, no name cue} & \multicolumn{3}{c}{high effort, non-default harness} \\
+Release year & none & low & medium & high & mini & 70B & 400B \\
+\midrule
+\rawinput results_table_frontier.tex
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\caption{Exact expected Brier ALC excess over the pair-rate oracle $r(1-r)$ of the per-pair shrinkage rule ($\alpha_0=\MiscalAlpha$, clipping to $[\CClipLo,\CClipHi]$) when the prior rate is $p_0$ and the true pair rate is $r$; the number of successes among the $n$ acquired labels is binomial$(n,r)$ and the ALC weights are those of Eq.~\ref{eq:alc}. The last column is the excess of the constant 0.5; $^{\dagger}$ marks cells where the constant is better.}
+\label{tab:miscal}
+\centering\small\setlength{\tabcolsep}{5pt}
+\begin{tabular}{l|cccccc|c}
+\toprule
+& \multicolumn{6}{c|}{prior rate $p_0$} & \\
+True rate $r$ & 0.3 & 0.4 & 0.5 & 0.6 & 0.7 & 0.8 & constant 0.5 \\
+\midrule
+\rawinput results_table_miscal.tex
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\caption{Brier ALC of the prior alone, shrinkage and the full model when every subject's prior logit is shifted by \texttt{PRIOR\_INTERCEPT} (random policy, same trajectories as Table~\ref{tab:main}). Round-4 value: 0; the selected submission uses \SelIntercept{} with the subject terms switched off, which this table does not cover.}
+\label{tab:offset}
+\centering\small
+\begin{tabular}{l|ccc|ccc}
+\toprule
+& \multicolumn{3}{c|}{Real Ollama (\RNPairs{} pairs)} & \multicolumn{3}{c}{Synthetic IRT (\SNPairs{} pairs)} \\
+Shift (logits) & prior & shrinkage & full & prior & shrinkage & full \\
+\midrule
+\rawinput results_table_offset.tex
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Validator and smoke-test output}
+For the selected ZIP (\SelId) the organisers' validator \CkSelValidator{} (exit code 0, ``\texttt{OK: \dots xp\_level\_m050.zip looks like a valid submission ZIP.}''; full output in \texttt{experiments/results/deep\_dive/candidates/xp\_level\_m050/validator\_output.txt}). For the round-4 ZIP (\FmShipId) it prints
+\begin{center}\texttt{OK: paiec\_submission.zip looks like a valid submission ZIP.}\end{center}
+(full output in \texttt{experiments/results/validator\_output.txt}; ZIP SHA-256 prefix \texttt{\ZipShaShort}). The smoke test (\texttt{experiments/results/smoke\_test.json}) records \SmokeNCases{} successful cases and the timings of the per-pair path quoted in Appendix~\ref{app:perpair}.
+
+\section{Additional tables}
+
+\begin{table}[htbp]
+\caption{Acquisition policies (full predictor): Brier ALC [95\% CI] and paired difference to the evaluator's random policy on the same pairs (negative favours the policy). The BLE rule accepts a candidate when its current prediction satisfies $|p-0.5|\le0.15$~\citep{paiec_baselines_2026}.}
+\label{tab:policies}
+\centering\footnotesize\setlength{\tabcolsep}{3pt}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lllll}
+\toprule
+& \multicolumn{2}{c}{Synthetic} & \multicolumn{2}{c}{Real} \\
+Policy & ALC [95\% CI] & $\Delta$ vs random [95\% CI] & ALC [95\% CI] & $\Delta$ vs random [95\% CI] \\
+\midrule
+\rawinput results_table_policies.tex
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\begin{table}[htbp]
+\caption{Real Ollama testbed: one pair per (model, harness, benchmark). Accuracy is the success rate over all items of the pair (acquisition and evaluation pools together).}
+\label{tab:testbed}
+\centering\small
+\begin{tabular}{lllrr}
+\toprule
+Model (Ollama tag) & Harness & Benchmark & Items & Acc.\ (\%) \\
+\midrule
+\rawinput results_table_testbed.tex
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\caption{Brier score per budget for the main methods (random policy). The last column is the ALC of Eq.~\ref{eq:alc}.}
+\label{tab:budget}
+\centering\small
+\begin{tabular}{llcccccc|c}
+\toprule
+Testbed & Method & $B_0$ & $B_1$ & $B_3$ & $B_7$ & $B_{15}$ & $B_{31}$ & ALC \\
+\midrule
+\rawinput results_table_budget.tex
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\caption{Synthetic signal sweep (\SNPairs{} pairs per setting, seed 0): ALC of shrinkage and of the full model, their paired difference, and the two oracle references.}
+\label{tab:sweep}
+\centering\footnotesize\setlength{\tabcolsep}{4pt}
+\begin{tabular}{cclllll}
+\toprule
+$\sigma_{\mathrm{topic}}$ & $\gamma$ & Shrinkage & Full [95\% CI] & Full $-$ shrink [95\% CI] & Oracle rate & Oracle $p$ \\
+\midrule
+\rawinput results_table_sweep.tex
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\caption{Sensitivity to the prior strength $\alpha_0$ (Brier ALC).}
+\label{tab:alpha}
+\centering\small
+\begin{tabular}{lcccc}
+\toprule
+& $\alpha_0=1$ & $\alpha_0=2$ & $\alpha_0=4$ & $\alpha_0=8$ \\
+\midrule
+Synthetic, shrinkage & \SAlphaOneShrinkAlc & \SAlphaTwoShrinkAlc & \SAlphaFourShrinkAlc & \SAlphaEightShrinkAlc \\
+Synthetic, full & \SAlphaOneFullAlc & \SAlphaTwoFullAlc & \SAlphaFourFullAlc & \SAlphaEightFullAlc \\
+Real, shrinkage & \RAlphaOneShrinkAlc & \RAlphaTwoShrinkAlc & \RAlphaFourShrinkAlc & \RAlphaEightShrinkAlc \\
+Real, full & \RAlphaOneFullAlc & \RAlphaTwoFullAlc & \RAlphaFourFullAlc & \RAlphaEightFullAlc \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\end{document}

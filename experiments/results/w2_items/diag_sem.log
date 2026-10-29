@@ -1,0 +1,66 @@
+13:49:17 afrimedqa                      n   559 cat +0.000 char +0.024 minilm(q16) +0.037
+13:49:17 algotune                       n   100 cat +0.000 char +0.058 minilm(q16) +0.020
+13:49:18 alignment_faking               n   503 cat +0.000 char +0.018 minilm(q16) -0.015
+13:49:18 appworld                       n    97 cat +0.388 char +0.049 minilm(q16) +0.001
+13:49:18 babilong                       n   506 cat +0.311 char +0.182 minilm(q16) +0.175
+13:49:19 benger                         n   250 cat +0.001 char -0.007 minilm(q16) -0.003
+13:49:19 brace                          n   200 cat +0.132 char -0.006 minilm(q16) -0.001
+13:49:27 bridging_gap                   n  3236 cat +0.046 char -0.002 minilm(q16) -0.005
+13:49:27 ceval                          n   100 cat +0.000 char -0.000 minilm(q16) -0.014
+13:49:27 clasheval                      n   100 cat +0.503 char +0.030 minilm(q16) +0.132
+13:49:27 crow                           n   227 cat +0.033 char +0.032 minilm(q16) +0.013
+13:49:27 cruxeval                       n   400 cat +0.380 char -0.006 minilm(q16) -0.008
+13:49:27 dave                           n   201 cat +0.122 char -0.007 minilm(q16) -0.032
+13:49:27 devbench                       n   100 cat +0.000 char -0.018 minilm(q16) -0.021
+13:49:27 editbench                      n   115 cat +0.015 char +0.186 minilm(q16) +0.266
+13:49:28 engdesign                      n   101 cat +0.000 char +0.116 minilm(q16) +0.146
+13:49:28 erbench                        n   861 cat +0.000 char +0.036 minilm(q16) +0.053
+13:49:28 helm_thaiexam                  n   100 cat +0.000 char +0.020 minilm(q16) +0.048
+13:49:28 jailbreakbench                 n   147 cat +0.050 char +0.003 minilm(q16) -0.002
+13:49:28 kernelbench                    n   250 cat +0.099 char +0.377 minilm(q16) +0.323
+13:49:28 liveaopsbench                  n   100 cat +0.000 char -0.012 minilm(q16) -0.001
+13:49:31 llm_uncertainty_bench          n  1500 cat +0.005 char -0.003 minilm(q16) -0.007
+13:49:31 medhelm_med_mcqa               n   100 cat +0.000 char -0.005 minilm(q16) -0.005
+13:49:31 medhelm_medbullets             n   100 cat +0.000 char +0.001 minilm(q16) -0.008
+13:49:31 medhelm_medec                  n   100 cat +0.000 char -0.020 minilm(q16) -0.028
+13:49:31 medhelm_medhallu               n   100 cat +0.000 char -0.015 minilm(q16) -0.024
+13:49:32 mj_bench                       n   720 cat +0.129 char +0.074 minilm(q16) +0.064
+13:49:32 mmlupro                        n   125 cat +0.151 char +0.007 minilm(q16) +0.001
+13:49:33 multi_swebench                 n   593 cat +0.000 char +0.013 minilm(q16) +0.002
+13:49:33 naturebench                    n    91 cat +0.134 char +0.026 minilm(q16) +0.044
+13:49:33 nyu_ctf_bench                  n   200 cat +0.009 char +0.030 minilm(q16) +0.045
+13:49:33 os_harm                        n   102 cat +0.334 char +0.123 minilm(q16) +0.101
+13:49:33 real_webagents                 n   208 cat +0.106 char +0.070 minilm(q16) +0.019
+13:49:33 researchcodebench              n   100 cat +0.231 char +0.164 minilm(q16) +0.271
+13:49:33 risebench                      n   117 cat +0.055 char +0.046 minilm(q16) -0.009
+13:49:33 safeagentbench                 n   100 cat +0.000 char +0.160 minilm(q16) +0.140
+13:49:33 sgrades                        n   382 cat +0.043 char +0.010 minilm(q16) -0.067
+13:49:33 software_world_models          n    99 cat +0.000 char +0.035 minilm(q16) +0.028
+13:49:33 statqa                         n   100 cat +0.603 char -0.003 minilm(q16) +0.089
+13:49:34 swebench_live                  n   559 cat +0.070 char +0.017 minilm(q16) +0.016
+13:49:35 tau2_bench                     n   556 cat +0.487 char -0.006 minilm(q16) -0.008
+13:49:35 visual_riddles                 n   102 cat +0.077 char +0.005 minilm(q16) -0.010
+13:49:35 visualwebarena                 n    77 cat +0.814 char +0.029 minilm(q16) +0.019
+13:49:35 vl_rewardbench                 n   156 cat +0.000 char +0.071 minilm(q16) +0.040
+13:49:35 wikihow_agent                  n   100 cat +0.093 char +0.014 minilm(q16) +0.020
+13:49:35 worldcentralbanks              n   762 cat +0.010 char +0.000 minilm(q16) +0.001
+13:49:36   r2_comb_cat+char+minilm              bench-mean +0.2099 median +0.1210 item-w +0.1462
+13:49:36   r2_comb_cat+char                     bench-mean +0.1840 median +0.1109 item-w +0.1310
+13:49:36   r2_comb_cat+minilm                   bench-mean +0.1666 median +0.0763 item-w +0.1183
+13:49:36   r2_comb_char+minilm                  bench-mean +0.1327 median +0.0699 item-w +0.0937
+13:49:36   r2_cat                               bench-mean +0.1180 median +0.0380 item-w +0.0865
+13:49:36   r2_minilm_q8_l0.5_top20              bench-mean +0.0571 median +0.0182 item-w +0.0428
+13:49:36   r2_minilm_q8_l0.5_top10              bench-mean +0.0481 median +0.0171 item-w +0.0279
+13:49:36   r2_char_q2                           bench-mean +0.0416 median +0.0177 item-w +0.0282
+13:49:36   r2_minilm_q16_l0.5                   bench-mean +0.0401 median +0.0076 item-w +0.0236
+13:49:36   r2_minilm_q8_l0.5                    bench-mean +0.0400 median +0.0227 item-w +0.0216
+13:49:36   r2_minilm_q32_l0.5                   bench-mean +0.0360 median +0.0021 item-w +0.0257
+13:49:36   r2_minilm_q16_l2                     bench-mean +0.0329 median +0.0062 item-w +0.0211
+13:49:36   r2_minilm_q8_l2                      bench-mean +0.0328 median +0.0116 item-w +0.0193
+13:49:36   r2_minilm_q32_l2                     bench-mean +0.0299 median +0.0020 item-w +0.0232
+13:49:36   r2_minilm_q8_l0.5_top5               bench-mean +0.0295 median +0.0104 item-w -0.0009
+13:49:36   r2_minilm_q64_l0.5                   bench-mean +0.0291 median +0.0015 item-w +0.0251
+13:49:36   r2_minilm_q64_l2                     bench-mean +0.0242 median +0.0008 item-w +0.0213
+13:49:36   r2_minilm_q2_l0.5                    bench-mean +0.0151 median +0.0035 item-w +0.0077
+13:49:36   r2_minilm_q2_l2                      bench-mean +0.0138 median +0.0034 item-w +0.0071
+13:49:36 done (19s)

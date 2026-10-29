@@ -31,7 +31,7 @@ for l in open(ratings_path, encoding="utf-8"):
     r = json.loads(l)
     if r.get("s1") is not None and not r.get("error"):
         rat[r["key"]] = r
-API_MODEL = next((r.get("model") for r in rat.values() if r.get("backend") == "api"), None)
+API_MODEL = next((r.get("model") for r in rat.values() if r.get("backend") in ("api", "gemini", "groq")), None)
 if API_MODEL:
     import rate_items_claude as RC
 NI = len(F.item_dir)
@@ -52,6 +52,22 @@ for l in open(CACHE / "deep_dive_items.jsonl", encoding="utf-8"):
             s3[it["idx"]] = r["s3"]
 rated = ~np.isnan(s1)
 log(f"ratings: {len(rat)} keys; items needed {n_items}, rated {int(rated.sum())}")
+# Amendment 5: with a partial (rate-limited) run, only benchmarks whose needed items are ALL rated enter the gate
+COMPLETE_INFO = None
+if "--complete-only" in args:
+    need_by_dir = {}
+    for l in open(CACHE / "deep_dive_items.jsonl", encoding="utf-8"):
+        it = json.loads(l)
+        need_by_dir.setdefault(it["dir"], []).append(it["idx"])
+    complete = {d for d, ix in need_by_dir.items() if all(rated[i] for i in ix)}
+    inv_dirs, as_dirs = inv_dirs & complete, as_dirs & complete
+    COMPLETE_INFO = {"inv_complete": len(inv_dirs), "as_complete": len(as_dirs),
+                     "evaluable": len(inv_dirs) >= 15 and len(as_dirs) >= 5}
+    log(f"complete-only: {COMPLETE_INFO}")
+    if not COMPLETE_INFO["evaluable"]:
+        (OUT / "items" / f"eval_items_{tag}.json").write_text(json.dumps({"complete_only": COMPLETE_INFO,
+            "gate": {"pass": False, "reason": "not evaluable (Amendment 5 minimum benchmarks)"}}, indent=1), encoding="utf-8")
+        raise SystemExit("gate not evaluable: too few fully rated benchmarks")
 fod = fold_of_dir(F, folds)
 item_fold = np.array([fod.get(int(d), -1) for d in F.item_dir])
 dir_name = np.array(F.dirs)[F.item_dir]
@@ -113,7 +129,7 @@ deploy_fit = {"signal": "s1", "mu": _mu, "sd": _sd, "w": float(_beta[0]), "b": f
 log(f"all-fold fit (deployment constants): {deploy_fit}")
 
 
-def make_offset(name, ts_fold):
+def make_offset(name, ts_fold, impute_b=False):
     sig = signals[name]
 
     def off(T):
@@ -132,7 +148,8 @@ def make_offset(name, ts_fold):
             val = Z @ np.array(fr["beta"][:-1]) + fr["beta"][-1]
             val[np.isnan(val)] = 0.0
             if sig:
-                val[~np.all([~np.isnan(s[items]) for s in sig], axis=0)] = 0.0
+                miss = ~np.all([~np.isnan(s[items]) for s in sig], axis=0)
+                val[miss] = fr["beta"][-1] if impute_b else 0.0
             out[m] = val
         return out
     return off
@@ -143,8 +160,10 @@ res = {"prereg_sha256": hashlib.sha256(PREREG.read_bytes()).hexdigest(),
        "amendment_sha256": hashlib.sha256(AMEND.read_bytes()).hexdigest() if AMEND.exists() else None,
        "amendment2_sha256": (hashlib.sha256((OUT / "items" / "PREREG_items_AMENDMENT_2.md").read_bytes()).hexdigest()
                              if (OUT / "items" / "PREREG_items_AMENDMENT_2.md").exists() else None),
+       "all_amendment_sha256": {q.name: hashlib.sha256(q.read_bytes()).hexdigest()
+                                for q in sorted((OUT / "items").glob("PREREG_items_AMENDMENT_*.md"))},
        "ratings_file": str(ratings_path), "n_rating_keys": len(rat), "n_items_rated": int(rated.sum()), "n_items_needed": n_items,
-       "fits": fits, "deploy_fit": deploy_fit, "scenarios": {}}
+       "fits": fits, "deploy_fit": deploy_fit, "complete_only": COMPLETE_INFO, "scenarios": {}}
 taus_c = dict(SHIPPED_TAUS); taus_c["mu"] = 2.0
 base_sl = [np.full(F.n_pairs, base_zs)] * 5
 for sname, keep in (("INV", inv_dirs), ("AS", as_dirs)):
@@ -167,6 +186,22 @@ for sname, keep in (("INV", inv_dirs), ("AS", as_dirs)):
     rec["ctrl_diff"] = paired(alc_by["s1"], alc_by["b_only"], S.unit_bench)
     log(f"[{sname}] s1 minus b_only control: {fmt(rec['ctrl_diff'])}")
     res["scenarios"][sname] = rec
+# extra check (Amendment 4): H7-INV, hidden-run structure on the inventory benchmarks; unrated items get b
+if "--h7" in args:
+    import npeb as NP
+    ts = NP.make_testsets_H7(F, sub(inv_dirs), R=300, seed=0)
+    S = X.Streams(F, ts)
+    ts_fold = np.array([t["fold"] for t in ts])
+    its = np.unique(np.concatenate([S.ev["item"], S.acq[31]["item"]]))
+    brb, _ = eval_xp(S, ts, subj_logit_by_fold=base_sl, taus=taus_c, extra_offset=make_offset("b_only", ts_fold))
+    br1, _ = eval_xp(S, ts, subj_logit_by_fold=base_sl, taus=taus_c, extra_offset=make_offset("s1", ts_fold, impute_b=True))
+    br0, _ = eval_xp(S, ts, subj_logit_by_fold=base_sl, taus=taus_c)
+    rec = {"n_units": int(S.n_units), "rating_coverage": float(np.mean(rated[its])), "base_alc": float(alc(br0).mean()),
+           "s1_minus_b_only": paired(alc(br1), alc(brb), S.unit_bench), "s1_minus_base": paired(alc(br1), alc(br0), S.unit_bench),
+           "brier_s1_minus_b_only": [float(x) for x in (br1 - brb).mean(0)]}
+    res["scenarios"]["H7INV"] = rec
+    res["gate_c_h7inv_not_sig_worse"] = bool(rec["s1_minus_b_only"]["ci_lo"] <= 0)
+    log(f"[H7INV] coverage {rec['rating_coverage']:.3f} s1 - b_only {fmt(rec['s1_minus_b_only'])}; s1 - base {fmt(rec['s1_minus_base'])}")
 g_inv = res["scenarios"]["INV"]["variants"]["s1"]["minus_base"]
 g_as = res["scenarios"]["AS"]["variants"]["s1"]["minus_base"]
 res["gate"] = {"a_inv_ci_below_0": bool(g_inv["ci_hi"] < 0), "b_as_not_sig_worse": bool(g_as["ci_lo"] <= 0)}

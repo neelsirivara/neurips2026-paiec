@@ -1,0 +1,317 @@
+
+
+# ----------------------------------------------------------------------------- W2 item layer (2026-10-29)
+# Item-level information learned online, within each benchmark, from the global labeled list.  On top of the
+# cross-pair model above (stage 1 + exact-item stage 2), two optional parts; each shrinks to the plain cross-pair
+# prediction when its evidence is thin and is switched off by a strength of 0:
+#  (a) category effects: for each benchmark of the list and each ``item_features`` key that is ACTIVE for it, an
+#      effect f_(benchmark, key, value) ~ N(0, W2_TAU_FEAT^2) is added to the stage-1 fit (one effect type per
+#      key rank; joint MAP by the same backfitting).  A key is active for a benchmark if, among the distinct
+#      labelled items of that benchmark that carry it, it takes >= 2 values and at most W2_FEAT_SHARE times as
+#      many values as items (keys that are mostly unique per item act like item identities, which stage 2 models).
+#      A target adds the posterior mean and variance of its own (benchmark, key, value) group; unseen groups add 0.
+#  (b) text kernel: delta = sum_j K_j G_j / (sum_j K_j H_j + 1 / W2_TAU_KERN^2) over the other distinct labelled
+#      items j of the target's benchmark, with G_j / H_j the summed stage-1 residuals y - p / weights p (1 - p) of
+#      item j and K_j = cos^W2_KERN_Q (hashed character 4-gram TF-IDF, idf from the benchmark's labelled items);
+#      the prediction is sigmoid(logit(p) + delta).
+# The constants were chosen by benchmark-held-out simulation (experiments/src/w2_items/, PREREG.md there).  Any
+# failure falls back to the cross-pair prediction without the layer; nothing is keyed on anonymous ids beyond
+# grouping the current list by benchmark_id.
+W2_ENABLED = True
+W2_TAU_FEAT = __W2_TAU_FEAT__
+W2_FEAT_SHARE = __W2_FEAT_SHARE__
+W2_TAU_KERN = __W2_TAU_KERN__
+W2_KERN_Q = __W2_KERN_Q__
+W2_KERN_MAX_ITEMS = 1000       # distinct labelled items per benchmark used by the kernel (first in list order)
+W2_FEAT_MAX_KEYS = 8           # categories per item (first keys in the string's order)
+W2_FEAT_MAX_VALUE = 80
+W2_FEAT_MAX_CHARS = 1000
+W2_GRAM_N = 4
+W2_GRAM_BITS = 18
+W2_GRAM_HEAD = 1500
+W2_GRAM_TAIL = 500
+_W2_WS = re.compile(r"\s+")
+_W2_CACHE: dict = {"entry": None}
+_W2_FAILED = "failed"
+_W2_GRAM_CACHE: dict = {}
+_W2_DELTA_LIMIT = 200000
+
+
+def _w2_parse_features(feats) -> list:
+    """'k1=v1;k2=v2' -> [('k1', 'v1'), ('k2', 'v2')]; a string without '=' is one category ('_raw', text)."""
+    try:
+        s = str(feats or "")[:W2_FEAT_MAX_CHARS].strip()
+    except Exception:
+        return []
+    if not s:
+        return []
+    out = []
+    seen = set()
+    if "=" not in s:
+        return [("_raw", _W2_WS.sub(" ", s.lower())[:W2_FEAT_MAX_VALUE])]
+    for part in s.split(";"):
+        if "=" not in part:
+            continue
+        k, v = part.split("=", 1)
+        k = _W2_WS.sub(" ", k.strip().lower())[:40]
+        v = _W2_WS.sub(" ", v.strip().lower())[:W2_FEAT_MAX_VALUE]
+        if not k or k in seen:
+            continue
+        seen.add(k)
+        out.append((k, v))
+        if len(out) >= W2_FEAT_MAX_KEYS:
+            break
+    return out
+
+
+def _w2_norm_text(content) -> str:
+    try:
+        t = _W2_WS.sub(" ", str(content or "").lower()).strip()
+    except Exception:
+        return ""
+    if len(t) > W2_GRAM_HEAD + W2_GRAM_TAIL:
+        t = t[:W2_GRAM_HEAD] + " | " + t[-W2_GRAM_TAIL:]
+    return t
+
+
+def _w2_text_grams(content) -> dict:
+    """Hashed character n-grams of the normalised text with sublinear tf (1 + log count); cached."""
+    t = _w2_norm_text(content)
+    hit = _W2_GRAM_CACHE.get(t)
+    if hit is not None:
+        return hit
+    mask = (1 << W2_GRAM_BITS) - 1
+    counts: dict = {}
+    for i in range(max(len(t) - W2_GRAM_N + 1, 0)):
+        h = zlib.crc32(t[i:i + W2_GRAM_N].encode("utf-8")) & mask
+        counts[h] = counts.get(h, 0) + 1
+    out = {h: 1.0 + math.log(c) for h, c in counts.items()}
+    if len(_W2_GRAM_CACHE) >= 20000:
+        _W2_GRAM_CACHE.clear()
+    _W2_GRAM_CACHE[t] = out
+    return out
+
+
+def _w2_idf_vec(grams: dict, df: dict, n: int) -> dict:
+    vec = {}
+    norm = 0.0
+    for h, v in grams.items():
+        w = v * (math.log((n + 1.0) / (df.get(h, 0) + 1.0)) + 1.0)
+        vec[h] = w
+        norm += w * w
+    if norm > 0:
+        inv = 1.0 / math.sqrt(norm)
+        for h in vec:
+            vec[h] *= inv
+    return vec
+
+
+def _w2_state(labeled):
+    """Cross-pair fit with the category effects, plus the kernel tables; cached per list like _xp_state."""
+    key = _xp_fingerprint(labeled)
+    hit = _W2_CACHE.get("entry")
+    if hit is not None and hit[0] == key:
+        return hit[1]
+    with _XP_LOCK:
+        hit = _W2_CACHE.get("entry")
+        if hit is not None and hit[0] == key:
+            return hit[1]
+        state = _W2_FAILED
+        try:
+            state = _w2_build(labeled)
+        finally:
+            _W2_CACHE["entry"] = (key, state)
+        return state
+
+
+def _w2_build(labeled):
+    keys, ys, offs, iks = [], [], [], []
+    s_cache: dict = {}
+    i_cache: dict = {}
+    for entry in labeled:      # same parsing and filtering as _xp_state
+        try:
+            pair, label = entry[0], entry[1]
+            subj, item = pair[0], pair[1]
+            if not isinstance(subj, dict) or not isinstance(item, dict):
+                continue
+            y = _label_value(label)
+            if y is None:
+                continue
+            skey = xp_subject_key(subj)
+            zs = s_cache.get(skey)
+            if zs is None:
+                zs = _subject_logit(subj)
+                s_cache[skey] = zs
+            ik = xp_item_key(item)
+            zi = i_cache.get(ik)
+            if zi is None:
+                zi = _item_logit(item)
+                i_cache[ik] = zi
+            keys.append((ik[0], _s(subj.get("normalized_name")).strip().lower(), skey))
+            ys.append(float(y))
+            offs.append(min(max(zs + zi, -PRIOR_LOGIT_CAP), PRIOR_LOGIT_CAP))
+            iks.append(ik)
+        except Exception:
+            continue
+    if not ys:
+        return None
+    n = len(ys)
+    # distinct labelled items per benchmark (first-occurrence order) and their categories
+    bench_items: dict = {}
+    feats_of: dict = {}
+    for ik in iks:
+        lst = bench_items.setdefault(ik[0], {})
+        if ik not in lst:
+            lst[ik] = len(lst)
+            feats_of[ik] = dict(_w2_parse_features(ik[2]))
+    extra = []
+    slots: dict = {}
+    if W2_TAU_FEAT > 0:
+        for bench, items in bench_items.items():
+            vals: dict = {}
+            cnt: dict = {}
+            for ik in items:
+                for k, v in feats_of[ik].items():
+                    vals.setdefault(k, set()).add(v)
+                    cnt[k] = cnt.get(k, 0) + 1
+            act = sorted(k for k in vals if 2 <= len(vals[k]) <= W2_FEAT_SHARE * cnt[k])
+            if act:
+                slots[bench] = act
+        nr = max((len(v) for v in slots.values()), default=0)
+        prec = 1.0 / (W2_TAU_FEAT * W2_TAU_FEAT)
+        for r in range(nr):
+            index: dict = {}
+            gidx = [-1] * n
+            members = []
+            for e in range(n):
+                bench = keys[e][0]
+                act = slots.get(bench)
+                if act is None or len(act) <= r:
+                    continue
+                v = feats_of[iks[e]].get(act[r])
+                if v is None:
+                    continue
+                g = (bench, act[r], v)
+                j = index.get(g)
+                if j is None:
+                    j = len(index)
+                    index[g] = j
+                gidx[e] = j
+                members.append(e)
+            if members:
+                extra.append({"name": "w2feat%d" % r, "tau": W2_TAU_FEAT, "prec": prec, "index": index, "gidx": gidx,
+                              "members": members, "theta": [0.0] * len(index), "H": [0.0] * len(index), "rank": r})
+    state = xp_build(keys, ys, offs, iks, extra_types=extra)
+    state["w2_slots"] = slots
+    state["w2_types"] = [t for t in state["types"] if "members" in t]
+    kern: dict = {}
+    if W2_TAU_KERN > 0:
+        eta = state["eta"]
+        G: dict = {}
+        H: dict = {}
+        for e in range(n):
+            p = _sigmoid(eta[e])
+            G[iks[e]] = G.get(iks[e], 0.0) + (ys[e] - p)
+            H[iks[e]] = H.get(iks[e], 0.0) + p * (1.0 - p)
+        for bench, items in bench_items.items():
+            lst = sorted(items, key=items.get)[:W2_KERN_MAX_ITEMS]
+            grams = [_w2_text_grams(ik[1]) for ik in lst]
+            df: dict = {}
+            for g in grams:
+                for h in g:
+                    df[h] = df.get(h, 0) + 1
+            m = len(lst)
+            kern[bench] = {"iks": lst, "vecs": [_w2_idf_vec(g, df, m) for g in grams], "G": [G[ik] for ik in lst],
+                           "H": [H[ik] for ik in lst], "df": df, "n": m, "delta": {}}
+    state["w2_kern"] = kern
+    return state
+
+
+def _w2_delta(state, ik) -> float:
+    tb = state["w2_kern"].get(ik[0])
+    if not tb:
+        return 0.0
+    hit = tb["delta"].get(ik)
+    if hit is not None:
+        return hit
+    vec = _w2_idf_vec(_w2_text_grams(ik[1]), tb["df"], tb["n"])
+    num = 0.0
+    den = 0.0
+    q = W2_KERN_Q
+    if vec:
+        for ikj, vj, g, h in zip(tb["iks"], tb["vecs"], tb["G"], tb["H"]):
+            if ikj == ik:
+                continue
+            s = 0.0
+            for t in vec.keys() & vj.keys():
+                s += vec[t] * vj[t]
+            if s <= 0.0:
+                continue
+            s = min(s, 1.0) ** q
+            num += s * g
+            den += s * h
+    d = num / (den + 1.0 / (W2_TAU_KERN * W2_TAU_KERN))
+    if not math.isfinite(d):
+        d = 0.0
+    if len(tb["delta"]) < _W2_DELTA_LIMIT:
+        tb["delta"][ik] = d
+    return d
+
+
+def _w2_predict(input, labeled):
+    """Cross-pair prediction with the W2 layer, or None (the caller then uses the plain cross-pair model)."""
+    subject, item = input[0], input[1]
+    if not isinstance(subject, dict) or not isinstance(item, dict):
+        return None
+    state = _w2_state(labeled)
+    if state is None or state is _W2_FAILED:
+        return None
+    ik = xp_item_key(item)
+    bench = ik[0]
+    em, ev = 0.0, 0.0
+    act = state["w2_slots"].get(bench)
+    if act:
+        fd = dict(_w2_parse_features(ik[2]))
+        for t in state["w2_types"]:
+            r = t["rank"]
+            if r < len(act):
+                v = fd.get(act[r])
+                if v is not None:
+                    j = t["index"].get((bench, act[r], v))
+                    if j is not None:
+                        em += t["theta"][j]
+                        ev += 1.0 / (t["H"][j] + t["prec"])
+    off = min(max(_subject_logit(subject) + _item_logit(item), -PRIOR_LOGIT_CAP), PRIOR_LOGIT_CAP)
+    p = _xp_predict_keys(state, bench, _s(subject.get("normalized_name")).strip().lower(), xp_subject_key(subject), ik,
+                         off, extra_m=em, extra_var=ev)
+    p = _clip(p)
+    if W2_TAU_KERN > 0:
+        d = _w2_delta(state, ik)
+        if d:
+            p = _clip(_sigmoid(_logit(p) + d))
+    if not math.isfinite(p):
+        return None
+    return p
+
+
+_xp_predict_cross_pair_m050 = predict_cross_pair
+_xp_clear_cache_m050 = xp_clear_cache
+
+
+def predict_cross_pair(input, labeled):  # noqa: F811  (W2: the layer on top of the cross-pair model)
+    """Cross-pair prediction with the W2 item layer; falls back to the plain cross-pair model on any failure."""
+    if not labeled or len(labeled) > XP_MAX_ENTRIES:
+        return None
+    if W2_ENABLED and (W2_TAU_FEAT > 0 or W2_TAU_KERN > 0):
+        try:
+            p = _w2_predict(input, labeled)
+            if p is not None:
+                return _clip(p)
+        except Exception:
+            pass
+    return _xp_predict_cross_pair_m050(input, labeled)
+
+
+def xp_clear_cache() -> None:  # noqa: F811
+    _xp_clear_cache_m050()
+    _W2_CACHE["entry"] = None

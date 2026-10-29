@@ -1,0 +1,4 @@
+13:57:16 world: 95773 items with text/features, 170 keys, 20003 (key, value) pairs
+13:57:44 grams: nnz 45013026
+13:57:45 embeddings minilm: 95773 rows attached
+14:00:24 [confirm MID] sel-m050 -0.0022 [-0.0034, -0.0012] W2-m050 -0.0019 [-0.0029, -0.0009] sel-W2 -0.0003 [-0.0006, -0.0001]

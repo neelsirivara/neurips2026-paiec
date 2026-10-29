@@ -456,14 +456,14 @@ def main() -> None:
     info = load("deep_dive/candidates/xp_level_m050/candidate_info.json")
     sha_sel = hashlib.sha256(zsel.read_bytes()).hexdigest() if zsel.exists() else None
     sha_ship = hashlib.sha256(zship.read_bytes()).hexdigest() if zship.exists() else None
-    claim("[selected] the selected ZIP's SHA-256 equals the run record (formative_runs.json) and the build record",
+    claim("[base 1010717] the selected ZIP's SHA-256 equals the run record (formative_runs.json) and the build record",
           "submission/candidates/xp_level_m050.zip", f"{sha_sel}", bool(sha_sel and sha_sel == g(fr, "selected_submission", "sha256")
                                                                           and sha_sel == g(info, "sha256")))
-    claim("[selected] the selected submission ID is 1010717 and its run used xp_level_m050.zip", "formative_runs.json",
+    claim("[base 1010717] the selected submission ID is 1010717 and its run used xp_level_m050.zip", "formative_runs.json",
           f"id {g(fr, 'selected_submission', 'id')}, run zip {g(runs, 'xp_level_m050', 'zip')}, run id {g(runs, 'xp_level_m050', 'submission_id')}",
           g(fr, "selected_submission", "id") == 1010717 and g(runs, "xp_level_m050", "submission_id") == 1010717
           and g(runs, "xp_level_m050", "zip") == "submission/candidates/xp_level_m050.zip")
-    claim("[selected] the round-4 ZIP (1010370) is unchanged", "submission/paiec_submission.zip", f"{sha_ship}",
+    claim("[base 1010717] the round-4 ZIP (1010370) is unchanged", "submission/paiec_submission.zip", f"{sha_ship}",
           sha_ship == "c76331d084f175fbf8ce272b00d0a2360d80e440dacf6ede380f3f9eba5172e1")
 
     def zconst(path):
@@ -486,13 +486,13 @@ def main() -> None:
         p_src, p_lab, p_names, p_c, _ = zconst(zship)
         diff = [i for i, (a, b) in enumerate(zip(p_src.splitlines(), s_src.splitlines())) if a != b]
         same_len = len(p_src.splitlines()) == len(s_src.splitlines())
-        claim("[selected] model.py differs from 1010370 in exactly three lines: SUBJECT_SHRINK 0.7->0, PRIOR_INTERCEPT 0->-0.5, tau_mu 0.5->2",
+        claim("[base 1010717] model.py differs from 1010370 in exactly three lines: SUBJECT_SHRINK 0.7->0, PRIOR_INTERCEPT 0->-0.5, tau_mu 0.5->2",
               "both ZIPs, model.py", f"changed lines {[i + 1 for i in diff]}; shrink {p_c.get('SUBJECT_SHRINK')}->{s_c.get('SUBJECT_SHRINK')}, "
               f"intercept {p_c.get('PRIOR_INTERCEPT')}->{s_c.get('PRIOR_INTERCEPT')}, mu {dict(p_c['XP_TAUS'])['mu']}->{dict(s_c['XP_TAUS'])['mu']}",
               same_len and len(diff) == 3 and p_c.get("SUBJECT_SHRINK") == 0.7 and s_c.get("SUBJECT_SHRINK") == 0.0
               and p_c.get("PRIOR_INTERCEPT") == 0.0 and s_c.get("PRIOR_INTERCEPT") == -0.5
               and dict(p_c["XP_TAUS"])["mu"] == 0.5 and dict(s_c["XP_TAUS"])["mu"] == 2.0)
-        claim("[selected] labeling.py is byte-identical to 1010370's", "both ZIPs", f"identical={s_lab == p_lab}", s_lab == p_lab)
+        claim("[base 1010717] labeling.py is byte-identical to 1010370's", "both ZIPs", f"identical={s_lab == p_lab}", s_lab == p_lab)
         stdlib = {"__future__", "array", "base64", "hashlib", "json", "math", "os", "re", "sys", "threading", "zlib", "importlib",
                   "random", "time", "collections", "itertools", "functools", "typing", "pathlib"}
         imps = set()
@@ -501,15 +501,22 @@ def main() -> None:
                 imps |= {a.name.split(".")[0] for a in node.names}
             elif isinstance(node, ast.ImportFrom) and node.module:
                 imps.add(node.module.split(".")[0])
-        claim("[selected] no pretrained model: no models.txt/requirements.txt in the ZIP, model.py imports only the standard library",
+        claim("[base 1010717] no pretrained model: no models.txt/requirements.txt in the ZIP, model.py imports only the standard library",
               "submission/candidates/xp_level_m050.zip", f"members {s_names}; imports {sorted(imps)}",
               "models.txt" not in s_names and "requirements.txt" not in s_names and imps <= stdlib)
     tex = (PAPER / "main.tex").read_text(encoding="utf-8")
     claim("[report] author block is exactly Neel Sirivara / University of Washington / nsiriv@cs.washington.edu",
           "paper/main.tex", "author block", "Neel Sirivara\\\\\n  University of Washington\\\\\n  \\texttt{nsiriv@cs.washington.edu}" in tex)
     mtex = (PAPER / "results_macros.tex").read_text(encoding="utf-8")
-    claim("[report] the selected submission ID printed in the paper is 1010717", "paper/results_macros.tex \\SelId",
-          "\\newcommand{\\SelId}{1010717}" in mtex, "\\newcommand{\\SelId}{1010717}" in mtex and "\\SelId" in tex)
+    ssel = load("selected_submission.json")
+    want_id = g(ssel, "selected_codabench_id")
+    abst0 = tex.split("\\begin{abstract}")[1].split("\\end{abstract}")[0] if "\\begin{abstract}" in tex else ""
+    claim("[report] the selected submission ID printed in the paper (\\SubId) is the one in results/selected_submission.json (1019682), "
+          "and the abstract states it", "paper/results_macros.tex + selected_submission.json",
+          f"\\SubId = {want_id}; in abstract {'\\SubId' in abst0}",
+          want_id == 1019682 and f"\\newcommand{{\\SubId}}{{{want_id}}}" in mtex and "\\SubId" in abst0)
+    claim("[report] the base ID (\\SelId) is 1010717", "paper/results_macros.tex", "\\SelId",
+          "\\newcommand{\\SelId}{1010717}" in mtex)
     # formative runs
     bud = {k: g(v, "brier_by_budget") or {} for k, v in runs.items()}
     claim("[formative] 1010370's budget-0 Brier is above the constant's 0.25", "formative_runs.json runs.shipped",
@@ -575,15 +582,18 @@ def main() -> None:
     claim("[draws] the three-draw mean would rank 46 on the public board (the best draw 22)", "leaderboard_context.json",
           f"mean rank {1 + sum(1 for v in sc_lb if v < _st.mean(alcs3))}, best-draw rank {1 + sum(1 for v in sc_lb if v < min(alcs3))}",
           1 + sum(1 for v in sc_lb if v < _st.mean(alcs3)) == 46 and 1 + sum(1 for v in sc_lb if v < min(alcs3)) == 22)
-    # wherever the report states 1010717's score, the mean over its draws is stated too (main text, abstract, conclusion)
+    # a single draw of the base or the selected predictor never stands alone: wherever the main text gives one, it gives the arm mean
     main_part = tex.split("\\appendix")[0]
-    paras = [p for p in main_part.split("\n\n") if "\\FmSelAlc" in p or "\\SdDrawOneAlc" in p]
-    bad = [p[:60] for p in paras if "\\SdAlcMean" not in p]
+    single = ("\\FmSelAlc", "\\SdDrawOneAlc", "\\SdDrawTwoAlc", "\\SdDrawThreeAlc", "\\ArBaseMin", "\\ArBaseMax", "\\ArWtwoMin", "\\ArWtwoMax")
+    paras = [p for p in main_part.split("\n\n") if any(m in p for m in single)]
+    bad = [p[:60] for p in paras if "\\ArBaseMean" not in p and "\\ArWtwoMean" not in p]
     abst = tex.split("\\begin{abstract}")[1].split("\\end{abstract}")[0] if "\\begin{abstract}" in tex else ""
     concl = tex.split("\\section{Conclusion}")[1].split("\\section{")[0] if "\\section{Conclusion}" in tex else ""
-    claim("[draws] every main-text paragraph that states 1010717's score also states the three-draw mean; abstract and conclusion state it",
-          "paper/main.tex", f"{len(paras)} paragraphs, without mean: {bad}; abstract {'\\SdAlcMean' in abst}; conclusion {'\\SdAlcMean' in concl}",
-          bool(paras) and not bad and "\\SdAlcMean" in abst and "\\SdAlcMean" in concl)
+    claim("[draws] every main-text paragraph that gives a single draw of the base or selected predictor also gives the arm mean; abstract "
+          "and conclusion give both arm means", "paper/main.tex",
+          f"{len(paras)} paragraphs, without mean: {bad}; abstract {all(m in abst for m in ('\\ArBaseMean', '\\ArWtwoMean'))}; "
+          f"conclusion {all(m in concl for m in ('\\ArBaseMean', '\\ArWtwoMean'))}",
+          not bad and all(m in abst for m in ("\\ArBaseMean", "\\ArWtwoMean")) and all(m in concl for m in ("\\ArBaseMean", "\\ArWtwoMean")))
     ece = load("deep_dive/ece_check.json")
     sims = [g(ece, s, "ece_by_budget")[0] for s in ("A", "INV", "HARD", "SHIFT") if g(ece, s, "ece_by_budget")]
     claim("[formative] 1010370's budget-0 ECE is above all four simulated populations' values", "ece_check.json",
@@ -765,8 +775,162 @@ def main() -> None:
     claim("[probes] probe C returns NaN (invalid output) only after a successful load on a GPU with >= 70 GB", "submission/candidates/probe_C/model.py",
           "branch present" if 'get("class") == "ok"' in pct and 'gpu_total_gb") or 0) >= 70.0' in pct else "branch missing",
           'get("class") == "ok"' in pct and 'gpu_total_gb") or 0) >= 70.0' in pct)
-    claim("[selected] the selected ZIP still has no models.txt after the item study (1010717 unchanged)", "submission/candidates/xp_level_m050.zip",
+    claim("[base 1010717] the selected ZIP still has no models.txt after the item study (1010717 unchanged)", "submission/candidates/xp_level_m050.zip",
           f"sha {sha_sel[:12] if sha_sel else None}", bool(sha_sel) and sha_sel == "cda9fe9cae49b68997d831f1de8dfe3d53a14ad3d1ac15281b22bd8326c7a715")
+
+    # ------------------------------------------------------------------ selected submission 1019682: W2 item layer (2026-10-29)
+    import datetime as _dt2
+    import re as _re
+    w2r, w2c, w2d = load("w2_items/w2_results.json"), load("w2_items/confirm.json"), load("w2_items/draws.json")
+    zw2 = sub / "candidates" / "w2_f05s1_k1q2.zip"
+    sha_w2 = hashlib.sha256(zw2.read_bytes()).hexdigest() if zw2.exists() else None
+    cinfo = load("w2_items/candidates/w2_f05s1_k1q2/candidate_info.json")
+    claim("[W2] the selected ZIP's SHA-256 matches selected_submission.json, w2_results.json and the build record",
+          "submission/candidates/w2_f05s1_k1q2.zip", f"{sha_w2}",
+          bool(sha_w2) and sha_w2 == g(ssel, "sha256") == g(w2r, "candidate", "sha256") == g(cinfo, "sha256"))
+    if zw2.exists():
+        w_src, w_lab, w_names, w_c, w_tree = zconst(zw2)
+        b_src, b_lab, _, b_c, _ = zconst(zsel)
+        imps = set()
+        for node in ast.walk(w_tree):
+            if isinstance(node, ast.Import):
+                imps |= {a.name.split(".")[0] for a in node.names}
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                imps.add(node.module.split(".")[0])
+        stdlib2 = {"__future__", "array", "base64", "hashlib", "json", "math", "os", "re", "sys", "threading", "zlib", "importlib",
+                   "random", "time", "collections", "itertools", "functools", "typing", "pathlib"}
+        claim("[W2] no pretrained model in the selected ZIP: no models.txt/requirements.txt, standard-library imports only",
+              "w2_f05s1_k1q2.zip", f"members {w_names}; imports {sorted(imps)}",
+              "models.txt" not in w_names and "requirements.txt" not in w_names and imps <= stdlib2)
+        same_lvl = all(w_c.get(k) == b_c.get(k) for k in ("SUBJECT_SHRINK", "PRIOR_INTERCEPT", "XP_TAUS", "XP_TAU_ITEM", "XP_PROBIT"))
+        claim("[W2] the selected ZIP keeps the base's level and cross-pair constants; labeling.py identical; layer constants as printed",
+              "w2_f05s1_k1q2.zip vs xp_level_m050.zip",
+              f"same {same_lvl}; labeling {w_lab == b_lab}; tau_f {w_c.get('W2_TAU_FEAT')}, share {w_c.get('W2_FEAT_SHARE')}, "
+              f"tau_k {w_c.get('W2_TAU_KERN')}, q {w_c.get('W2_KERN_Q')}, enabled {w_c.get('W2_ENABLED')}",
+              same_lvl and w_lab == b_lab and w_c.get("W2_ENABLED") is True and
+              (w_c.get("W2_TAU_FEAT"), w_c.get("W2_FEAT_SHARE"), w_c.get("W2_TAU_KERN"), w_c.get("W2_KERN_Q")) == (0.5, 1.0, 1.0, 2.0))
+    w2dir = RESULTS / "w2_items"
+    pre_sha = hashlib.sha256((w2dir / "PREREG.md").read_bytes()).hexdigest() if (w2dir / "PREREG.md").exists() else None
+    claim("[W2] PREREG.md hash recorded in tune.json, confirm.json and w2_results.json; file order PREREG < tune < confirm",
+          "w2_items/", f"{(pre_sha or '')[:12]}",
+          bool(pre_sha) and pre_sha == g(load("w2_items/tune.json"), "prereg_sha256") == g(w2c, "prereg_sha256") == g(w2r, "prereg", "sha256")
+          and (w2dir / "PREREG.md").stat().st_mtime < (w2dir / "tune.json").stat().st_mtime < (w2dir / "confirm.json").stat().st_mtime)
+    crit = g(load("w2_items/tune.json"), "criterion") or {}
+    claim("[W2] tuning: the selected setting has the lowest criterion and all 18 settings are below 0", "w2_items/tune.json",
+          f"selected {crit.get('F0.5s1+K1q2')}, min {min(crit, key=crit.get) if crit else None}, n {len(crit)}",
+          len(crit) == 18 and min(crit, key=crit.get) == "F0.5s1+K1q2" and all(v < 0 for v in crit.values()))
+    sc2 = g(w2c, "scenarios") or {}
+    d_ = {s: g(sc2, s, "variants", "F0.5s1+K1q2", "minus_m050") or {} for s in ("INV", "A", "SPARSE", "MID", "HARD")}
+    claim("[W2] confirmation gate re-derived: INV CI below 0; A and SPARSE not significantly worse (in fact CI below 0); recorded pass",
+          "w2_items/confirm.json", "; ".join(f"{s} {v.get('mean'):+.4f} [{v.get('ci_lo'):+.4f}, {v.get('ci_hi'):+.4f}]" for s, v in d_.items()),
+          d_["INV"].get("ci_hi", 1) < 0 and not d_["A"].get("ci_lo", 1) > 0 and not d_["SPARSE"].get("ci_lo", 1) > 0
+          and d_["A"].get("ci_hi", 1) < 0 and d_["SPARSE"].get("ci_hi", 1) < 0 and g(w2c, "gate", "pass") is True)
+    b0w = [(g(sc2, s, "variants", "F0.5s1+K1q2", "brier_minus_m050") or [1])[0] for s in d_]
+    claim("[W2] budget 0 unchanged in every confirmation scenario (difference exactly 0)", "w2_items/confirm.json", f"{b0w}",
+          all(v == 0 for v in b0w))
+    grows = all((g(sc2, s, "variants", "F0.5s1+K1q2", "brier_minus_m050") or [0] * 6)[1] >
+                (g(sc2, s, "variants", "F0.5s1+K1q2", "brier_minus_m050") or [0] * 6)[5] for s in d_)
+    claim("[W2] the simulated gain grows with the budget (difference at n=31 more negative than at n=1, every scenario)",
+          "w2_items/confirm.json", f"{grows}", grows)
+    claim("[W2] confirmation gain larger than tuning gain on INV (text: 'larger')", "confirm.json vs w2_results.json tune",
+          f"{d_['INV'].get('mean'):+.4f} vs {g(w2r, 'tune', 'per_scenario_selected', 'INV', 'mean'):+.4f}",
+          d_["INV"].get("mean", 0) < g(w2r, "tune", "per_scenario_selected", "INV", "mean"))
+    ch2 = g(w2r, "checks") or {}
+    lpw = load("w2_items/candidates/w2_f05s1_k1q2/official_loop_check.json")
+    vw = (w2dir / "candidates" / "w2_f05s1_k1q2" / "validator_output.txt")
+    vwt = vw.read_text(encoding="utf-8") if vw.exists() else ""
+    claim("[W2] checks: validator OK, smoke ok, stream mode with 0 acquisition predict calls, equivalence < 1e-3, zero strength = base",
+          "w2_items/candidates/w2_f05s1_k1q2/", f"validator {'OK' if 'OK:' in vwt and '[exit code 0]' in vwt else 'FAIL'}, "
+          f"smoke {ch2.get('smoke_exit')}, mode {g(lpw, 'acquisition_mode')}, acq calls {g(lpw, 'acquisition_prediction_calls')}, "
+          f"equiv {ch2.get('equivalence_max_abs_diff')}, zero {ch2.get('zero_strength_equals_m050')}",
+          "OK:" in vwt and "[exit code 0]" in vwt and ch2.get("smoke_exit") == 0 and g(lpw, "acquisition_mode") == "stream"
+          and g(lpw, "acquisition_prediction_calls") == 0 and (ch2.get("equivalence_max_abs_diff") or 1) < 1e-3
+          and ch2.get("zero_strength_equals_m050") is True)
+    # real draws: recompute from the saved logs where they exist
+    dl = HERE.parents[2] / "_downloads"
+    arms_ = g(w2d, "arms") or {}
+    ids_b, ids_w = g(arms_, "xp_level_m050", "draws") or [], g(arms_, "w2_f05s1_k1q2", "draws") or []
+    import sys as _sys2
+    _sys2.path.insert(0, str(HERE / "deep_dive"))
+    from parse_feedback import parse as _parse
+    logs_ok = all((dl / f"cb_logs_{i}" / "scoring_stdout.txt").exists() for i in ids_b + ids_w)
+    if logs_ok:
+        T = {i: _parse((dl / f"cb_logs_{i}" / "scoring_stdout.txt").read_text(encoding="utf-8", errors="replace")) for i in ids_b + ids_w}
+        ab = [_st.mean(r[3] for r in T[i]["ALC"]) for i in ids_b]
+        aw = [_st.mean(r[3] for r in T[i]["ALC"]) for i in ids_w]
+        claim("[draws W2] arm means and sds re-derived from the saved logs equal draws.json", "_downloads/cb_logs_*/scoring_stdout.txt",
+              f"base {_st.mean(ab):.4f} ({_st.stdev(ab):.4f}, n {len(ab)}), W2 {_st.mean(aw):.4f} ({_st.stdev(aw):.4f}, n {len(aw)})",
+              abs(_st.mean(ab) - g(arms_, "xp_level_m050", "alc", "mean")) < 1e-9 and abs(_st.mean(aw) - g(arms_, "w2_f05s1_k1q2", "alc", "mean")) < 1e-9
+              and abs(_st.stdev(ab) - g(arms_, "xp_level_m050", "alc", "sd")) < 1e-9)
+
+        def pv(ids, sec):
+            acc = {}
+            for i in ids:
+                for r in T[i][sec]:
+                    acc.setdefault((r[0], r[1]), []).append(r[3])
+            return {k: _st.mean(v) for k, v in acc.items()}
+        pa, pw_ = pv(ids_b, "ALC"), pv(ids_w, "ALC")
+        shp = sorted(set(pa) & set(pw_))
+        dd = [pw_[k] - pa[k] for k in shp]
+        z0 = pv(ids_b, 0), pv(ids_w, 0)
+        d0 = [z0[1][k] - z0[0][k] for k in shp]
+        claim("[draws W2] pair-matched comparison re-derived: 14 shared pairs, ALC -0.0033 (se 0.0022), 10 better, B0 difference exactly 0",
+              "_downloads/cb_logs_*/scoring_stdout.txt",
+              f"n {len(shp)}, mean {_st.mean(dd):+.4f}, se {_st.stdev(dd) / len(dd) ** 0.5:.4f}, better {sum(1 for x in dd if x < 0)}, "
+              f"max |dB0| {max(abs(x) for x in d0):.1e}",
+              len(shp) == g(w2d, "pair_matched_w2_minus_m050", "ALC", "n_pairs") and abs(_st.mean(dd) - g(w2d, "pair_matched_w2_minus_m050", "ALC", "mean_diff")) < 1e-9
+              and max(abs(x) for x in d0) == 0)
+        zips = {}
+        for i in ids_b + ids_w:
+            det = dl / f"cb_logs_{i}" / "details.json"
+            if det.exists():
+                zips[i] = json.loads(det.read_text(encoding="utf-8")).get("data_file", "").split("?")[0].rsplit("/", 1)[-1]
+        okz = all(zips.get(i) in ("xp_level_m050.zip", "probe_A.zip", "probe_B.zip") for i in ids_b) and all(zips.get(i) == "w2_f05s1_k1q2.zip" for i in ids_w)
+        claim("[draws W2] every draw's uploaded file name matches its arm (base: xp_level_m050 or the two probes; W2: w2_f05s1_k1q2)",
+              "_downloads/cb_logs_*/details.json", f"{zips}", okz)
+    else:
+        claim("[draws W2] saved logs available for re-derivation", "_downloads/", "missing logs", False)
+    ad2 = g(w2d, "arm_difference_w2_minus_m050") or {}
+    claim("[draws W2] the arm difference is already about as large at B0 as in ALC (composition), although W2 leaves B0 unchanged",
+          "w2_items/draws.json", f"dB0 {g(ad2, 'brier_by_budget', '0', 'mean'):+.4f}, dALC {g(ad2, 'alc', 'mean'):+.4f}",
+          abs(g(ad2, "brier_by_budget", "0", "mean")) > 0.5 * abs(g(ad2, "alc", "mean")))
+    rt2 = (w2dir / "SWITCH_RULE.md").read_text(encoding="utf-8") if (w2dir / "SWITCH_RULE.md").exists() else ""
+    tol2 = float(_re.search(r"by more than ([0-9]+\.[0-9]+)", rt2).group(1)) if rt2 else None
+    budd = [g(arms_, "w2_f05s1_k1q2", "brier_by_budget", b, "mean") - g(arms_, "xp_level_m050", "brier_by_budget", b, "mean")
+            for b in ("0", "1", "3", "7", "15", "31")]
+    first_w2 = min((dl / f"cb_logs_{i}" / "scoring_stdout.txt").stat().st_mtime for i in ids_w) if logs_ok and ids_w else None
+    claim("[switch] SWITCH_RULE.md predates the first saved W2 log; conditions 2 (<= 0.022) and 3 (<= 0.03) hold on the finished draws",
+          "w2_items/SWITCH_RULE.md + draws.json",
+          f"rule {_dt2.datetime.fromtimestamp((w2dir / 'SWITCH_RULE.md').stat().st_mtime):%H:%M}, first W2 log "
+          f"{_dt2.datetime.fromtimestamp(first_w2):%H:%M}; dALC {g(ad2, 'alc', 'mean'):+.4f}; max per-budget {max(budd):+.4f}" if first_w2 else "missing",
+          bool(first_w2) and (w2dir / "SWITCH_RULE.md").stat().st_mtime < first_w2 and tol2 == 0.022
+          and g(ad2, "alc", "mean") <= 0.022 and max(budd) <= 0.03)
+    miss = g(w2d, "missing") or []
+    if miss:
+        k = len(ids_w) + len(miss)
+        need = (k * (0.022 + g(arms_, "xp_level_m050", "alc", "mean")) - sum(g(w2d, "draws", str(i), "alc") for i in ids_w)) / len(miss)
+        claim("[switch] the pending W2 draw(s) cannot overturn condition 2 unless they score worse than the constant 0.5 (ALC > 0.25)",
+              "w2_items/draws.json", f"pending {miss}; would need ALC > {need:.3f}", need > 0.25)
+    claim("[switch] the selected ID is the first W2 draw (1019682)", "selected_submission.json + draws.json",
+          f"{g(ssel, 'selected_codabench_id')} vs {min(ids_w) if ids_w else None}", bool(ids_w) and g(ssel, "selected_codabench_id") == min(ids_w))
+    # W2-sem and W1 (negative results)
+    ws_ = g(load("w2_items/confirm_sem.json"), "scenarios", "INV", "selected_minus_W2") or {}
+    claim("[W2-sem] the semantic kernel's INV CI against W2 includes 0 (gate d fails), so nothing was built", "w2_items/confirm_sem.json",
+          f"{ws_.get('mean'):+.4f} [{ws_.get('ci_lo'):+.4f}, {ws_.get('ci_hi'):+.4f}]; gate {g(w2r, 'w2_sem', 'gate', 'pass')}",
+          ws_.get("ci_lo", 1) <= 0 <= ws_.get("ci_hi", -1) and g(w2r, "w2_sem", "gate", "pass") is False)
+    ne = g(load("deep_dive/w1/npeb_explore_seed1.json"), "scenarios", "H7", "methods") or {}
+    dalc = g(ne, "npeb_all", "alc") - g(ne, "m050", "alc") if ne else 0
+    db0 = (g(ne, "npeb_all", "brier") or [0])[0] - (g(ne, "m050", "brier") or [0])[0]
+    w1s = load("deep_dive/w1/w1_summary.json")
+    fast = g(w1s, "faster_B1_bench2.5_pair1.2", "H7INV") or {}
+    claim("[W1] the exact posterior's H7 gain comes entirely from budget 0; faster early updates are significantly worse on H7-INV",
+          "deep_dive/w1/", f"dALC {dalc:+.4f}, 0.1*dB0 {0.1 * db0:+.4f}; faster {fast.get('mean'):+.4f} [{fast.get('ci_lo'):+.4f}, {fast.get('ci_hi'):+.4f}]",
+          dalc < 0 and 0.1 * db0 <= dalc and fast.get("ci_lo", -1) > 0)
+    q14 = load("qwen3_14b_status.json")
+    claim("[Qwen3-14B] the report's sentence matches results/qwen3_14b_status.json", "qwen3_14b_status.json + results_macros.tex",
+          f"status {g(q14, 'status')}",
+          (g(q14, "status") == "pending" and "still running when this report was written" in mtex) or
+          (g(q14, "status") == "failed" and "also failed its gate" in mtex))
 
     n_fail = sum(1 for r in rows if not r[3])
     lines = ["# Claim audit (generated by experiments/src/make_audit.py)", "",

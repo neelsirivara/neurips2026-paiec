@@ -1,0 +1,354 @@
+
+
+# ----------------------------------------------------------------------------- W2-sem: semantic kernel (2026-10-29)
+# Replaces / augments the W2 text kernel's similarity with the cosine of sentence embeddings (W2S_MODEL_ID, listed
+# in models.txt and prefetched by the platform; loaded from local files only).  Kernel weight of a labelled item j for
+# target t:  "sem": cos_s^W2S_Q_S;  "both": 0.5 cos_c^W2_KERN_Q + 0.5 cos_s^W2S_Q_S (cos_c = the W2 char-4-gram cosine);
+# optionally only the W2S_TOPK largest weights.  delta = sum K G / (sum K H + 1 / W2S_TAU_KERN^2) as in W2.
+# Runtime design:
+#   * the model is loaded once per worker process with a hard cap (W2S_LOAD_CAP s) and used under a lock;
+#   * embeddings are rounded to float16 and kept in a disk cache shared by all workers and checkpoints (one append-only
+#     file per process in a writable directory); at budget 0 (no labels) predict() only queues the target's text and
+#     a full batch of W2S_BATCH queued texts is embedded at once, so later budgets find most targets cached;
+#   * at budget >= 1 the labelled items' embeddings are completed once per list (batched) and a target's own
+#     embedding is computed on first use if not cached; the model is loaded only when something is missing from the
+#     cache; at most W2S_SYNC_CAP seconds of embedding work per process;
+#   * if the model is unavailable, too slow, or anything fails, the benchmark falls back to the W2 char kernel, and
+#     any failure of that falls back to the plain cross-pair model (m050);
+#   * skipped under the organisers' local smoke check (PREDICTIVE_EVAL_LOCAL_SMOKE_TEST=1) or PAIEC_W2S_DISABLE=1.
+W2S_ENABLED = True
+W2S_MODEL_ID = "__W2S_MODEL_ID__"
+W2S_POOLING = "__W2S_POOLING__"
+W2S_KIND = "__W2S_KIND__"
+W2S_Q_S = __W2S_Q_S__
+W2S_TAU_KERN = __W2S_TAU_KERN__
+W2S_TOPK = __W2S_TOPK__
+W2S_M_LOW = __W2S_M_LOW__        # multiplier on W2S_TAU_KERN when the list's budget (median labels per pair) is <= 3
+W2S_MAX_LEN = 256
+W2S_EMB_HEAD = 600
+W2S_EMB_TAIL = 400
+W2S_LOAD_CAP = 120.0
+W2S_SYNC_CAP = 30.0
+W2S_BATCH = 64
+_W2S_SKIP = (os.environ.get("PREDICTIVE_EVAL_LOCAL_SMOKE_TEST") == "1" or os.environ.get("PAIEC_W2S_DISABLE") == "1")
+_W2S = {"state": "init", "t_start": None, "dir": None, "cache": {}, "mtimes": {}, "queue": [], "sync_s": 0.0,
+        "thread": None, "reload_t": 0.0}
+_W2S_LOCK = _threading.RLock()
+
+
+def _w2s_embed_text(content) -> str:
+    t = _w2_norm_text(content)
+    if len(t) > W2S_EMB_HEAD + W2S_EMB_TAIL:
+        t = t[:W2S_EMB_HEAD] + " ... " + t[-W2S_EMB_TAIL:]
+    return t
+
+
+def _w2s_key(text: str) -> str:
+    return _hashlib.sha1(text.encode("utf-8")).hexdigest()[:24]
+
+
+def _w2s_dir():
+    if _W2S["dir"] is None:
+        import tempfile
+        _W2S["dir"] = ""
+        for d in (os.path.join(os.path.dirname(os.path.abspath(__file__)), ".paiec_w2s"),
+                  os.path.join(tempfile.gettempdir(), "paiec_w2s")):
+            try:
+                os.makedirs(d, exist_ok=True)
+                probe = os.path.join(d, ".w%d" % os.getpid())
+                with open(probe, "w") as fh:
+                    fh.write("1")
+                os.remove(probe)
+                _W2S["dir"] = d
+                break
+            except Exception:
+                continue
+    return _W2S["dir"]
+
+
+def _w2s_load():
+    try:
+        import numpy as np
+        import torch
+        from transformers import AutoModel, AutoTokenizer
+        dev = "cuda:0" if torch.cuda.is_available() else "cpu"
+        if dev == "cpu":
+            try:
+                torch.set_num_threads(2)
+            except Exception:
+                pass
+        tok = AutoTokenizer.from_pretrained(W2S_MODEL_ID, local_files_only=True)
+        mdl = AutoModel.from_pretrained(W2S_MODEL_ID, local_files_only=True)
+        mdl = mdl.to(dev).eval()
+        _W2S.update(np=np, torch=torch, tok=tok, model=mdl, dev=dev, state="ready")
+    except Exception:
+        _W2S["state"] = "failed"
+
+
+def _w2s_start():
+    """Start loading the model in a background thread (once per process)."""
+    if _W2S["state"] != "init" or _W2S_SKIP:
+        return
+    import time as _t
+    _W2S["t_start"] = _t.time()
+    _W2S["state"] = "loading"
+    th = _threading.Thread(target=_w2s_load, daemon=True)
+    _W2S["thread"] = th
+    th.start()
+
+
+def _w2s_ready(wait: bool) -> bool:
+    """True when the model is usable; with wait, block until it is loaded or the load cap has passed."""
+    if _W2S_SKIP or not W2S_ENABLED:
+        return False
+    with _W2S_LOCK:
+        _w2s_start()
+    if _W2S["state"] == "loading" and wait and _W2S["thread"] is not None:
+        import time as _t
+        _W2S["thread"].join(max(0.0, W2S_LOAD_CAP - (_t.time() - _W2S["t_start"])))
+        if _W2S["state"] == "loading":
+            _W2S["state"] = "failed"
+    return _W2S["state"] == "ready"
+
+
+def _w2s_np():
+    if _W2S.get("np") is None:
+        import numpy as np
+        _W2S["np"] = np
+    return _W2S["np"]
+
+
+def _w2s_reload():
+    import time as _t
+    now = _t.time()
+    if now - _W2S["reload_t"] < 1.0:
+        return
+    _W2S["reload_t"] = now
+    d = _w2s_dir()
+    if not d:
+        return
+    try:
+        names = [n for n in os.listdir(d) if n.startswith("emb_") and n.endswith(".tsv")]
+    except Exception:
+        return
+    np = _w2s_np()
+    for n in names:
+        p = os.path.join(d, n)
+        try:
+            mt = os.path.getmtime(p)
+            if _W2S["mtimes"].get(n) == mt:
+                continue
+            with open(p, encoding="ascii") as fh:
+                for line in fh:
+                    try:
+                        k, v = line.rstrip("\n").split("\t")
+                        if k not in _W2S["cache"]:
+                            vec = np.frombuffer(base64.b64decode(v), dtype=np.float16).astype(np.float32)
+                            if vec.shape[0] > 0:
+                                _W2S["cache"][k] = vec
+                    except Exception:
+                        continue
+            _W2S["mtimes"][n] = mt
+        except Exception:
+            continue
+
+
+def _w2s_compute(texts: list) -> list:
+    """Embed texts (model ready), round to float16, store in memory and on disk; returns the vectors."""
+    import time as _t
+    np, torch, tok, mdl, dev = _W2S["np"], _W2S["torch"], _W2S["tok"], _W2S["model"], _W2S["dev"]
+    t0 = _t.time()
+    out = []
+    lines = []
+    for s in range(0, len(texts), W2S_BATCH):
+        chunk = texts[s:s + W2S_BATCH]
+        enc = tok([c or " " for c in chunk], padding=True, truncation=True, max_length=W2S_MAX_LEN, return_tensors="pt").to(dev)
+        with torch.no_grad():
+            h = mdl(**enc).last_hidden_state
+        if W2S_POOLING == "cls":
+            v = h[:, 0]
+        else:
+            msk = enc["attention_mask"].unsqueeze(-1).to(h.dtype)
+            v = (h * msk).sum(1) / msk.sum(1).clamp(min=1e-9)
+        v = torch.nn.functional.normalize(v.float(), dim=-1).cpu().numpy().astype(np.float16)
+        for c, row in zip(chunk, v):
+            vec = row.astype(np.float32) if c else np.zeros(row.shape[0], dtype=np.float32)
+            k = _w2s_key(c)
+            _W2S["cache"][k] = vec
+            out.append(vec)
+            lines.append(k + "\t" + base64.b64encode(vec.astype(np.float16).tobytes()).decode("ascii"))
+    d = _w2s_dir()
+    if d and lines:
+        try:
+            with open(os.path.join(d, "emb_%d.tsv" % os.getpid()), "a", encoding="ascii") as fh:
+                fh.write("\n".join(lines) + "\n")
+        except Exception:
+            pass
+    _W2S["sync_s"] += _t.time() - t0
+    return out
+
+
+def _w2s_vectors(texts: list, allow_compute: bool):
+    """Vectors for texts (None where unavailable).  Computes missing ones when allowed and within the sync cap."""
+    with _W2S_LOCK:
+        keys = [_w2s_key(t) for t in texts]
+        miss = [i for i, k in enumerate(keys) if k not in _W2S["cache"]]
+        if miss:
+            _w2s_reload()
+            miss = [i for i, k in enumerate(keys) if k not in _W2S["cache"]]
+        if miss and allow_compute and _W2S["sync_s"] < W2S_SYNC_CAP and _w2s_ready(wait=True):
+            try:
+                uniq = sorted({texts[i] for i in miss}, key=len)
+                _w2s_compute(uniq)
+            except Exception:
+                _W2S["state"] = "failed"
+        return [_W2S["cache"].get(k) for k in keys]
+
+
+def _w2s_flush() -> None:
+    try:
+        with _W2S_LOCK:
+            if _W2S["queue"] and _W2S["state"] == "ready" and _W2S["sync_s"] < W2S_SYNC_CAP:
+                batch = sorted(set(_W2S["queue"]), key=len)
+                _W2S["queue"] = []
+                _w2s_compute([x for x in batch if _w2s_key(x) not in _W2S["cache"]])
+    except Exception:
+        pass
+
+
+def _w2s_queue_target(item) -> None:
+    """Budget 0: queue the target's text; embed a full batch at once (amortised; never more than one batch per call)."""
+    if _W2S_SKIP or not W2S_ENABLED:
+        return
+    try:
+        with _W2S_LOCK:
+            if _W2S["state"] == "init":
+                _w2s_start()
+                import atexit
+                atexit.register(_w2s_flush)
+            if _W2S["state"] in ("failed",):
+                return
+            t = _w2s_embed_text(item.get("item_content"))
+            k = _w2s_key(t)
+            if k in _W2S["cache"]:
+                return
+            _W2S["queue"].append(t)
+            if len(_W2S["queue"]) >= W2S_BATCH and _W2S["state"] == "ready" and _W2S["sync_s"] < W2S_SYNC_CAP:
+                batch = sorted(set(_W2S["queue"]), key=len)
+                _W2S["queue"] = []
+                _w2s_compute([x for x in batch if _w2s_key(x) not in _W2S["cache"]])
+    except Exception:
+        pass
+
+
+def _w2s_tables(state) -> None:
+    """Attach per-benchmark semantic tables (labelled vectors as a matrix) to the W2 kernel tables; benchmarks whose
+    labelled vectors are incomplete keep the char kernel (marked by the absence of 'E')."""
+    if _W2S_SKIP or not W2S_ENABLED:
+        return
+    np = _w2s_np()
+    for bench, tb in state["w2_kern"].items():
+        try:
+            texts = [_w2s_embed_text(ik[1]) for ik in tb["iks"]]
+            vecs = _w2s_vectors(texts, allow_compute=True)
+            if any(v is None for v in vecs):
+                continue
+            tb["E"] = np.stack(vecs).astype(np.float32)
+            tb["sdelta"] = {}
+        except Exception:
+            tb.pop("E", None)
+
+
+def _w2s_delta(state, ik):
+    """Semantic-kernel delta for target ik, or None (then the W2 char kernel is used)."""
+    tb = state["w2_kern"].get(ik[0])
+    if not tb or "E" not in tb:
+        return None
+    hit = tb["sdelta"].get(ik)
+    if hit is not None:
+        return hit
+    np = _w2s_np()
+    v = _w2s_vectors([_w2s_embed_text(ik[1])], allow_compute=True)[0]
+    if v is None:
+        return None
+    cs = np.clip(tb["E"] @ v, 0.0, 1.0).astype(np.float64)
+    same = [j for j, ikj in enumerate(tb["iks"]) if ikj == ik]
+    if same:
+        cs[same] = 0.0
+    K = cs ** W2S_Q_S
+    if W2S_KIND == "both":
+        vec = _w2_idf_vec(_w2_text_grams(ik[1]), tb["df"], tb["n"])
+        cc = np.zeros(len(tb["iks"]))
+        if vec:
+            for j, (ikj, vj) in enumerate(zip(tb["iks"], tb["vecs"])):
+                if ikj == ik:
+                    continue
+                s = 0.0
+                for t in vec.keys() & vj.keys():
+                    s += vec[t] * vj[t]
+                cc[j] = min(max(s, 0.0), 1.0)
+        K = 0.5 * cc ** W2_KERN_Q + 0.5 * K
+    if W2S_TOPK and len(K) > W2S_TOPK:
+        thr = np.partition(-K, W2S_TOPK - 1)[W2S_TOPK - 1]
+        K = np.where(K >= -thr, K, 0.0)
+    G = np.asarray(tb["G"], dtype=np.float64)
+    H = np.asarray(tb["H"], dtype=np.float64)
+    tau = W2S_TAU_KERN * (W2S_M_LOW if state.get("w2s_low") else 1.0)
+    d = float((K @ G) / (K @ H + 1.0 / (tau * tau)))
+    if not math.isfinite(d):
+        return None
+    if len(tb["sdelta"]) < _W2_DELTA_LIMIT:
+        tb["sdelta"][ik] = d
+    return d
+
+
+_w2_build_char = _w2_build
+
+
+def _w2_build(labeled):  # noqa: F811  (W2-sem: the W2 state, plus semantic tables when the model is available)
+    state = _w2_build_char(labeled)
+    if state is not None and W2S_ENABLED and not _W2S_SKIP and W2S_TAU_KERN > 0:
+        try:
+            cnt: dict = {}
+            for entry in labeled:
+                try:
+                    subj, item = entry[0][0], entry[0][1]
+                    if isinstance(subj, dict) and isinstance(item, dict) and _label_value(entry[1]) is not None:
+                        k = (xp_subject_key(subj), _s(item.get("benchmark_id")))
+                        cnt[k] = cnt.get(k, 0) + 1
+                except Exception:
+                    continue
+            vals = sorted(cnt.values())
+            state["w2s_low"] = bool(vals) and vals[len(vals) // 2] <= 3
+            _w2s_tables(state)
+        except Exception:
+            pass
+    return state
+
+
+_w2_delta_char = _w2_delta
+
+
+def _w2_delta(state, ik) -> float:  # noqa: F811
+    """W2-sem delta where the semantic tables are complete, else the W2 char-kernel delta."""
+    try:
+        d = _w2s_delta(state, ik)
+        if d is not None:
+            return d
+    except Exception:
+        pass
+    return _w2_delta_char(state, ik)
+
+
+_core_predict_w2 = predict
+
+
+def predict(input, labeled=None) -> float:  # noqa: F811
+    """Probability that the subject answers the item correctly.  Never raises."""
+    if not labeled:
+        try:
+            if isinstance(input[1], dict):
+                _w2s_queue_target(input[1])
+        except Exception:
+            pass
+    return _core_predict_w2(input, labeled)

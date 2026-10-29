@@ -1,0 +1,33 @@
+{
+ "zip": "C:\\Users\\neels\\Downloads\\gen_papers_2\\neurips_challenges\\paiec\\submission\\candidates\\test_groq_DO_NOT_UPLOAD.zip",
+ "bytes": 24993,
+ "sha256": "cead55ff6f1c4c0a9b098f87db55c6e97ea86ea1c5d6a69059b91c63ef33df06",
+ "constants": {
+  "mu": 0.0,
+  "sd": 2.0,
+  "w": 0.3,
+  "b": 0.1
+ },
+ "generation_config": {
+  "temperature": 0.0,
+  "max_tokens": 8
+ },
+ "model": "llama-3.3-70b-versatile",
+ "rpm_per_process": 40,
+ "test": true,
+ "validator_exit": 0,
+ "smoke_exit": 0,
+ "official_loop_exit": 0,
+ "official_loop_alc": 0.217909212732859,
+ "official_loop_equals_m050": true,
+ "mock_tests": {
+  "b0_offset_ok": true,
+  "b0_calls": 1,
+  "xp_runs": true,
+  "entries_rated": 12,
+  "fail_b0_equals_m050": true,
+  "fail_xp_equals_m050": true,
+  "no_calls_after_budget": true,
+  "rate_limit_ok": true
+ }
+}

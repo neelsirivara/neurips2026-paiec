@@ -1,0 +1,11 @@
+11:39:49 world: 95773 items with text/features, 170 keys, 20003 (key, value) pairs
+11:40:13 grams: nnz 45013026
+11:40:15 [tune_fk A] units 5525 benches 52 m050 ALC 0.2029 (2s)
+11:41:23   F0.5s1+K1q2      ALC 0.2013 diff -0.0015 [-0.0023, -0.0008] per budget [ 0.     -0.0005 -0.0014 -0.0019 -0.0026 -0.0026] (68s)
+11:41:25 [tune_fk INV] units 5427 benches 13 m050 ALC 0.1785 (2s)
+11:42:56   F0.5s1+K1q2      ALC 0.1775 diff -0.0010 [-0.0023, +0.0000] per budget [ 0.     -0.0004 -0.0008 -0.0012 -0.0018 -0.0017] (92s)
+11:43:00 [tune_fk MID] units 5423 benches 23 m050 ALC 0.1873 (3s)
+11:44:57   F0.5s1+K1q2      ALC 0.1854 diff -0.0018 [-0.0030, -0.0008] per budget [ 0.     -0.0003 -0.0015 -0.0022 -0.0035 -0.0034] (118s)
+11:45:02 [tune_fk HARD] units 5620 benches 15 m050 ALC 0.1568 (4s)
+11:47:39   F0.5s1+K1q2      ALC 0.1549 diff -0.0020 [-0.0038, -0.0003] per budget [ 0.     -0.0001 -0.0012 -0.0024 -0.0041 -0.0039] (157s)
+11:47:39 best F F0.5s1 (-0.00109), best K K1q2 (-0.00077), FK F0.5s1+K1q2 (-0.00159); SELECTED F0.5s1+K1q2

@@ -1,0 +1,26 @@
+{
+ "zip": "C:\\Users\\neels\\Downloads\\gen_papers_2\\neurips_challenges\\paiec\\submission\\candidates\\w2_f05s1_k1q2.zip",
+ "bytes": 23436,
+ "sha256": "d6d1c6a00e72b8aaf9e6628de6f03e50274a1d8f547883a0c0d70300aab969bf",
+ "members": [
+  "README.md",
+  "labeling.py",
+  "model.py"
+ ],
+ "model_sha256": "b3625ff5d58dc0df661277c9931df91218c12162389172596ce1dea86fb90c44",
+ "base_zip_sha256": "cda9fe9cae49b68997d831f1de8dfe3d53a14ad3d1ac15281b22bd8326c7a715",
+ "labeling_identical_to_base": true,
+ "constants": {
+  "W2_TAU_FEAT": 0.5,
+  "W2_FEAT_SHARE": 1.0,
+  "W2_TAU_KERN": 1.0,
+  "W2_KERN_Q": 2.0
+ },
+ "validator_exit": 0,
+ "smoke_exit": 0,
+ "official_loop_record_restored": true,
+ "official_loop_exit": 0,
+ "base_zip_sha256_after": "cda9fe9cae49b68997d831f1de8dfe3d53a14ad3d1ac15281b22bd8326c7a715",
+ "shipped_zip_sha256_before": "c76331d084f175fbf8ce272b00d0a2360d80e440dacf6ede380f3f9eba5172e1",
+ "shipped_zip_sha256_after": "c76331d084f175fbf8ce272b00d0a2360d80e440dacf6ede380f3f9eba5172e1"
+}

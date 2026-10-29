@@ -1,0 +1,20 @@
+{
+ "candidate": "w2_sel_dev",
+ "scenario": "INV",
+ "constants": {
+  "W2_TAU_FEAT": 0.5,
+  "W2_FEAT_SHARE": 1.0,
+  "W2_TAU_KERN": 1.0,
+  "W2_KERN_Q": 2.0
+ },
+ "n_testsets": 24,
+ "n_predictions": 57945,
+ "n_changed_vs_m050": 57945,
+ "max_abs_diff_vs_numpy": 1.4501363691132862e-05,
+ "m050_max_abs_diff_vs_numpy": 1.372282427603011e-05,
+ "passes_1e-3": true,
+ "featurisation_identical": true,
+ "grams_identical": true,
+ "zero_strength_equals_m050": true,
+ "seconds": 268.5881016254425
+}
