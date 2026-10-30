@@ -2023,6 +2023,21 @@ def w2_macros() -> None:
     for b, w in BUD_IDX[1:]:
         mac("PmB" + w + "Mean", fmt(get(pm, b, "mean_diff"), 4, sign=True))
         mac("PmB" + w + "Se", fmt(get(pm, b, "se"), 4))
+    # share of the matched ALC difference that comes from budget 1 (ALC weight 0.2), and the largest simulated |dB1|
+    pa1, paa = get(pm, "1", "mean_diff"), get(pm, "ALC", "mean_diff")
+    mac("PmBOneSharePct", MISSING if not paa or pa1 is None else f"{100 * 0.2 * pa1 / paa:.0f}")
+    db1 = [(get(cf, "scenarios", s, "variants", W2_LABEL, "brier_minus_m050") or [None, None])[1] for s, _ in W2_SCEN]
+    db1 = [abs(x) for x in db1 if x is not None]
+    mac("WcDBOneMaxAbs", fmt(max(db1), 4) if db1 else MISSING)
+    mac("WcNBoot", fmt_int(get(cf, "scenarios", "INV", "variants", W2_LABEL, "minus_m050", "n_boot")))
+    # the selected run's own draw: where it sits in its arm (the rule picks the first W2 run that finished, not the best)
+    sda = get(dr, "draws", str(sid), "alc") if sid is not None else None
+    w2v = [get(dr, "draws", str(i), "alc") for i in (get(arms, "w2_f05s1_k1q2", "draws") or [])]
+    w2v = [v for v in w2v if v is not None]
+    mac("SubDrawAlc", fmt(sda))
+    mac("SubDrawRank", MISSING if sda is None or not w2v else
+        ("the highest (worst) ALC of its arm" if sda == max(w2v) else "the lowest (best) ALC of its arm" if sda == min(w2v)
+         else "neither the best nor the worst ALC of its arm"))
     bmd = get(dr, "benchmark_matched_w2_minus_m050", "ALC") or {}
     mac("BmMean", fmt(get(bmd, "mean_diff"), 4, sign=True))
     mac("BmSe", fmt(get(bmd, "se"), 4))
@@ -2050,6 +2065,7 @@ def w2_macros() -> None:
     mr = re.search(r"\[(PAIEC-[A-Z]+-[A-Z]+-\d+)\]", rt)
     mt = re.search(r"recorded (\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}) UTC", rt)
     retry = [str(i) for i in w2draws if str(i) not in ids_listed and re.search(rf"submission \*\*{i}\*\*", rt)]
+    w2mean_ = get(arms, "w2_f05s1_k1q2", "alc", "mean")
     if infra:
         iid, irec = next(iter(infra.items()))
         mac("InfraId", str(iid))
@@ -2059,8 +2075,13 @@ def w2_macros() -> None:
         mac("InfraRetryId", retry[0] if retry else MISSING)
         mac("RetryNoteTime", MISSING if not mt else f"{mt.group(1)} {mt.group(2)} UTC")
         mac("InfraFootnote", f"\\footnote{{W2 run {iid} was scored (its log is complete, {fmt_int(irec.get('n_pairs'))} pairs) but ended "
-            f"with the platform's infrastructure archival error (\\texttt{{{mr.group(1) if mr else '??'}}}), so the platform recorded no score. Under the retry note added to \\texttt{{SWITCH\\_RULE.md}} "
-            f"before the retry's result was retrieved, it was retried once with the same ZIP as {retry[0] if retry else '??'}; its log-only ALC ({fmt(irec.get('alc'))}) is not counted (Appendix~\\ref{{app:formative}}).}}")
+            f"with the platform's infrastructure archival error (\\texttt{{{mr.group(1) if mr else '??'}}}), so the platform recorded no score. Under a retry note added to \\texttt{{SWITCH\\_RULE.md}} "
+            f"after this failure (with its complete log at hand) and before the retry's result was retrieved, it was retried once with the same ZIP as "
+            f"{retry[0] if retry else '??'}. Its log-only ALC ({fmt(irec.get('alc'))}) is not counted"
+            + (f"; this cannot favour the switch, because it is below the W2 arm mean ({fmt(w2mean_)})"
+               if irec.get("alc") is not None and w2mean_ is not None and irec.get("alc") < w2mean_
+               else "; \\textbf{counting it would have raised the W2 mean}")
+            + " (Appendix~\\ref{app:formative}).}")
     else:
         for n in ("InfraId", "InfraAlc", "InfraNPairs", "InfraCode", "InfraRetryId", "RetryNoteTime"):
             mac(n, "--")
@@ -2107,13 +2128,13 @@ def w2_macros() -> None:
         mac("RuleFlipAlc", "--")
         mac("RuleFlipBudget", "--")
         sel = (f"Under the contingency, conditions 2 (tolerance recomputed for {len(w2draws)} runs: {fmt(tol2c, 3)}) and 3 are applied to "
-               f"the {len(w2draws)} finished runs and " + ("both hold, so we select \\SubId." if c2c and c3 else
+               f"the {len(w2draws)} finished runs and " + ("both hold, so we select \\SubId, the first W2 run that finished, as the rule specifies." if c2c and c3 else
                "\\textbf{do not both hold; the switch rule does not select W2 and the report must be revised.}"))
     else:
         mac("RuleFlipAlc", "--")
         mac("RuleFlipBudget", "--")
         ok = (not missing and not failed and c2 and c3)
-        sel = ("All three conditions hold, so we select \\SubId." if ok else
+        sel = ("All three conditions hold, so we select \\SubId, the first W2 run that finished, as the rule specifies." if ok else
                "\\textbf{The switch rule does not select W2; the report must be revised.}")
     mac("RuleSelectSentence", sel)
     mac("SubStatus", "final" if final else "provisional")
@@ -2135,15 +2156,15 @@ def w2_macros() -> None:
                      ("w2_f05s1_k1q2", f"\\textbf{{selected (W2), {fmt_int(get(arms, 'w2_f05s1_k1q2', 'alc', 'n'))} draws}}")):
         a = arms.get(arm) or {}
         cells = [fmt(get(a, "brier_by_budget", b, "mean")) for b, _ in BUD_IDX]
-        cells.append(f"{fmt(get(a, 'alc', 'mean'))} (sd {fmt(get(a, 'alc', 'sd'), 3)})")
+        cells.append(f"{fmt(get(a, 'alc', 'mean'))} (sd {fmt(get(a, 'alc', 'sd'), 4)})")
         lines.append(f"{lab} & " + " & ".join(cells) + r" \\")
     lines.append(r"\midrule")
     cells = [fmt(get(ad, "brier_by_budget", b, "mean"), 4, sign=True) for b, _ in BUD_IDX]
-    cells.append(f"{fmt(get(ad, 'alc', 'mean'), 4, sign=True)} (se {fmt(get(ad, 'alc', 'se_welch'), 3)})")
+    cells.append(f"{fmt(get(ad, 'alc', 'mean'), 4, sign=True)} (se {fmt(get(ad, 'alc', 'se_welch'), 4)})")
     lines.append("difference of arm means & " + " & ".join(cells) + r" \\")
     cells = [fmt(get(pm, b, "mean_diff"), 4, sign=True) for b, _ in BUD_IDX]
-    cells.append(f"\\textbf{{{fmt(get(pm, 'ALC', 'mean_diff'), 4, sign=True)}}} (se {fmt(get(pm, 'ALC', 'se'), 3)})")
-    lines.append(f"pair-matched difference ({fmt_int(get(pm, 'ALC', 'n_pairs'))} pairs) & " + " & ".join(cells) + r" \\")
+    cells.append(f"{fmt(get(pm, 'ALC', 'mean_diff'), 4, sign=True)} (se {fmt(get(pm, 'ALC', 'se'), 4)})")
+    lines.append(f"pair-matched difference ({fmt_int(get(pm, 'ALC', 'n_pairs'))} pairs, post hoc) & " + " & ".join(cells) + r" \\")
     sp = get(cf, "scenarios", "SPARSE", "variants", W2_LABEL, "brier_minus_m050") or [None] * 6
     cells = [fmt(sp[i], 4, sign=True) for i in range(6)]
     cells.append(fmt(get(cf, "scenarios", "SPARSE", "variants", W2_LABEL, "minus_m050", "mean"), 4, sign=True))
@@ -2158,17 +2179,24 @@ def w2_macros() -> None:
         lines.append(f"{i} & " + " & ".join(cells) + r" \\")
     (PAPER / "results_table_draws_all.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")
     plot = []
+    seen_arm = set()
     for i, d in sorted((get(dr, "draws") or {}).items()):
-        style = "blue!70, mark=square*, mark size=1pt" if d.get("arm") == "w2_f05s1_k1q2" else "red!60, mark=triangle*, mark size=1pt"
+        w2arm = d.get("arm") == "w2_f05s1_k1q2"
+        # thin single-draw curves: the arms differ by marker and dash, not by colour alone
+        style = "blue!70, mark=square*, mark size=1pt" if w2arm else "red!60, densely dashed, mark=triangle*, mark size=1.3pt"
         pts = " ".join(f"({j},{float(d['brier_by_budget'][b]):.4f})" for j, (b, _) in enumerate(BUD_IDX))
-        plot.append(f"\\addplot[{style}, forget plot] coordinates {{{pts}}};")
-    for arm, style in (("xp_level_m050", "red, very thick"), ("w2_f05s1_k1q2", "blue, very thick")):
+        first = d.get("arm") not in seen_arm
+        seen_arm.add(d.get("arm"))
+        plot.append(f"\\addplot[{style}{'' if first else ', forget plot'}] coordinates {{{pts}}};")
+        if first:
+            plot.append("\\addlegendentry{" + ("one W2 draw" if w2arm else "one base draw") + "}")
+    for arm, style in (("xp_level_m050", "red, very thick, densely dashed"), ("w2_f05s1_k1q2", "blue, very thick")):
         a = arms.get(arm) or {}
         if a:
             pts = " ".join(f"({j},{float(a['brier_by_budget'][b]['mean']):.4f})" for j, (b, _) in enumerate(BUD_IDX))
             plot.append(f"\\addplot[{style}] coordinates {{{pts}}};")
             plot.append("\\addlegendentry{" + ("base mean" if arm == "xp_level_m050" else "W2 mean") + "}")
-    plot.append("\\addplot[gray, dashed, domain=0:5] {0.25};")
+    plot.append("\\addplot[gray, dotted, thick, domain=0:5] {0.25};")
     plot.append("\\addlegendentry{constant 0.5}")
     (PAPER / "results_fig_draws_all.tex").write_text("\n".join(plot) + "\n", encoding="utf-8")
     # ---- W2-sem (negative): semantic MiniLM kernel over W2
@@ -2299,6 +2327,8 @@ def main() -> None:
                   load("round4/xpair_equivalence.json"), load("round4/xpair_perpair.json"), load("round4/xpair_frame_stats.json"),
                   load("round4/official_loop_check.json"), load("round4/smoke_test_submission.json"))
     model_constant_macros()
+    # Python version recorded with the round-4 runtime benchmark (the interpreter used for the experiments)
+    mac("PyVersion", str(get(load("round4/xpair_runtime.json"), "machine", "python") or MISSING))
     # selected submission 1010717 and the formative runs (2026-10-26)
     selected_constants_macros()
     fr = load("deep_dive/formative_runs.json")

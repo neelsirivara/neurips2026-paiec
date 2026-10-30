@@ -12,7 +12,7 @@ from dd_common import X, model, np, json, time, Path, log  # noqa: E402
 import w2_feat as WF  # noqa: E402
 
 CACHE = Path(X.DEFAULT_PAYLOAD).resolve() / "round4_cache"
-RES = Path(r"C:\Users\neels\Downloads\gen_papers_2\neurips_challenges\paiec\experiments\results\w2_items")
+RES = Path(HERE).parents[1] / "results" / "w2_items"
 RES.mkdir(parents=True, exist_ok=True)
 parse_features = WF.parse_features
 

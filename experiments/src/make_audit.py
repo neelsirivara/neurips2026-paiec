@@ -584,8 +584,8 @@ def main() -> None:
           1 + sum(1 for v in sc_lb if v < _st.mean(alcs3)) == 46 and 1 + sum(1 for v in sc_lb if v < min(alcs3)) == 22)
     # a single draw of the base or the selected predictor never stands alone: wherever the main text gives one, it gives the arm mean
     main_part = tex.split("\\appendix")[0]
-    single = ("\\FmSelAlc", "\\SdDrawOneAlc", "\\SdDrawTwoAlc", "\\SdDrawThreeAlc", "\\ArBaseMin", "\\ArBaseMax", "\\ArWtwoMin", "\\ArWtwoMax")
-    paras = [p for p in main_part.split("\n\n") if any(m in p for m in single)]
+    single = ("\\FmSelAlc", "\\SdDrawOneAlc", "\\SdDrawTwoAlc", "\\SdDrawThreeAlc", "\\ArBaseMin", "\\ArBaseMax", "\\ArWtwoMin", "\\ArWtwoMax", "\\SubDrawAlc")
+    paras =[p for p in main_part.split("\n\n") if any(m in p for m in single)]
     bad = [p[:60] for p in paras if "\\ArBaseMean" not in p and "\\ArWtwoMean" not in p]
     abst = tex.split("\\begin{abstract}")[1].split("\\end{abstract}")[0] if "\\begin{abstract}" in tex else ""
     concl = tex.split("\\section{Conclusion}")[1].split("\\section{")[0] if "\\section{Conclusion}" in tex else ""
@@ -933,6 +933,67 @@ def main() -> None:
               "w2_items/draws.json", f"pending {miss}; would need ALC > {need:.3f}", need > 0.25)
     claim("[switch] the selected ID is the first W2 draw (1019682)", "selected_submission.json + draws.json",
           f"{g(ssel, 'selected_codabench_id')} vs {min(ids_w) if ids_w else None}", bool(ids_w) and g(ssel, "selected_codabench_id") == min(ids_w))
+    # --- claims added in the final review (2026-10-30)
+    sel_id = g(ssel, "selected_codabench_id")
+    w2logs = {i: dl / f"cb_logs_{i}" / "scoring_stdout.txt" for i in ids_w}
+    if all(p.exists() for p in w2logs.values()) and ids_w:
+        first_fin = min(ids_w, key=lambda i: w2logs[i].stat().st_mtime)
+        claim("[switch] the selected ID is the first counted W2 run that finished (earliest saved scoring log), as the rule specifies",
+              "_downloads/cb_logs_*/scoring_stdout.txt mtimes", f"first {first_fin}, selected {sel_id}", first_fin == sel_id)
+    w2alcs = {i: g(w2d, "draws", str(i), "alc") for i in ids_w}
+    mt_ = (PAPER / "results_macros.tex").read_text(encoding="utf-8")
+    rank_word = ("highest (worst)" if w2alcs.get(sel_id) == max(w2alcs.values()) else
+                 "lowest (best)" if w2alcs.get(sel_id) == min(w2alcs.values()) else "neither") if w2alcs and sel_id in w2alcs else None
+    claim("[switch] the selected run's own draw is the arm's highest (worst) ALC, so the ID is not a best-of-draws pick (text: \\SubDrawRank)",
+          "draws.json + results_macros.tex", f"{ {k: round(v, 4) for k, v in w2alcs.items()} }; macro word {rank_word}",
+          rank_word == "highest (worst)" and "\\newcommand{\\SubDrawRank}{the highest (worst) ALC of its arm}" in mt_)
+    claim("[switch] the switch rule names the first finished W2 run, and its contingency clause was written before any W2 draw finished",
+          "w2_items/SWITCH_RULE.md", "phrases present" if "to the first W2 run that finished" in rt2 and
+          "still before any W2 draw has finished" in rt2 else "phrase missing",
+          "to the first W2 run that finished" in rt2 and "still before any W2 draw has finished" in rt2)
+    inf_alc = next(iter((g(w2d, "infra_failed_log_only") or {}).values()), {}).get("alc")
+    claim("[switch] not counting the infrastructure-failed run cannot favour the switch: its log-only ALC is below the W2 arm mean",
+          "draws.json", f"log-only {inf_alc}, W2 mean {g(arms_, 'w2_f05s1_k1q2', 'alc', 'mean')}",
+          inf_alc is not None and inf_alc < g(arms_, "w2_f05s1_k1q2", "alc", "mean"))
+    # pair-matched comparison: size of the simulator's, but not its budget profile
+    pmw = g(w2d, "pair_matched_w2_minus_m050") or {}
+    share1 = 0.2 * g(pmw, "1", "mean_diff") / g(pmw, "ALC", "mean_diff") if g(pmw, "ALC", "mean_diff") else 0
+    mid_ok = all(abs(g(pmw, b, "mean_diff")) < g(pmw, b, "se") for b in ("3", "7", "15"))
+    sim_b1 = [abs((g(w2c, "scenarios", s, "variants", "F0.5s1+K1q2", "brier_minus_m050") or [0, 1])[1])
+              for s in ("INV", "A", "SPARSE", "MID", "HARD")]
+    claim("[draws W2] the pair-matched ALC difference comes mostly (>= 80%) from B1, which is > 3x the largest simulated abs(dB1); "
+          "at B3-B15 the matched differences are within one se of zero", "draws.json + confirm.json",
+          f"B1 share {share1:.2f}; B1 {g(pmw, '1', 'mean_diff'):+.4f} vs max sim abs(dB1) {max(sim_b1):.4f}; "
+          f"B3/B7/B15 abs(t) {[round(abs(g(pmw, b, 'mean_diff') / g(pmw, b, 'se')), 2) for b in ('3', '7', '15')]}",
+          share1 >= 0.8 and abs(g(pmw, "1", "mean_diff")) > 3 * max(sim_b1) and mid_ok)
+    stw = g(w2d, "structure") or {}
+    nb_each = [d.get("n_benchmark_ids") for d in (g(w2d, "draws") or {}).values()]
+    claim("[draws W2] every formative draw used the same benchmark IDs (Limitations: 'drew the same 7 benchmark IDs')",
+          "draws.json structure", f"per draw {nb_each}; distinct base {stw.get('distinct_benchmark_ids_m050')}, W2 "
+          f"{stw.get('distinct_benchmark_ids_w2')}, shared {stw.get('shared_benchmark_ids')}",
+          bool(nb_each) and all(n == 7 for n in nb_each) and stw.get("distinct_benchmark_ids_m050") == 7
+          and stw.get("distinct_benchmark_ids_w2") == 7 and stw.get("shared_benchmark_ids") == 7)
+    # simulations use the evaluator's random acquisition (the submitted fresh-first rule is evaluated separately)
+    import re as _re3
+    xs_src = (HERE / "xpair_sim.py").read_text(encoding="utf-8")
+    sim_srcs = [p.read_text(encoding="utf-8") for p in list((HERE / "w2_items").glob("*.py")) + list((HERE / "deep_dive").glob("*.py"))]
+    claim("[simulator] Streams defaults to random acquisition, and no W2 or deep-dive script passes policy='fresh'",
+          "xpair_sim.py, w2_items/*.py, deep_dive/*.py", "checked source",
+          'policy: str = "random"' in xs_src and not any(_re3.search(r"policy\s*=\s*['\"]fresh", s) for s in sim_srcs))
+    # the kernel's share cap does not bind at the selected value (values per key <= items carrying it)
+    claim("[W2] the selected share cap is >= 1, so it never binds (distinct values of a key <= labelled items carrying it)",
+          "results_macros.tex WtFeatShare", "", bool(_re3.search(r"\\newcommand\{\\WtFeatShare\}\{1(\.0)?\}", mt_)))
+    # level choice among the three uploaded variants (Section 4)
+    p3s = g(load("deep_dive/proto_level3.json"), "scenarios") or {}
+
+    def _lv(s, k):
+        return g(p3s, s, "methods", k, "minus_shipped", "mean")
+    gains = all(_lv(s, "nosubj_d-0.5_mu2") < _lv(s, "nosubj_d0_mu2") for s in ("INV", "MID", "HARD"))
+    costs = all(_lv(s, "nosubj_d-0.5_mu2") < _lv(s, "nosubj_d-1_mu2") for s in ("A", "Y25", "INV"))
+    claim("[level] 1010717 gains more than 1010715 on INV, MID and HARD, and costs less than 1010735 on A, Y25 and INV",
+          "deep_dive/proto_level3.json", "; ".join(f"{s}: {_lv(s, 'nosubj_d0_mu2'):+.4f} / {_lv(s, 'nosubj_d-0.5_mu2'):+.4f} / "
+                                                   f"{_lv(s, 'nosubj_d-1_mu2'):+.4f}" for s in ("A", "Y25", "INV", "MID", "HARD")),
+          gains and costs)
     # W2-sem and W1 (negative results)
     ws_ = g(load("w2_items/confirm_sem.json"), "scenarios", "INV", "selected_minus_W2") or {}
     claim("[W2-sem] the semantic kernel's INV CI against W2 includes 0 (gate d fails), so nothing was built", "w2_items/confirm_sem.json",

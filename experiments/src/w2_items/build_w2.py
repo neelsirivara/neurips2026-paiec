@@ -30,6 +30,13 @@ ROOT = SRC.parents[1]
 CAND = ROOT / "submission" / "candidates"
 BASE_ZIP = CAND / "xp_level_m050.zip"
 BASE_SHA = "cda9fe9cae49b68997d831f1de8dfe3d53a14ad3d1ac15281b22bd8326c7a715"
+# sha256 of each member of that zip. Another zlib build (CPython < 3.14, or Linux) compresses the same members to
+# different bytes, so a rebuilt base zip is accepted when its members match these exactly.
+BASE_MEMBER_SHA = {
+    "model.py": "5a4e53b4e8976ecf72b9011f05edfdea3d8cdc31f8b2332a71d16ab6a4e310fc",
+    "labeling.py": "d786011f7f8a2affed857e9a5084eace0af7bf5a6d2afcdca634a6504743f214",
+    "README.md": "b81e32c666481ddaaf28999b7066266aa77d69eda46d693dbda8f1b35a529f9e",
+}
 SHIPPED = ROOT / "submission" / "paiec_submission.zip"
 RES = SRC.parent / "results" / "w2_items" / "candidates"
 
@@ -90,7 +97,12 @@ def main() -> int:
     cand_root = Path(a.outdir).resolve() if a.outdir else CAND
     zbytes = BASE_ZIP.read_bytes()
     if sha(zbytes) != BASE_SHA:
-        raise SystemExit("xp_level_m050.zip is not the validated candidate (sha mismatch); stopping")
+        with ZipFile(BASE_ZIP) as zf:
+            members = {n: sha(zf.read(n)) for n in zf.namelist()}
+        if members != BASE_MEMBER_SHA:
+            raise SystemExit("xp_level_m050.zip is not the validated candidate (member sha mismatch); stopping")
+        print("note: xp_level_m050.zip bytes differ from the validated zip (another zlib build) but its members are "
+              "identical; continuing, and the new zip's members will match the validated candidate's")
     shipped_before = sha(SHIPPED.read_bytes())
     with ZipFile(BASE_ZIP) as zf:
         model_src = zf.read("model.py").decode("utf-8")

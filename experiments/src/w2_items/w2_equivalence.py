@@ -21,7 +21,7 @@ args = sys.argv[1:]
 name = args[0]
 NTS = int(args[args.index("--n") + 1]) if "--n" in args else 24
 scen = args[args.index("--scen") + 1] if "--scen" in args else "INV"
-ROOT = Path(r"C:\Users\neels\Downloads\gen_papers_2\neurips_challenges\paiec")
+ROOT = Path(__file__).resolve().parents[3]
 cdir = (Path(args[args.index("--cdir") + 1]) if "--cdir" in args else ROOT / "submission" / "candidates") / name
 
 

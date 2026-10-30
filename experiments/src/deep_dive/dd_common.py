@@ -1,15 +1,17 @@
 """Shared helpers for the 2026-10-26 deep dive (scratch; reuses paiec/experiments/src/xpair_sim.py unchanged)."""
-import json, sys, math, time, csv, re, pickle
+import json, os, sys, math, time, csv, re, pickle
 from pathlib import Path
-SRC = Path(r"C:\Users\neels\Downloads\gen_papers_2\neurips_challenges\paiec\experiments\src")
+SRC = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SRC))
 import numpy as np
 import xpair_sim as X
 import model
 
-OUT = Path(r"C:\Users\neels\Downloads\gen_papers_2\neurips_challenges\paiec\experiments\results\deep_dive")
+OUT = SRC.parent / "results" / "deep_dive"
 OUT.mkdir(parents=True, exist_ok=True)
-INV_CSV = Path(r"C:\Users\neels\Downloads\gen_papers_2\neurips_challenges\_downloads\paiec_deepdive_2026-10-26\intel\inventory_gid0.csv")
+# The organisers' benchmark inventory sheet saved as CSV (README.md says where to get it), next to the repository
+INV_CSV = Path(os.environ.get("PAIEC_INV_CSV",
+                              SRC.parents[2] / "_downloads" / "paiec_deepdive_2026-10-26" / "intel" / "inventory_gid0.csv"))
 SHIPPED_TAUS = dict(model.XP_TAUS)
 SHIPPED_TI = model.XP_TAU_ITEM
 

@@ -3,7 +3,7 @@
 Every directional claim in paper/main.tex, re-derived from the result files. `HOLDS` means the
 artifact supports the claim as worded; `FAILS` means the text must be changed (or the claim dropped).
 
-213 claims checked, 0 failing.
+222 claims checked, 0 failing.
 
 | # | Claim | Artifact | Values | Status |
 |---|---|---|---|---|
@@ -159,7 +159,7 @@ artifact supports the claim as worded; `FAILS` means the text must be changed (o
 | 150 | [draws] three-draw mean and sd as printed (0.1897, 0.026) | `selected_predictor_draws.json` | mean 0.1897, sd 0.0258 | HOLDS |
 | 151 | [draws] the largest matched difference between draws of the same predictor exceeds 3 of the 6 between-submission differences | `selected_predictor_draws.json + formative_runs.json` | same max 0.0230; between [0.0418, 0.0293, 0.0154, 0.0124, 0.0263, 0.0139] | HOLDS |
 | 152 | [draws] the three-draw mean would rank 46 on the public board (the best draw 22) | `leaderboard_context.json` | mean rank 46, best-draw rank 22 | HOLDS |
-| 153 | [draws] every main-text paragraph that gives a single draw of the base or selected predictor also gives the arm mean; abstract and conclusion give both arm means | `paper/main.tex` | 1 paragraphs, without mean: []; abstract True; conclusion True | HOLDS |
+| 153 | [draws] every main-text paragraph that gives a single draw of the base or selected predictor also gives the arm mean; abstract and conclusion give both arm means | `paper/main.tex` | 2 paragraphs, without mean: []; abstract True; conclusion True | HOLDS |
 | 154 | [formative] 1010370's budget-0 ECE is above all four simulated populations' values | `ece_check.json` | observed 0.34045833333333336, simulated [0.235, 0.271, 0.299, 0.286] | HOLDS |
 | 155 | [formative] 1010717's budget-0 ECE is above every simulated value for its constants (appendix wording 'also above') | `ece_check.json` | observed 0.278000625, simulated [0.257, 0.247, 0.203] | HOLDS |
 | 156 | [formative] 1010370's B1 and B3 are within 0.01 of the simulated INV values (text: 'in the range of') | `formative_runs.json + proto_level3.json INV` | B1 0.21034755555555557 vs 0.20476645468929802, B3 0.19087988888888888 vs 0.18934701199238768 | HOLDS |
@@ -217,9 +217,18 @@ artifact supports the claim as worded; `FAILS` means the text must be changed (o
 | 208 | [switch] 1019686 (infrastructure archival error, same ZIP) is reported but not counted; its retry 1019903 is counted; the retry note records a save time before the retry's log was retrieved (the note was later amended to correct that time, so the file's mtime no longer dates it) | `draws.json + SWITCH_RULE.md + _downloads/cb_logs_*` | infra ['1019686']; counted [1019682, 1019683, 1019685, 1019903]; note time 2026-10-29 22:28:00+00:00 < 1019903 log 2026-10-29 22:38:09.543787+00:00 | HOLDS |
 | 209 | [switch] the pending W2 draw(s) cannot overturn condition 2 unless they score worse than the constant 0.5 (ALC > 0.25) | `w2_items/draws.json` | pending [1019688]; would need ALC > 0.380 | HOLDS |
 | 210 | [switch] the selected ID is the first W2 draw (1019682) | `selected_submission.json + draws.json` | 1019682 vs 1019682 | HOLDS |
-| 211 | [W2-sem] the semantic kernel's INV CI against W2 includes 0 (gate d fails), so nothing was built | `w2_items/confirm_sem.json` | -0.0000 [-0.0003, +0.0003]; gate False | HOLDS |
-| 212 | [W1] the exact posterior's H7 gain comes entirely from budget 0; faster early updates are significantly worse on H7-INV | `deep_dive/w1/` | dALC -0.0019, 0.1*dB0 -0.0020; faster +0.0017 [+0.0002, +0.0033] | HOLDS |
-| 213 | [Qwen3-14B] the report's sentence matches results/qwen3_14b_status.json | `qwen3_14b_status.json + results_macros.tex` | status not_evaluated | HOLDS |
+| 211 | [switch] the selected ID is the first counted W2 run that finished (earliest saved scoring log), as the rule specifies | `_downloads/cb_logs_*/scoring_stdout.txt mtimes` | first 1019682, selected 1019682 | HOLDS |
+| 212 | [switch] the selected run's own draw is the arm's highest (worst) ALC, so the ID is not a best-of-draws pick (text: \SubDrawRank) | `draws.json + results_macros.tex` | {1019682: 0.1881, 1019683: 0.169, 1019685: 0.1549, 1019903: 0.1701}; macro word highest (worst) | HOLDS |
+| 213 | [switch] the switch rule names the first finished W2 run, and its contingency clause was written before any W2 draw finished | `w2_items/SWITCH_RULE.md` | phrases present | HOLDS |
+| 214 | [switch] not counting the infrastructure-failed run cannot favour the switch: its log-only ALC is below the W2 arm mean | `draws.json` | log-only 0.158058375, W2 mean 0.1705248611111111 | HOLDS |
+| 215 | [draws W2] the pair-matched ALC difference comes mostly (>= 80%) from B1, which is > 3x the largest simulated abs(dB1); at B3-B15 the matched differences are within one se of zero | `draws.json + confirm.json` | B1 share 0.94; B1 -0.0114 vs max sim abs(dB1) 0.0014; B3/B7/B15 abs(t) [0.3, 0.62, 0.79] | HOLDS |
+| 216 | [draws W2] every formative draw used the same benchmark IDs (Limitations: 'drew the same 7 benchmark IDs') | `draws.json structure` | per draw [7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7]; distinct base 7, W2 7, shared 7 | HOLDS |
+| 217 | [simulator] Streams defaults to random acquisition, and no W2 or deep-dive script passes policy='fresh' | `xpair_sim.py, w2_items/*.py, deep_dive/*.py` | checked source | HOLDS |
+| 218 | [W2] the selected share cap is >= 1, so it never binds (distinct values of a key <= labelled items carrying it) | `results_macros.tex WtFeatShare` |  | HOLDS |
+| 219 | [level] 1010717 gains more than 1010715 on INV, MID and HARD, and costs less than 1010735 on A, Y25 and INV | `deep_dive/proto_level3.json` | A: +0.0002 / +0.0018 / +0.0057; Y25: +0.0007 / +0.0046 / +0.0104; INV: -0.0010 / -0.0020 / -0.0003; MID: -0.0011 / -0.0041 / -0.0042; HARD: -0.0019 / -0.0069 / -0.0087 | HOLDS |
+| 220 | [W2-sem] the semantic kernel's INV CI against W2 includes 0 (gate d fails), so nothing was built | `w2_items/confirm_sem.json` | -0.0000 [-0.0003, +0.0003]; gate False | HOLDS |
+| 221 | [W1] the exact posterior's H7 gain comes entirely from budget 0; faster early updates are significantly worse on H7-INV | `deep_dive/w1/` | dALC -0.0019, 0.1*dB0 -0.0020; faster +0.0017 [+0.0002, +0.0033] | HOLDS |
+| 222 | [Qwen3-14B] the report's sentence matches results/qwen3_14b_status.json | `qwen3_14b_status.json + results_macros.tex` | status not_evaluated | HOLDS |
 
 Number provenance: every number in the PDF is a macro from `paper/results_macros.tex`
 (generated by `make_macros.py`); tables are `paper/results_table_*.tex` from the same script;

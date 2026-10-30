@@ -1,7 +1,7 @@
 """Generate deep_dive/rater_gemini_appendix.py.txt from the generic parts of rater_appendix.py.txt."""
 from pathlib import Path
 
-D = Path(r"C:\Users\neels\Downloads\gen_papers_2\neurips_challenges\paiec\experiments\src\deep_dive")
+D = Path(__file__).resolve().parent
 src = (D / "rater_appendix.py.txt").read_text(encoding="utf-8")
 
 

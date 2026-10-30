@@ -16,7 +16,7 @@ from w2s_sim import *  # noqa: F401,F403
 args = sys.argv[1:]
 name = args[0]
 NTS = int(args[args.index("--n") + 1]) if "--n" in args else 24
-ROOT = Path(r"C:\Users\neels\Downloads\gen_papers_2\neurips_challenges\paiec")
+ROOT = Path(__file__).resolve().parents[3]
 cdir = (Path(args[args.index("--cdir") + 1]) if "--cdir" in args else ROOT / "submission" / "candidates") / name
 spec = importlib.util.spec_from_file_location("cand", cdir / "model.py")
 cand = importlib.util.module_from_spec(spec)

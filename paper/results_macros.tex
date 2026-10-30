@@ -2561,6 +2561,7 @@
 \newcommand{\CPolicy}{fresh}
 \newcommand{\CPriorPLo}{0.18}
 \newcommand{\CPriorPHi}{0.82}
+\newcommand{\PyVersion}{3.14.5}
 \newcommand{\ShipSubjectShrink}{0.7}
 \newcommand{\ShipIntercept}{0}
 \newcommand{\ShipTauMu}{0.5}
@@ -3607,6 +3608,11 @@
 \newcommand{\PmBFifteenSe}{0.0015}
 \newcommand{\PmBThirtyOneMean}{-0.0035}
 \newcommand{\PmBThirtyOneSe}{0.0020}
+\newcommand{\PmBOneSharePct}{94}
+\newcommand{\WcDBOneMaxAbs}{0.0014}
+\newcommand{\WcNBoot}{2,000}
+\newcommand{\SubDrawAlc}{0.1881}
+\newcommand{\SubDrawRank}{the highest (worst) ALC of its arm}
 \newcommand{\BmMean}{-0.0209}
 \newcommand{\BmSe}{0.0151}
 \newcommand{\ArWtwoMissing}{1019688}
@@ -3622,13 +3628,13 @@
 \newcommand{\InfraCode}{PAIEC-INFRA-ARCHIVE-001}
 \newcommand{\InfraRetryId}{1019903}
 \newcommand{\RetryNoteTime}{\textbf{??}}
-\newcommand{\InfraFootnote}{\footnote{W2 run 1019686 was scored (its log is complete, 8 pairs) but ended with the platform's infrastructure archival error (\texttt{PAIEC-INFRA-ARCHIVE-001}), so the platform recorded no score. Under the retry note added to \texttt{SWITCH\_RULE.md} before the retry's result was retrieved, it was retried once with the same ZIP as 1019903; its log-only ALC (0.1581) is not counted (Appendix~\ref{app:formative}).}}
+\newcommand{\InfraFootnote}{\footnote{W2 run 1019686 was scored (its log is complete, 8 pairs) but ended with the platform's infrastructure archival error (\texttt{PAIEC-INFRA-ARCHIVE-001}), so the platform recorded no score. Under a retry note added to \texttt{SWITCH\_RULE.md} after this failure (with its complete log at hand) and before the retry's result was retrieved, it was retried once with the same ZIP as 1019903. Its log-only ALC (0.1581) is not counted; this cannot favour the switch, because it is below the W2 arm mean (0.1705) (Appendix~\ref{app:formative}).}}
 \newcommand{\RuleContingencyTime}{Oct 30 12:00 PDT}
 \newcommand{\RuleCOneSentence}{1019688 had not finished by the rule's contingency time (Oct 30 12:00 PDT), so the contingency replaces condition 1}
 \newcommand{\ArWtwoPending}{ (1019688 had not finished by the rule's contingency time)}
 \newcommand{\RuleFlipAlc}{--}
 \newcommand{\RuleFlipBudget}{--}
-\newcommand{\RuleSelectSentence}{Under the contingency, conditions 2 (tolerance recomputed for 4 runs: 0.023) and 3 are applied to the 4 finished runs and both hold, so we select \SubId.}
+\newcommand{\RuleSelectSentence}{Under the contingency, conditions 2 (tolerance recomputed for 4 runs: 0.023) and 3 are applied to the 4 finished runs and both hold, so we select \SubId, the first W2 run that finished, as the rule specifies.}
 \newcommand{\SubStatus}{final}
 \newcommand{\ArPairsMin}{8}
 \newcommand{\ArPairsMax}{9}
