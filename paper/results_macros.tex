@@ -3621,15 +3621,15 @@
 \newcommand{\InfraNPairs}{8}
 \newcommand{\InfraCode}{PAIEC-INFRA-ARCHIVE-001}
 \newcommand{\InfraRetryId}{1019903}
-\newcommand{\RetryNoteTime}{2026-10-29 23:00 UTC}
+\newcommand{\RetryNoteTime}{\textbf{??}}
 \newcommand{\InfraFootnote}{\footnote{W2 run 1019686 was scored (its log is complete, 8 pairs) but ended with the platform's infrastructure archival error (\texttt{PAIEC-INFRA-ARCHIVE-001}), so the platform recorded no score. Under the retry note added to \texttt{SWITCH\_RULE.md} before the retry's result was retrieved, it was retried once with the same ZIP as 1019903; its log-only ALC (0.1581) is not counted (Appendix~\ref{app:formative}).}}
 \newcommand{\RuleContingencyTime}{Oct 30 12:00 PDT}
-\newcommand{\RuleCOneSentence}{condition 1 is pending: 4 of the 5 counted runs have finished without a platform error, and 1019688 is still running}
-\newcommand{\ArWtwoPending}{ (1019688 still running)}
-\newcommand{\RuleFlipAlc}{0.380}
-\newcommand{\RuleFlipBudget}{0.390}
-\newcommand{\RuleSelectSentence}{The remaining run would have to score an ALC above 0.380, or a per-budget Brier above 0.390, to overturn conditions 2 or 3, far worse than the constant 0.5 (0.25); so we select \SubId, provisionally until that run finishes.}
-\newcommand{\SubStatus}{provisional}
+\newcommand{\RuleCOneSentence}{1019688 had not finished by the rule's contingency time (Oct 30 12:00 PDT), so the contingency replaces condition 1}
+\newcommand{\ArWtwoPending}{ (1019688 had not finished by the rule's contingency time)}
+\newcommand{\RuleFlipAlc}{--}
+\newcommand{\RuleFlipBudget}{--}
+\newcommand{\RuleSelectSentence}{Under the contingency, conditions 2 (tolerance recomputed for 4 runs: 0.023) and 3 are applied to the 4 finished runs and both hold, so we select \SubId.}
+\newcommand{\SubStatus}{final}
 \newcommand{\ArPairsMin}{8}
 \newcommand{\ArPairsMax}{9}
 \newcommand{\ArItemsMin}{487}

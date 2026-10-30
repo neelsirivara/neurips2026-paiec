@@ -294,11 +294,11 @@ at budget 0, where the two predictors are identical.
 Arm means. Each formative run scores a fresh draw of pairs, and the draw dominates (Table 4,
 Figure 1). The base predictor 1010717 has 7 draws (two of them deployment probes that return
 its predictions, Section 5.3): mean 0.1904, standard deviation 0.0187, range 0.1628­0.2143. The
-selected submission has 4 counted draws (1019688 still running): mean 0.1705, standard deviation
-0.0136, range 0.1549­0.1881.1The arm means differ by -0.0199 (se 0.0098), but this is mostly draw
-composition, not the item layer: the difference is already -0.0208 at budget 0, where the two predictors
-are identical, and it stays roughly flat across budgets, whereas the simulator expects a difference that
-is zero at budget 0 and grows with the budget.
+selected submission has 4 counted draws (1019688 had not finished by the rule's contingency time):
+mean 0.1705, standard deviation 0.0136, range 0.1549­0.1881.1The arm means differ by -0.0199 (se
+0.0098), but this is mostly draw composition, not the item layer: the difference is already -0.0208 at
+budget 0, where the two predictors are identical, and it stays roughly flat across budgets, whereas the
+simulator expects a difference that is zero at budget 0 and grows with the budget.
 
 Pair-matched comparison. Runs share subject­benchmark pairs, and a pair keeps its evaluation
 items across runs, so matching pairs removes most of the composition. Over the 11 pairs that occur
@@ -310,12 +310,12 @@ Selection. A rule written before any W2 draw returned (SWITCH_RULE.md) switches 
 to the item layer if (1) all 5 W2 runs finish without a platform error, (2) the W2 mean ALC is not
 worse than the base mean by more than 0.022 (two standard errors), and (3) no per-budget mean
 is worse by more than 0.03. Condition 2 holds (-0.0199), condition 3 holds (largest per-budget
-difference -0.0166), and condition 1 is pending: 4 of the 5 counted runs have finished without a
-platform error, and 1019688 is still running. The remaining run would have to score an ALC above
-0.380, or a per-budget Brier above 0.390, to overturn conditions 2 or 3, far worse than the constant
-0.5 (0.25); so we select 1019682, provisionally until that run finishes. The draws only screen for
-deployment failures and gross regressions; the selection rests on the pre-registered simulator gate.
-Leaderboard context. The public board (snapshot 2026-10-26) has 58 entries, #1 0.1172, #10 0.1483,
+difference -0.0166), and 1019688 had not finished by the rule's contingency time (Oct 30 12:00
+PDT), so the contingency replaces condition 1. Under the contingency, conditions 2 (tolerance
+recomputed for 4 runs: 0.023) and 3 are applied to the 4 finished runs and both hold, so we select
+1019682. The draws only screen for deployment failures and gross regressions; the selection rests on
+the pre-registered simulator gate. Leaderboard context. The public board (snapshot 2026-10-26) has
+58 entries, #1 0.1172, #10 0.1483, median 0.1768; each entry is a user's best draw. The base arm's
 
     1W2 run 1019686 was scored (its log is complete, 8 pairs) but ended with the platform's infrastructure archival error
 (PAIEC-INFRA-ARCHIVE-001), so the platform recorded no score. Under the retry note added to SWITCH_RULE.md before
@@ -323,8 +323,8 @@ the retry's result was retrieved, it was retried once with the same ZIP as 10199
 (Appendix A).
 
                                                5
-median 0.1768; each entry is a user's best draw. The base arm's mean would sit at about place 46 and
-the W2 arm's at 28; the gap to the leaders is far larger than anything the item layer can close.
+mean would sit at about place 46 and the W2 arm's at 28; the gap to the leaders is far larger than
+anything the item layer can close.
 
 5.3 Negative results
 

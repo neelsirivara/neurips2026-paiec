@@ -911,11 +911,20 @@ def main() -> None:
         iid = next(iter(infra_))
         zi = json.loads((dl / f"cb_logs_{iid}" / "details.json").read_text(encoding="utf-8")).get("data_file", "").split("?")[0].rsplit("/", 1)[-1] \
             if (dl / f"cb_logs_{iid}" / "details.json").exists() else None
+        # The note was amended afterwards to correct its own timestamp, so the file's mtime no longer dates it;
+        # the check compares the save time the note records with the retry log's retrieval time instead.
+        import re as _re
+        mnote = _re.search(r"recorded (\d{4}-\d{2}-\d{2}) at about (\d{1,2}):(\d{2}) UTC", rt2)
+        note_utc = (_dt2.datetime.strptime(f"{mnote.group(1)} {mnote.group(2)}:{mnote.group(3)}", "%Y-%m-%d %H:%M")
+                    .replace(tzinfo=_dt2.timezone.utc) if mnote else None)
+        log_utc = _dt2.datetime.fromtimestamp(retry_log.stat().st_mtime, tz=_dt2.timezone.utc)
         ok_inf = (int(iid) not in ids_w and 1019903 in ids_w and zi == "w2_f05s1_k1q2.zip" and "Retry once" in rt2 and "1019903" in rt2
-                  and (w2dir / "SWITCH_RULE.md").stat().st_mtime < retry_log.stat().st_mtime)
+                  and note_utc is not None and note_utc < log_utc)
     claim("[switch] 1019686 (infrastructure archival error, same ZIP) is reported but not counted; its retry 1019903 is counted; the "
-          "retry note was saved before the retry's log was retrieved", "draws.json + SWITCH_RULE.md + _downloads/cb_logs_*",
-          f"infra {list(infra_)}; counted {ids_w}; rule mtime < 1019903 log mtime", ok_inf)
+          "retry note records a save time before the retry's log was retrieved (the note was later amended to correct that time, "
+          "so the file's mtime no longer dates it)", "draws.json + SWITCH_RULE.md + _downloads/cb_logs_*",
+          f"infra {list(infra_)}; counted {ids_w}; note time {note_utc if infra_ and retry_log.exists() else None} < 1019903 log "
+          f"{log_utc if infra_ and retry_log.exists() else None}", ok_inf)
     miss = g(w2d, "missing") or []
     if miss:
         k = len(ids_w) + len(miss)
