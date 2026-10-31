@@ -531,9 +531,7 @@ item signal, an LLM's rating or sentence embeddings, helped.
     Qwen3-VL study).
 
  · LLM-based coding assistant. Claude Code (Anthropic's Claude models) was the coding and
-    research assistant throughout. Under the author's direction it wrote the code, ran the experiments
-    and analyses, and drafted this report, reading the project files (including training-release items and
-    our Codabench logs). The author is responsible for the submission and the report.
+    research assistant throughout.
 
                                                            8
 References
